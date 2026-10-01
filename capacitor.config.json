@@ -1,0 +1,6 @@
+{
+  "appId": "fr.plidespirates.app",
+  "appName": "Le Pli des Pirates",
+  "webDir": "dist",
+  "android": { "allowMixedContent": false }
+}

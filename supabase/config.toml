@@ -1,0 +1,15 @@
+# Configuration locale du CLI Supabase (supabase start / supabase functions deploy)
+project_id = "pli-des-pirates"
+
+[auth]
+site_url = "https://pli-des-pirates.vercel.app"
+additional_redirect_urls = ["http://localhost:5173/", "fr.plidespirates.app://connexion"]
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+otp_expiry = 3600
+
+[functions.game]
+verify_jwt = true
