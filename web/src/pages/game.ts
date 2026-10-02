@@ -5,6 +5,7 @@ import { $, esc, toast, copyText } from '../util';
 import { optionsHTML, readOptions, wireOptions } from '../options';
 import { TableView } from '../table';
 import { fromProfile } from '../avatar';
+import { detailPage } from './detail';
 import { go, setCleanup } from '../main';
 
 export async function gamePage(root: HTMLElement, id: string, uid: string) {
@@ -20,6 +21,8 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
   };
   const first = await loadGame();
   if (!first.g) { root.innerHTML = `<section class="page narrow"><div class="box"><h1>Partie introuvable</h1><p class="lead">Elle n'existe pas ou vous n'en faites pas partie. Demandez un lien d'invitation à l'hôte.</p><a class="btn alt" href="#/">Retour à l'accueil</a></div></section>`; return; }
+  // partie terminée : on affiche son détail (podium, courbe, manches) plutôt que la table
+  if (first.g.status === 'finished') return detailPage(root, id, uid);
 
   // Synchronisation : le temps réel sert de signal, puis on relit événements, état et main.
   const sync = async () => {
