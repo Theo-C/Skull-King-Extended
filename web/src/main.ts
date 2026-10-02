@@ -63,6 +63,8 @@ sb.auth.onAuthStateChange((ev, session) => {
   const uid = session?.user?.id ?? null;
   if (ev === 'INITIAL_SESSION') { authUid = uid; return; }
   if (ev === 'TOKEN_REFRESHED' || uid === authUid) return;
+  // SIGNED_IN peut arriver avant INITIAL_SESSION au démarrage : le premier route() s'en charge déjà
+  if (authUid === undefined) { authUid = uid; return; }
   authUid = uid;
   if (ev === 'SIGNED_IN') { const h = recall(); if (h && h !== location.hash) { location.hash = h; return; } route(); }
   if (ev === 'SIGNED_OUT') route();

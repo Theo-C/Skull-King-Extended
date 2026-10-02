@@ -23,8 +23,13 @@ export function modal(html: string, buttons: { label: string; value: any; cls?: 
 }
 export const closeModal = () => { $('#modal').hidden = true; };
 
+/** Copie dans le presse-papiers ; repli sur l'ancienne méthode (zone de texte + execCommand) si l'API est refusée. */
 export async function copyText(text: string) {
-  try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* repli ci-dessous */ }
+  try {
+    const t = document.createElement('textarea'); t.value = text; t.setAttribute('readonly', ''); t.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.append(t); t.select(); const ok = document.execCommand('copy'); t.remove(); return ok;
+  } catch { return false; }
 }
 
 const DAY = 86400000;
