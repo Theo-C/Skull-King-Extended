@@ -10,21 +10,28 @@ export interface Profile {
   xp: number; public_rank: boolean; notify_turn: boolean; sounds: boolean;
 }
 const COLS = 'id, pseudo, color, avatar_kind, avatar_art, avatar_url, xp, public_rank, notify_turn, sounds';
-let cache: { uid: string; p: Profile | null } | null = null;
+let cache: { uid: string; p: Profile } | null = null;
+let pending: { uid: string; p: Promise<Profile | null> } | null = null;
 
-/** Profil de l'utilisateur ; tolère une base sans la migration « profiles_xp » (on garde alors le pseudo seul). */
-export async function myProfile(uid: string, force = false): Promise<Profile | null> {
-  if (!force && cache?.uid === uid) return cache.p;
-  let { data, error } = await sb.from('profiles').select(COLS).eq('id', uid).maybeSingle();
-  if (error) {
-    const r = await sb.from('profiles').select('id, pseudo').eq('id', uid).maybeSingle();
-    data = r.data ? { color: '#d9b25a', avatar_kind: 'initial', avatar_art: null, avatar_url: null, xp: 0, public_rank: true, notify_turn: true, sounds: true, ...r.data } as any : null;
-  }
-  cache = { uid, p: data as Profile | null };
-  if (cache.p) applyPrefs(cache.p);
-  return cache.p;
+/** Profil de l'utilisateur ; tolère une base sans la migration « profiles_xp » (on garde alors le pseudo seul).
+ *  Une seule requête à la fois (l'en-tête et la page le demandent ensemble) ; un profil introuvable n'est pas mis en cache. */
+export function myProfile(uid: string, force = false): Promise<Profile | null> {
+  if (!force && cache?.uid === uid) return Promise.resolve(cache.p);
+  if (pending?.uid === uid) return pending.p;
+  const p: Promise<Profile | null> = (async () => {
+    let { data, error } = await sb.from('profiles').select(COLS).eq('id', uid).maybeSingle();
+    if (error) {
+      const r = await sb.from('profiles').select('id, pseudo').eq('id', uid).maybeSingle();
+      data = r.data ? { color: '#d9b25a', avatar_kind: 'initial', avatar_art: null, avatar_url: null, xp: 0, public_rank: true, notify_turn: true, sounds: true, ...r.data } as any : null;
+    }
+    const prof = data as Profile | null;
+    if (prof) { cache = { uid, p: prof }; applyPrefs(prof); }
+    return prof;
+  })().finally(() => { if (pending?.p === p) pending = null; });
+  pending = { uid, p };
+  return p;
 }
-export const forgetProfile = () => { cache = null; };
+export const forgetProfile = () => { cache = null; pending = null; };
 /** Préférences appliquées à ce navigateur : sons de la table, notification quand c'est son tour. */
 export function applyPrefs(p: Pick<Profile, 'sounds' | 'notify_turn'>) {
   setSound(p.sounds !== false);
@@ -39,21 +46,26 @@ const TABS: [string, string, string, string][] = [
   ['profile', 'Profil', '#/profil', 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4-6 8-6s7 2 8 6'],
 ];
 
-/** En-tête (navigation + pastille de profil) et barre d'onglets du téléphone. */
+/** En-tête (navigation + pastille de profil) et barre d'onglets du téléphone.
+ *  body.authed : sur téléphone, la barre d'onglets remplace la navigation (seul le lien Règles reste en haut). */
 export function shell(user: { id: string } | null, active: string) {
   const nav = $('#nav'), pill = $('#pill'), tabs = $('#tabbar');
+  const link = (k: string, l: string, h: string, inner = l) => `<a href="${h}" class="${active === k ? 'on' : ''}"${active === k ? ' aria-current="page"' : ''}>${inner}</a>`;
+  document.body.classList.toggle('authed', !!user);
   if (user) {
-    nav.innerHTML = NAV.map(([k, l, h]) => `<a href="${h}" class="${active === k ? 'on' : ''}">${l}</a>`).join('');
-    tabs.innerHTML = TABS.map(([k, l, h, d]) => `<a href="${h}" class="${active === k ? 'on' : ''}" ${active === k ? 'aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>${l}</a>`).join('');
+    nav.innerHTML = NAV.map(([k, l, h]) => link(k, l, h)).join('');
+    tabs.innerHTML = TABS.map(([k, l, h, d]) => link(k, l, h, `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>${l}`)).join('');
     tabs.hidden = false;
     pill.hidden = false; pill.classList.toggle('on', active === 'profile');
+    if (active === 'profile') pill.setAttribute('aria-current', 'page'); else pill.removeAttribute('aria-current');
     myProfile(user.id).then(p => {
       if (!p) return;
       const x = xpLine(p.xp);
+      pill.setAttribute('aria-label', `Mon profil : ${p.pseudo} · Niv. ${x.level}`);
       pill.innerHTML = `${avatarHTML(fromProfile(p), 36)}<span><b>${esc(p.pseudo)} <i>· Niv. ${x.level}</i></b><span class="mxp" title="${x.text} XP"><span style="width:${x.pct}%"></span></span></span>`;
     });
   } else {
-    nav.innerHTML = `<a href="#/entrainement" class="${active === 'practice' ? 'on' : ''}">Entraînement</a><a href="#/regles" class="${active === 'rules' ? 'on' : ''}">Règles</a><a href="#/connexion" class="${active === 'login' ? 'on' : ''}">Connexion</a>`;
-    pill.hidden = true; tabs.hidden = true; tabs.innerHTML = '';
+    nav.innerHTML = link('practice', 'Entraînement', '#/entrainement') + link('rules', 'Règles', '#/regles') + link('login', 'Connexion', '#/connexion');
+    pill.hidden = true; pill.removeAttribute('aria-current'); tabs.hidden = true; tabs.innerHTML = '';
   }
 }

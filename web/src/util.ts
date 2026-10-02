@@ -44,3 +44,5 @@ export function relDay(iso: string | null | undefined) {
 }
 /** « +12 » / « −3 » (vrai signe moins), arrondi à l'entier sauf précision demandée. */
 export const signed = (v: number, digits = 0) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(digits).replace('.', ',');
+/** « de Maëlle », « d'Aurore », « d'Élise » : élision devant une voyelle (accentuée ou non), pas devant un h. */
+export const de = (nom: string) => { const n = String(nom ?? '').trim(); return (/^[aeiouyàâäéèêëîïôöûüùœæ]/i.test(n) ? "d'" : 'de ') + n; };

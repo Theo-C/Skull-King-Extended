@@ -14,7 +14,7 @@ const ACH_NAMES: Record<string, string> = {
 /** Libellé d'une ligne d'XP (game, bids, win, ach:<code>). */
 export function xpReason(reason: string, amount: number) {
   if (reason === 'game') return 'Partie terminée';
-  if (reason === 'bids') return `${amount / 10} mise${amount > 10 ? 's' : ''} tenue${amount > 10 ? 's' : ''} × 10`;
+  if (reason === 'bids') { const n = Math.round(amount / 10), s = n > 1 ? 's' : ''; return `${n} mise${s} tenue${s} × 10`; }
   if (reason === 'win') return 'Victoire';
   if (reason.startsWith('ach:')) return 'Haut fait : ' + (ACH_NAMES[reason.slice(4)] ?? reason.slice(4));
   return reason;
