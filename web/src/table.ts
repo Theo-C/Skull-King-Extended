@@ -6,6 +6,7 @@ import { $, esc, modal, sleep, toast } from './util';
 import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
 import { installCardZoom } from './zoom';
+import { avatarHTML, type AvatarData } from './avatar';
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 /** Remplace le contenu d'un élément seulement s'il a changé : évite de recréer le DOM (et de casser animations et survol). */
@@ -260,6 +261,13 @@ export class TableView {
     if (i === this.mySeat && this.priv?.bid != null) return { txt: String(this.priv.bid), wait: false };
     return { txt: p.hasBid ? '✓' : '…', wait: true };
   }
+  /* ---------- Avatars (profils des joueurs, transmis par la page de partie) ---------- */
+  private avatars: (AvatarData | null)[] = [];
+  /** Avatars et couleurs des sièges (null : bot ou joueur sans profil, initiale sur la couleur par défaut). */
+  setAvatars(list: (AvatarData | null)[]) { this.avatars = list; if (this.pub) this.render(); }
+  private colorOf(i: number) { return this.avatars[i]?.color || PCOL[i % 9]; }
+  private avatar(i: number, name: string, size: number) { return avatarHTML({ ...(this.avatars[i] || {}), letter: name, color: this.colorOf(i) }, size, size >= 50 ? `0 0 0 2px #1b140e,0 0 0 4px ${this.colorOf(i)}` : undefined); }
+
   /* ---------- Lise Fil-de-Soie ---------- */
   private lise: { by: number; seat: number; pos: number; until: number } | null = null;
   private liseTimer: any = 0;
@@ -332,11 +340,11 @@ export class TableView {
     for (let rel = 1; rel < n; rel++) {
       const i = (b + rel) % n, p = pb.players[i];
       let el = this.oppEls[i]; if (!el || !el.isConnected) { el = document.createElement('div'); el.className = 'opp'; box.append(el); this.oppEls[i] = el; }
-      el.style.setProperty('--pc', PCOL[i % 9]); el.classList.toggle('active', this.isActive(i));
+      el.style.setProperty('--pc', this.colorOf(i)); el.classList.toggle('active', this.isActive(i));
       let st: string;
       if (pb.bidsRevealed && p.bid != null) st = `<b class="og ${p.won > p.bid ? 'over' : p.won === p.bid ? 'ok' : ''}">${p.won}/${p.bid}</b>`;
       else st = `<span class="ost">${p.hasBid ? 'a misé' : 'réfléchit…'}</span>`;
-      setHTML(el, `<div class="oh"><span class="oav">${esc((p.name.trim()[0] || '?').toUpperCase())}</span><span class="onm">${esc(p.name)}</span>${pb.phase === 'play' && pb.leader === i ? '<span class="oent" title="Entame">E</span>' : ''}</div>
+      setHTML(el, `<div class="oh">${this.avatar(i, p.name, 30)}<span class="onm">${esc(p.name)}</span>${pb.phase === 'play' && pb.leader === i ? '<span class="oent" title="Entame">E</span>' : ''}</div>
         <div class="ob">${st}<span>${p.score} pts</span></div>`);
     }
   }
@@ -346,7 +354,7 @@ export class TableView {
     const p = pb.players[me];
     if (part === 'pre') {
       const ring = this.isActive(me) ? '<svg class="ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="none" stroke="rgba(43,33,23,.15)" stroke-width="3"/><circle class="run" cx="20" cy="20" r="18" fill="none" stroke="#8a5e0e" stroke-width="3" stroke-linecap="round" transform="rotate(-90 20 20)"/></svg>' : '';
-      return `<div class="meav" id="meav" style="--pc:${PCOL[me % 9]}">${ring}<b>${esc((p.name.trim()[0] || '?').toUpperCase())}</b></div>`;
+      return `<div class="meav" id="meav" style="--pc:${this.colorOf(me)}">${ring}<b>${this.avatar(me, p.name, 30)}</b></div>`;
     }
     if (!(pb.bidsRevealed && p.bid != null)) return '';
     return `<div class="megauge ${p.won > p.bid ? 'over' : p.won === p.bid ? 'ok' : ''}"><small>PLIS/MISE</small><b>${p.won}/${p.bid}</b></div>`;
@@ -390,7 +398,7 @@ export class TableView {
       else { right = `<div class="bidst"><div class="sealed">${SEAL}</div></div>`; status = `mise scellée : ${this.priv.bid}`; }
     } else if (p.hasBid) { right = `<div class="bidst"><div class="sealed">${SEAL}</div></div>`; status = 'a misé'; }
     else { right = '<div class="bidst"><div class="think"><i></i><i></i><i></i></div></div>'; status = 'réfléchit…'; }
-    return `<div class="av">${ring}<b>${esc((p.name.trim()[0] || '?').toUpperCase())}</b></div>
+    return `<div class="av">${ring}${this.avatar(i, p.name, 56)}</div>
       <div class="pinfo"><div class="pn"><span class="nm">${esc(p.name)}</span>${lead}</div><div class="ps ${gold ? 'gold' : ''}">${status}</div></div>${right}`;
   }
   renderTable() {
@@ -409,7 +417,7 @@ export class TableView {
       const g = geo[(i - b + n) % n];
       let el = this.seatEls[i];
       if (!el) { el = document.createElement('div'); el.className = 'pod'; layer.append(el); this.seatEls[i] = el; }
-      el.style.left = g.px + 'px'; el.style.top = g.py + 'px'; el.style.setProperty('--pc', PCOL[i % 9]);
+      el.style.left = g.px + 'px'; el.style.top = g.py + 'px'; el.style.setProperty('--pc', this.colorOf(i));
       const active = this.isActive(i);
       el.classList.toggle('active', active); el.classList.toggle('liseby', this.liseNow()?.by === i); el.classList.toggle('me', i === this.mySeat); el.classList.toggle('cpt', n >= 6);
       setHTML(el, this.podHTML(i, active));
@@ -446,7 +454,7 @@ export class TableView {
         const x = g.sx + (j - (cnt[e.p] - 1) / 2) * cw * .55, y = g.sy;
         let w = this.tcards.get(key); const fresh = !w;
         if (!w) {
-          w = elFrom(`<div class="tslot">${cardHTML(e.card, e)}${e.imposed ? '<span class="imptag">Imposée</span>' : ''}<span class="who" style="--pc:${PCOL[e.p % 9]}"></span></div>`);
+          w = elFrom(`<div class="tslot">${cardHTML(e.card, e)}${e.imposed ? '<span class="imptag">Imposée</span>' : ''}<span class="who" style="--pc:${this.colorOf(e.p)}"></span></div>`);
           (w.firstElementChild as HTMLElement).style.rotate = `${g.r}deg`;
           layer.append(w); this.tcards.set(key, w);
         }
@@ -711,7 +719,7 @@ export class TableView {
       } else if (pb.phase === 'bid') { const mine = i === this.mySeat && this.priv; st = mine ? (this.priv!.bid == null ? 'à vous de miser' : `mise scellée : ${this.priv!.bid}`) : p.hasBid ? 'a misé' : 'réfléchit…'; if (mine && this.priv!.bid == null) stc = 'gold'; }
       const h = this.histCache[i]?.at(-1);
       const delta = h ? `<small class="${h.tot > 0 ? 'ok' : h.tot < 0 ? 'ko' : ''}">${h.tot > 0 ? '+' : ''}${h.tot} manche ${h.r}</small>` : '';
-      return `<div class="lrow${i === this.mySeat ? ' me' : ''}"><span class="rk">${k + 1}</span><span class="dot" style="background:${PCOL[i % 9]}"></span>
+      return `<div class="lrow${i === this.mySeat ? ' me' : ''}"><span class="rk">${k + 1}</span><span class="dot" style="background:${this.colorOf(i)}"></span>
         <div class="who"><b>${esc(p.name)}</b><div class="lp">${pips}<span class="${stc}">${st}</span></div></div>
         <div class="sc"><b>${p.score}</b>${delta}</div></div>`;
     }).join(''));
@@ -881,7 +889,7 @@ export class TableView {
       const bonus = x.items.length ? x.items.map((it: any) => `<span class="bchip ${it[0] < 0 ? 'neg' : ''}">${it[0] > 0 ? '+' : '−'}${Math.abs(it[0])} ${esc(it[1])}</span>`).join('') : '<span class="none">—</span>';
       return `<div class="rrow${now[i] === 1 ? ' first' : ''}" style="animation-delay:calc(${120 + k * 120}ms * var(--spd,1))">
         <div class="rk"><b>${now[i]}</b>${mv}</div>
-        <div class="rp"><span class="av" style="--pc:${PCOL[i % 9]}">${esc((p.name.trim()[0] || '?').toUpperCase())}</span><b>${esc(p.name)}</b></div>
+        <div class="rp">${this.avatar(i, p.name, 32)}<b>${esc(p.name)}</b></div>
         <div class="rb"><b>${x.bid} → ${x.won}</b><span class="ok ${ok ? '' : 'ko'}">${chip}</span></div>
         <div class="rn">${sg(x.base)}</div><div class="rx">${bonus}</div>
         <div class="rt" style="animation-delay:calc(${600 + k * 120}ms * var(--spd,1))">${sg(x.tot)}</div><div class="rs">${p.score}</div></div>`;

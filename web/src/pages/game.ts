@@ -4,6 +4,7 @@ import { sb, callGame, inviteLink } from '../api';
 import { $, esc, toast, copyText } from '../util';
 import { optionsHTML, readOptions, wireOptions } from '../options';
 import { TableView } from '../table';
+import { fromProfile } from '../avatar';
 import { go, setCleanup } from '../main';
 
 export async function gamePage(root: HTMLElement, id: string, uid: string) {
@@ -49,6 +50,12 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       emote: text => cast('emote', { text }),
       ready: round => cast('ready', { round }),
     }, () => go('#/'));
+    // avatars et couleurs des joueurs (les bots gardent l'initiale sur la couleur par défaut)
+    const ids = seats.filter(s => s.user_id).map(s => s.user_id);
+    if (ids.length) {
+      const { data: profs } = await sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url').in('id', ids);
+      if (profs) table.setAvatars(seats.map(s => { const p = profs.find((x: any) => x.id === s.user_id); return p ? fromProfile(p) : null; }));
+    }
   };
 
   const renderLobby = (g: any, seats: any[]) => {

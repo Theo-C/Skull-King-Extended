@@ -85,3 +85,29 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 }
 .chip .short{display:none}
 @media (max-width:640px){.chip.none .short{display:inline}}
+
+/* ===== Écrans du compte : avatar, en-tête, barre d'onglets ===== */
+.avatar{position:relative;display:inline-grid;place-items:center;flex:none;border-radius:50%;overflow:hidden;vertical-align:middle}
+.avatar>span{font-family:var(--f-disp);color:#1b140e;line-height:1}
+.avatar svg,.avatar img{display:block;width:100%;height:100%;object-fit:cover}
+.appbar{padding:12px 32px}
+.appbar .brand b{font-size:24px}
+.appbar nav a{font-size:15px;padding:8px 12px}
+.pill{display:flex;align-items:center;gap:10px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid rgba(234,208,138,.3);text-decoration:none;background:rgba(0,0,0,.25);color:inherit;min-height:44px}
+.pill.on,.pill:hover{border-color:var(--brass2)}
+.pill b{display:block;font-weight:800;font-size:14px;color:var(--parch);line-height:1;white-space:nowrap}
+.pill b i{font-style:normal;font-weight:700;color:var(--brass2)}
+.pill .mxp{display:block;width:96px;height:5px;margin-top:5px;border-radius:3px;background:rgba(234,208,138,.18);overflow:hidden}
+.pill .mxp span{display:block;height:5px;background:#c9a14a}
+.tabbar{display:none}
+.rulespage{max-width:900px;margin:0 auto}
+@media (max-width:719px){
+  .appbar{padding:8px 16px}
+  .appbar nav,.appbar .pill{display:none}
+  body:not(.at-table) .tabbar:not([hidden]){display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(18,14,11,.97);
+    border-top:1px solid rgba(234,208,138,.16);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0;min-height:52px;font-size:11.5px;font-weight:700;color:var(--muted);text-decoration:none}
+  .tabbar a.on{color:var(--brass2)}
+  .tabbar svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+  body:not(.at-table) #view{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+}

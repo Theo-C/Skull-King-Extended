@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
     base: './',
     envDir,
     define: Object.fromEntries(PUBLIC_ENV.map((k) => [`import.meta.env.${k}`, JSON.stringify(env[k] || '')])),
-    resolve: { alias: { '@engine': fileURLToPath(new URL('../supabase/functions/_shared/engine.ts', import.meta.url)) } },
+    resolve: { alias: { '@engine': fileURLToPath(new URL('../supabase/functions/_shared/engine.ts', import.meta.url)), '@shared': fileURLToPath(new URL('../supabase/functions/_shared', import.meta.url)) } },
     build: { outDir: fileURLToPath(new URL('../dist', import.meta.url)), emptyOutDir: true, chunkSizeWarningLimit: 1500 },
   };
 });
