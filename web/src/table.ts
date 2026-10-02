@@ -226,6 +226,7 @@ export class TableView {
     const mine = this.live && !this.busy && this.mySeat != null && !!pv && pb.phase !== 'end' &&
       ((pb.phase === 'bid' && pv.bid == null) || (pb.pending ? pb.pending.seat === this.mySeat : pb.current === this.mySeat));
     $('#action', this.root).classList.toggle('mine', mine);
+    if (mine && !this.wasMyTurn && document.hidden) notifyTurn();
     if (mine && !this.wasMyTurn) { this.turnStart = Date.now(); this.previewId = null; sfx.turn(); const a = $('#action', this.root); a.classList.remove('nudge'); void a.offsetWidth; a.classList.add('nudge'); }
     this.wasMyTurn = mine;
     document.title = mine && document.hidden ? '⚓ À vous de jouer ! · ' + this.baseTitle : this.baseTitle;
@@ -980,6 +981,13 @@ function handLayout(Wbox: number, Hbox: number, n: number) {
   // la partie visible (cliquable) d'une carte fait au moins 44 px, quand la largeur le permet
   if (n > 1 && step < 44 && 44 * (n - 1) + 60 <= W) { step = 44; cardW = Math.min(cardW, W - 44 * (n - 1)); cardH = cardW * 1.4; }
   return { cardW, cardH, step };
+}
+/** Notification du navigateur quand c'est à vous et que l'onglet est caché (préférence « Me prévenir quand c'est mon tour »). */
+function notifyTurn() {
+  try {
+    if (localStorage.getItem('pli-notify') === '0' || !('Notification' in window) || Notification.permission !== 'granted') return;
+    new Notification('À vous de jouer', { body: 'Le Pli des Pirates : la table vous attend.', icon: './icon.svg', tag: 'pli-tour' });
+  } catch { /* notifications indisponibles */ }
 }
 function stakeLines(b: number, cards: number, rascal: boolean): [string, number][] {
   const tenue = `Mise ${b} tenue`;

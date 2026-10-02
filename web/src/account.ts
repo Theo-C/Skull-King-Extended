@@ -3,6 +3,7 @@ import { sb } from './api';
 import { $, esc } from './util';
 import { avatarHTML, fromProfile } from './avatar';
 import { xpLine } from './xp';
+import { setSound } from './sound';
 
 export interface Profile {
   id: string; pseudo: string; color: string; avatar_kind: string; avatar_art: number | null; avatar_url: string | null;
@@ -20,9 +21,15 @@ export async function myProfile(uid: string, force = false): Promise<Profile | n
     data = r.data ? { color: '#d9b25a', avatar_kind: 'initial', avatar_art: null, avatar_url: null, xp: 0, public_rank: true, notify_turn: true, sounds: true, ...r.data } as any : null;
   }
   cache = { uid, p: data as Profile | null };
+  if (cache.p) applyPrefs(cache.p);
   return cache.p;
 }
 export const forgetProfile = () => { cache = null; };
+/** Préférences appliquées à ce navigateur : sons de la table, notification quand c'est son tour. */
+export function applyPrefs(p: Pick<Profile, 'sounds' | 'notify_turn'>) {
+  setSound(p.sounds !== false);
+  try { localStorage.setItem('pli-notify', p.notify_turn === false ? '0' : '1'); } catch { /* stockage indisponible */ }
+}
 
 const NAV: [string, string, string][] = [['home', 'Accueil', '#/'], ['lb', 'Classement', '#/classement'], ['hist', 'Historique', '#/historique'], ['rules', 'Règles', '#/regles']];
 const TABS: [string, string, string, string][] = [
