@@ -32,7 +32,7 @@ export function practicePage(root: HTMLElement) {
       },
     }, () => go('#/'));
     view.push(E.takeEvents(S)); view.setLatest(E.publicView(S), E.privateView(S, 0));
-    (window as any).__practice = { S, view };
+    (window as any).__practice = { S, view, E }; // accès de débogage (tests de bout en bout)
     setCleanup(() => { view.destroy(); document.body.classList.remove('at-table'); });
   };
 }

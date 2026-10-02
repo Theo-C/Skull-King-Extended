@@ -7,7 +7,7 @@ export interface Card {
   id: number; kind: string; suit?: Suit | 'wild'; rank?: number; pid?: string; v?: number;
   mod?: number; zf?: 1; wild?: 1; exp?: 1;
 }
-export interface Entry { p: number; card: Card; as?: 'pirate' | 'escape'; val?: number; ws?: Suit | null; extra?: boolean }
+export interface Entry { p: number; card: Card; as?: 'pirate' | 'escape'; val?: number; ws?: Suit | null; extra?: boolean; imposed?: boolean }
 export interface Opts {
   kraken: boolean; whale: boolean; loot: boolean; powers: boolean; score: 'sk' | 'rascal';
   exp: boolean; con: boolean; volley: boolean; ray: boolean; davy: boolean; plank: boolean;
@@ -26,7 +26,10 @@ export interface State {
   trick: null | { entries: Entry[]; order: number[]; pos: number; volleyQ: number[]; vpos: number; stage: 'main' | 'volley' | 'plank' | 'powers'; removals: number[]; res: any };
   forced: Record<number, number>; alliances: [number, number][]; pending: Pending[]; rosieNext: number | null;
   lastTrick: any; log: LogLine[]; ev?: any[]; rng?: number;
+  /** Dernier pouvoir de Lise Fil-de-Soie : qui a choisi, dans quelle main, à quelle position de l'éventail face cachée. */
+  lastLise?: LiseInfo | null;
 }
+export interface LiseInfo { by: number; seat: number; pos: number; round: number; trickNo: number }
 
 /* ---------- Données ---------- */
 export const SUIT_ORDER: Suit[] = ['black', 'yellow', 'purple', 'green'];
@@ -264,6 +267,7 @@ export function publicView(S: State, lite = false, withHist = true) {
     current: currentSeat(S), waiting: waitingFor(S),
     pending: S.pending[0] ? { t: S.pending[0].t, seat: S.pending[0].seat, opts: S.pending[0].data?.pub ?? null } : null,
     forcedSeats: Object.keys(S.forced).map(Number), lastTrick: lite ? null : S.lastTrick, log: lite ? S.log.slice(-1) : S.log.slice(-60),
+    lastLise: S.lastLise ? { ...S.lastLise } : null,
   };
 }
 export type PublicView = ReturnType<typeof publicView>;
@@ -290,7 +294,7 @@ function startRound(S: State) {
   const deck = shuffle(S, buildDeck(S.opts));
   S.round++; S.cards = Math.min(S.round, Math.floor(deck.length / S.n));
   S.players.forEach(p => { p.hand = sortHand(deck.splice(0, S.cards)); p.bid = null; p.won = 0; p.bonus = []; p.rascal = 0; });
-  S.deck = deck; S.forced = {}; S.alliances = []; S.trickNo = 0; S.bidsRevealed = false; S.trick = null; S.pending = []; S.lastTrick = null;
+  S.deck = deck; S.forced = {}; S.alliances = []; S.trickNo = 0; S.bidsRevealed = false; S.trick = null; S.pending = []; S.lastTrick = null; S.lastLise = null;
   S.dealer = (S.dealer + 1 + S.n) % S.n; S.leader = (S.dealer + 1) % S.n; S.phase = 'bid';
   log(S, [`Manche ${S.round} — ${S.cards} carte${S.cards > 1 ? 's' : ''} par joueur`], 'rnd');
   S.players.forEach(p => { if (p.bot) p.bid = botBid(S, p); });
@@ -340,7 +344,13 @@ function processPending(S: State) {
     if (pd.t === 'rosie' || pd.t === 'mary') {
       const c = S.players.map((q, i) => q.hand.length ? i : -1).filter(i => i >= 0);
       if (!c.length) { S.pending.shift(); continue; }
-      pd.data = { pub: c.map(i => ({ v: i, label: nm(S, i) + (i === pd.seat ? ' (vous)' : '') })) };
+      if (pd.t === 'mary') {
+        // Les mains sont triées : sans ce mélange secret, la position cliquée révélerait la carte. perm ne sort jamais de l'état secret.
+        if (!pd.data?.perm) pd.data = {
+          pub: c.map(i => ({ v: i, label: nm(S, i) + (i === pd.seat ? ' (vous)' : ''), count: S.players[i].hand.length })),
+          perm: Object.fromEntries(c.map(i => [i, shuffle(S, S.players[i].hand.map((_, k) => k))])),
+        };
+      } else pd.data = { pub: c.map(i => ({ v: i, label: nm(S, i) + (i === pd.seat ? ' (vous)' : '') })) };
       return true;
     }
     if (pd.t === 'bahij') {
@@ -372,14 +382,16 @@ function resolveTrick(S: State) {
   t.res = { winner: idx(R.winner), discarded: R.discarded, next: R.next, mode: R.mode, removed: R.removed.map(idx), msg };
   log(S, R.winner ? [msg + ' avec ', { c: R.winner.card, e: R.winner }] : [msg], 'win');
   emit(S, 'trick', { msg });
-  if (R.davy && R.davy.n) S.players[R.davy.p].bonus.push([20 * R.davy.n, `Fosse des Noyés : ${R.davy.n} monstre(s) englouti(s)`]);
+  // chaque bonus gagné a sa ligne de journal (cls 'bonus', ou 'malus' si négatif) : « +30 pour Maëlle : Pirate capturé par Barbe-Cendre »
+  const logBonus = (who: number, b: [number, string]) => log(S, [`${b[0] > 0 ? '+' : '−'}${Math.abs(b[0])} pour ${nm(S, who)} : ${b[1]}`], b[0] < 0 ? 'malus' : 'bonus');
+  if (R.davy && R.davy.n) { const db: [number, string] = [20 * R.davy.n, `Fosse des Noyés : ${R.davy.n} monstre(s) englouti(s)`]; S.players[R.davy.p].bonus.push(db); logBonus(R.davy.p, db); }
   S.rosieNext = null; t.stage = 'powers';
   if (R.winner) {
     const w = S.players[R.winner.p], wi = R.winner.p; w.won++;
-    w.bonus.push(...cardBonuses(R.captured));
+    const cb = cardBonuses(R.captured); w.bonus.push(...cb); cb.forEach(b => logBonus(wi, b));
     if (!R.mode) {
       w.bonus.push(...R.bonus);
-      R.bonus.forEach(b => log(S, [`+${b[0]} pour ${w.name} : ${b[1]}`]));
+      R.bonus.forEach(b => logBonus(wi, b));
       for (const e of R.captured) if (e.card.kind === 'loot' && e.p !== wi) { S.alliances.push([e.p, wi]); log(S, [`Pacte de Butin : ${nm(S, e.p)} & ${w.name}`]); }
       if (S.opts.powers) {
         let list: string[] = [];
@@ -454,6 +466,7 @@ export function apply(S: State, seat: number, a: Action) {
     const legal = legalCards(p.hand, t.entries, S.forced[seat]);
     const card = legal.find(c => c.id === a.id); if (!card) throw new RuleError('Cette carte ne peut pas être jouée.');
     const e: Entry = { p: seat, card, extra: t.stage === 'volley' };
+    if (S.forced[seat] === card.id) e.imposed = true;
     if (card.kind === 'tigress') { if (a.as !== 'pirate' && a.as !== 'escape') throw new RuleError('Choisissez Pirate ou Fuite.'); e.as = a.as; }
     if (card.zf) { if (a.val !== 0 && a.val !== 14) throw new RuleError('Choisissez 0 ou 14.'); e.val = a.val; }
     if (card.wild) { const wr = wildRule(t.entries); if (wr.choose) { if (!WILD_SUITS.includes(a.ws as Suit)) throw new RuleError('Choisissez la couleur du Grand Quinze.'); e.ws = a.ws; } else e.ws = wr.auto ?? null; }
@@ -480,9 +493,21 @@ function choose(S: State, pd: Pending, v: any) {
     case 'harry': if (!allowed(v)) throw new RuleError('Choix invalide.'); if (v) { p.bid! += v; log(S, [`${p.name} change son pari : ${p.bid}`]); } else log(S, [`${p.name} garde son pari`]); break;
     case 'juanita': break;
     case 'mary': {
-      if (!allowed(v)) throw new RuleError('Choix invalide.');
-      const q = S.players[v]; const c = q.hand[Math.floor(rand(S) * q.hand.length)]; S.forced[v] = c.id;
-      log(S, [`${q.name} devra jouer une carte imposée au prochain pli`]); break;
+      const seat = v && typeof v === 'object' ? v.seat : v;
+      if (!allowed(seat)) throw new RuleError('Choix invalide.');
+      const q = S.players[seat];
+      let pos: number;
+      if (v && typeof v === 'object' && v.pos != null) {
+        pos = v.pos;
+        if (!Number.isInteger(pos) || pos < 0 || pos >= q.hand.length) throw new RuleError('Cette carte n\'existe pas.');
+      } else pos = Math.floor(rand(S) * q.hand.length);
+      const perm: number[] = pd.data?.perm?.[seat] ?? q.hand.map((_, k) => k);
+      S.forced[seat] = q.hand[perm[pos] ?? pos].id;
+      S.lastLise = { by: pd.seat, seat, pos, round: S.round, trickNo: S.trickNo };
+      log(S, seat === pd.seat ? [`${p.name} tire une carte face cachée dans sa propre main : elle devra la jouer au prochain pli`]
+        : [`${p.name} tire une carte face cachée dans la main de ${q.name} : elle devra être jouée au prochain pli`]);
+      emit(S, 'lise', { by: pd.seat, seat, pos });
+      break;
     }
     case 'bahij': {
       const ids: number[] = Array.isArray(v) ? v.map(Number) : [];
@@ -555,7 +580,7 @@ function botChoose(S: State, pd: Pending): any {
     case 'rascal': { const d = p.bid! - p.won; return d === 0 && p.hand.length <= 2 ? 20 : (d >= 0 && d <= 1 ? 10 : 0); }
     case 'harry': { let d = p.won > p.bid! ? 1 : (p.bid! - p.won > p.hand.length ? -1 : 0); if (p.bid! + d < 0 || p.bid! + d > S.cards) d = 0; return d; }
     case 'juanita': return 1;
-    case 'mary': { const o = pub.filter((x: any) => x.v !== pd.seat).sort((a: any, b: any) => S.players[b.v].score - S.players[a.v].score); return (o[0] || pub[0]).v; }
+    case 'mary': { const o = pub.filter((x: any) => x.v !== pd.seat).sort((a: any, b: any) => S.players[b.v].score - S.players[a.v].score); const t = (o[0] || pub[0]); return { seat: t.v, pos: Math.floor(rand(S) * t.count) }; }
     case 'bahij': { const need = p.bid! - p.won; const s = p.hand.map(c => ({ c, v: pw({ card: c, as: 'pirate', val: 14 }) })).sort((a, b) => need > 0 ? a.v - b.v : b.v - a.v); return s.slice(0, pd.data.k).map(x => x.c.id); }
   }
   return null;

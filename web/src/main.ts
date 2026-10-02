@@ -54,7 +54,14 @@ async function route() {
 }
 
 addEventListener('hashchange', route);
-sb.auth.onAuthStateChange((ev) => {
+// supabase-js réémet SIGNED_IN quand l'onglet reprend le focus (et TOKEN_REFRESHED régulièrement) :
+// on ne relance route() que si l'utilisateur connecté a vraiment changé, sinon la page de partie serait reconstruite.
+let authUid: string | null | undefined;
+sb.auth.onAuthStateChange((ev, session) => {
+  const uid = session?.user?.id ?? null;
+  if (ev === 'INITIAL_SESSION') { authUid = uid; return; }
+  if (ev === 'TOKEN_REFRESHED' || uid === authUid) return;
+  authUid = uid;
   if (ev === 'SIGNED_IN') { const h = recall(); if (h && h !== location.hash) { location.hash = h; return; } route(); }
   if (ev === 'SIGNED_OUT') route();
 });

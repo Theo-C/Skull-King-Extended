@@ -50,7 +50,9 @@ function randomAction(S: E.State, seat: number, r: () => number): E.Action {
   if (pub.phase === 'bid') return { t: 'bid', n: Math.floor(r() * (S.cards + 1)) };
   if (pub.pending && pub.pending.seat === seat) {
     if (pub.pending.t === 'bahij') { const k = priv.pendingData.k; return { t: 'choose', v: priv.hand.slice(0, k).map(c => c.id) }; }
-    const o = (pub.pending.opts as any[]).filter(x => !x.disabled); return { t: 'choose', v: o[Math.floor(r() * o.length)].v };
+    const o = (pub.pending.opts as any[]).filter(x => !x.disabled); const c = o[Math.floor(r() * o.length)];
+    if (pub.pending.t === 'mary' && r() < .5) return { t: 'choose', v: { seat: c.v, pos: Math.floor(r() * c.count) } };
+    return { t: 'choose', v: c.v };
   }
   const id = priv.legal[Math.floor(r() * priv.legal.length)];
   return { t: 'play', id, as: r() < .5 ? 'pirate' : 'escape', val: r() < .5 ? 0 : 14, ws: E.WILD_SUITS[Math.floor(r() * 3)] };
@@ -85,6 +87,74 @@ for (let g = 0; g < 60; g++) {
   const pub = JSON.stringify(E.publicView(S));
   ok('aucune main dans la vue publique', !pub.includes('"hand"') && !pub.includes('"deck"'));
   ok('mise des autres cachée avant révélation', E.publicView(S).players.every(p => p.bid === null)); }
+
+// Lise Fil-de-Soie : carte choisie face cachée
+{
+  // on cherche une vraie situation de jeu où un humain doit utiliser Lise
+  let S: E.State | null = null;
+  for (let g = 0; g < 400 && !S; g++) {
+    let T = E.newGame(['A', 'B', 'C', 'D'].map(name => ({ name, bot: false })), { powers: true, exp: true }, 5000 + g);
+    let seed = g + 3; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let k = 0; k < 3000 && T.phase !== 'end'; k++) {
+      if (T.pending[0]?.t === 'mary') { S = T; break; }
+      const w = E.waitingFor(T); const a = randomAction(T, w[0], r);
+      if (a.t === 'choose' && T.pending[0]?.t === 'mary') continue;
+      E.apply(T, w[0], a); E.takeEvents(T);
+    }
+  }
+  ok('situation Lise trouvée', !!S);
+  if (S) {
+    const pd = S.pending[0], by = pd.seat, pub = E.publicView(S);
+    const opts = pub.pending!.opts as any[];
+    ok('Lise : options avec le nombre de cartes', opts.every(o => o.count === S!.players[o.v].hand.length), opts);
+    ok('Lise : ordre secret absent de la vue publique', !JSON.stringify(pub).includes('perm') && !JSON.stringify(E.privateView(S, by)).includes('perm'));
+    ok('Lise : ordre secret présent côté serveur', opts.every(o => Array.isArray(pd.data.perm[o.v]) && pd.data.perm[o.v].length === o.count));
+    const target = opts.find(o => o.v !== by) ?? opts[0];
+    // positions invalides refusées
+    for (const pos of [-1, target.count, 1.5, '0' as any]) {
+      const T = roundTrip(S); let refused = false;
+      try { E.apply(T, by, { t: 'choose', v: { seat: target.v, pos } }); } catch (e) { refused = e instanceof E.RuleError; }
+      ok('Lise : position invalide refusée (' + pos + ')', refused);
+    }
+    // la carte cliquée devient la carte imposée
+    const pos = target.count - 1, T = roundTrip(S);
+    const expected = T.players[target.v].hand[T.pending[0].data.perm[target.v][pos]].id;
+    E.apply(T, by, { t: 'choose', v: { seat: target.v, pos } });
+    ok('Lise : la carte cliquée devient S.forced[seat]', T.forced[target.v] === expected, { got: T.forced[target.v], expected });
+    const ll = E.publicView(T).lastLise;
+    ok('Lise : lastLise public', !!ll && ll.by === by && ll.seat === target.v && ll.pos === pos);
+    ok("Lise : lastLise ne révèle pas la carte", !!ll && Object.keys(ll).sort().join() === 'by,pos,round,seat,trickNo');
+    const ev = E.takeEvents(T).find((x: any) => x.k === 'lise');
+    ok('Lise : événement « lise »', !!ev && ev.seat === target.v && ev.pos === pos && !JSON.stringify(ev).includes('perm'));
+    // l'ancien format (siège seul) tire toujours une carte au hasard dans cette main
+    const U = roundTrip(S); E.apply(U, by, { t: 'choose', v: target.v });
+    ok('Lise : siège seul accepté', U.players[target.v].hand.some(c => c.id === U.forced[target.v]));
+    // au pli suivant, la carte arrive sur la table marquée « imposée »
+    let seed = 99; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    let played: E.Entry | undefined;
+    for (let k = 0; k < 200 && !played && T.phase === 'play'; k++) {
+      const w = E.waitingFor(T); E.apply(T, w[0], randomAction(T, w[0], r)); E.takeEvents(T);
+      played = (T.trick?.entries || []).find(e => e.card.id === expected) ?? (T.lastTrick?.entries || []).find((e: E.Entry) => e.card.id === expected);
+    }
+    ok('Lise : carte jouée marquée imposée', !!played && played.imposed === true && played.p === target.v, played);
+  }
+}
+
+// Journal : une ligne « bonus » / « malus » par bonus gagné
+{
+  let found = { bonus: 0, malus: 0, wrong: 0 };
+  for (let g = 0; g < 30; g++) {
+    const S = E.newGame(['A', 'B', 'C', 'D'].map((name, i) => ({ name, bot: true })), { powers: true, exp: true }, 9000 + g);
+    E.runBots(S);
+    for (const l of S.log) if (l.cls === 'bonus' || l.cls === 'malus') {
+      const txt = l.s.join(''); const m = /^([+−])(\d+) pour (.+?) : (.+)$/.exec(txt);
+      if (!m || (l.cls === 'malus') !== (m[1] === '−')) found.wrong++; else found[l.cls]++;
+    }
+  }
+  ok('journal : lignes de bonus', found.bonus > 0, found);
+  ok('journal : lignes de malus (7 / 8 de l\'extension)', found.malus > 0, found);
+  ok('journal : format « +30 pour Maëlle : raison »', found.wrong === 0, found);
+}
 
 console.log(`Moteur : ${passes} vérifications réussies, ${fails} échec(s), ${games} parties complètes, max ${maxEv} événements par coup.`);
 if (fails) process.exit(1);
