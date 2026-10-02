@@ -258,8 +258,9 @@ export function publicView(S: State, lite = false, withHist = true) {
   return {
     round: S.round, cards: S.cards, phase: S.phase, dealer: S.dealer, leader: S.leader, trickNo: S.trickNo, n: S.n,
     bidsRevealed: S.bidsRevealed, opts: S.opts, deckCount: S.deck.length,
-    players: S.players.map(p => ({ name: p.name, bot: p.bot, score: p.score, hist: withHist ? p.hist : undefined, won: p.won, bid: S.bidsRevealed ? p.bid : null, hasBid: p.bid != null, handCount: p.hand.length, rascal: p.rascal })),
-    trick: t ? { entries: t.entries, stage: t.stage, removals: t.removals, res: t.res } : null,
+    players: S.players.map(p => ({ name: p.name, bot: p.bot, score: p.score, hist: withHist ? p.hist.slice() : undefined, won: p.won, bid: S.bidsRevealed ? p.bid : null, hasBid: p.bid != null, handCount: p.hand.length, rascal: p.rascal })),
+    // copies : chaque instantané doit garder le pli tel qu'il était à ce moment (sinon les bots semblent jouer tous ensemble)
+    trick: t ? { entries: t.entries.slice(), stage: t.stage, removals: t.removals.slice(), res: t.res } : null,
     current: currentSeat(S), waiting: waitingFor(S),
     pending: S.pending[0] ? { t: S.pending[0].t, seat: S.pending[0].seat, opts: S.pending[0].data?.pub ?? null } : null,
     forcedSeats: Object.keys(S.forced).map(Number), lastTrick: lite ? null : S.lastTrick, log: lite ? S.log.slice(-1) : S.log.slice(-60),
@@ -310,15 +311,13 @@ function startTrick(S: State) {
   S.trickNo++; S.leader = order[0];
   S.trick = { entries: [], order, pos: 0, volleyQ: [], vpos: 0, stage: 'main', removals: [], res: null };
 }
-function advance(S: State) {
+/** Passe au joueur suivant ; renvoie true quand tout le monde a joué (le pli est alors à résoudre). */
+function advance(S: State): boolean {
   const t = S.trick!;
-  if (t.stage === 'main') { t.pos++; if (t.pos >= t.order.length) t.stage = 'volley'; else return; }
+  if (t.stage === 'main') { t.pos++; if (t.pos >= t.order.length) t.stage = 'volley'; else return false; }
   else if (t.stage === 'volley') t.vpos++;
-  if (t.stage === 'volley') {
-    while (t.vpos < t.volleyQ.length && !S.players[t.volleyQ[t.vpos]].hand.length) t.vpos++;
-    if (t.vpos < t.volleyQ.length) return;
-    endOfPlays(S);
-  }
+  while (t.vpos < t.volleyQ.length && !S.players[t.volleyQ[t.vpos]].hand.length) t.vpos++;
+  return t.vpos >= t.volleyQ.length;
 }
 function endOfPlays(S: State) {
   const t = S.trick!; t.stage = 'plank';
@@ -463,8 +462,11 @@ export function apply(S: State, seat: number, a: Action) {
     t.entries.push(e);
     if (card.kind === 'volley' && !e.extra) t.volleyQ.push(seat);
     log(S, [`${p.name} joue `, { c: card, e }, e.extra ? ' (Dernière Bordée)' : '']);
+    // l'instantané est pris après le passage au joueur suivant : il montre qui doit jouer maintenant
+    const done = advance(S);
     emit(S, 'play', { seat });
-    advance(S); return;
+    if (done) endOfPlays(S);
+    return;
   }
   throw new RuleError('Action inconnue.');
 }

@@ -385,3 +385,6 @@ body.at-table #table{height:clamp(360px,calc(100dvh - 500px),680px)}
   .zoom .card{--s:.8}
 }
 .center.front{z-index:60}
+.seat .think{display:flex;align-items:center;gap:5px;min-height:0;font:700 10.5px var(--f-body);letter-spacing:.06em;color:var(--brass2);
+  background:rgba(10,8,6,.7);border-radius:8px;padding:0 7px;transition:opacity .2s}
+.seat .think:empty{display:none}

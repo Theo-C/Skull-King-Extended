@@ -16,7 +16,8 @@ const center = (r: DOMRect) => [r.left + r.width / 2, r.top + r.height / 2];
 
 export interface TableBackend { send(move: Action): Promise<void> }
 const PCOL = ['#d9b25a', '#c8644b', '#5c9db6', '#7ab874', '#a982c4', '#e0954a', '#cfc6b0', '#6f8fd0', '#d47fa6'];
-const DELAY: Record<string, number> = { play: 650, trick: 1700, trickEnd: 150, bids: 1300, deal: 350, round: 300, end: 0 };
+// Pauses entre deux événements rejoués (ms, multipliées par la vitesse choisie) : assez longues pour suivre ce que font les bots.
+const DELAY: Record<string, number> = { play: 1250, trick: 2400, trickEnd: 700, bids: 2000, deal: 700, round: 600, end: 0 };
 const PENDING_LABEL: Record<string, string> = {
   plank: 'choisit le pirate qui marche sur la planche', rosie: 'choisit qui entame le prochain pli', bahij: 'pioche et défausse deux cartes',
   rascal: 'choisit sa mise', juanita: 'consulte la pioche', harry: 'décide de modifier son pari', mary: 'choisit une main où tirer une carte',
@@ -104,7 +105,10 @@ export class TableView {
         this.render();
         if (ev.k === 'trick') sfx.win(); else if (ev.k === 'bids') sfx.coin();
         if (ev.k === 'round') this.maybeRoundSummary(ev.snap);
-        await sleep((DELAY[ev.k] ?? 300) * this.speed * (this.queue.length > 40 ? .2 : 1));
+        let ms = (DELAY[ev.k] ?? 300) * this.speed * (this.queue.length > 40 ? .2 : 1);
+        // dernier événement et c'est à nous : on laisse juste la carte arriver, inutile de faire attendre le joueur
+        if (!this.queue.length && ev.k === 'play' && this.mySeat != null && ev.snap.current === this.mySeat) ms = Math.min(ms, 550);
+        await sleep(ms);
         if (ev.k === 'bids' || ev.k === 'trick') this.banner = null;
       }
     } finally { this.running = false; }
@@ -156,7 +160,7 @@ export class TableView {
 
     pb.players.forEach((p, i) => {
       let el = this.seatEls[i];
-      if (!el) { el = document.createElement('div'); el.className = 'seat'; el.innerHTML = '<div class="fan"></div><div class="plate"></div><div class="pips"></div>'; layer.append(el); this.seatEls[i] = el; }
+      if (!el) { el = document.createElement('div'); el.className = 'seat'; el.innerHTML = '<div class="fan"></div><div class="plate"></div><div class="pips"></div><div class="think"></div>'; layer.append(el); this.seatEls[i] = el; }
       const [x, y] = this.seatPos(i, n, mob ? 37 : 40, mob ? 41 : 42); const bid = this.bidOf(i);
       el.style.left = x + '%'; el.style.top = y + '%'; el.style.setProperty('--pc', PCOL[i % 9]);
       el.classList.toggle('turn', turn.has(i) && pb.phase !== 'end'); el.classList.toggle('me', i === this.mySeat);
@@ -169,6 +173,8 @@ export class TableView {
         <div class="pi"><div class="nm">${esc(p.name)}${i === this.mySeat && p.name !== 'Vous' ? ' <span class="you">vous</span>' : ''}</div><div class="sub"><b>${p.score}</b> pts<span class="bt">${p.bot ? ' · bot' : ''}</span></div></div>
         <div class="coin ${bid.wait ? 'wait' : ''} ${reveal ? 'reveal' : ''}" title="Pari">${bid.txt}</div>`);
       setHTML(el.children[2], this.pips(i));
+      // l'adversaire attendu « réfléchit » : on voit qui va jouer avant que sa carte arrive
+      setHTML(el.children[3], turn.has(i) && i !== this.mySeat && pb.phase !== 'end' ? `<span>${pb.phase === 'bid' ? 'parie' : pb.pending ? 'choisit' : 'réfléchit'}</span><div class="thinking"><i></i><i></i><i></i></div>` : '');
       // variation de score : petite bulle +/- au-dessus du siège
       const prev = this.prevScores[i];
       if (prev != null && prev !== p.score && !reduceMotion()) {
@@ -334,7 +340,7 @@ export class TableView {
   private renderAction() {
     const pb = this.pub!, me = this.mySeat, pv = this.priv;
     const name = (i: number) => esc(pb.players[i]?.name ?? '?');
-    if (!this.live) { this.setAction(this.banner ? esc(this.banner) : (pb.current != null ? `${name(pb.current)} joue…` : '…')); return; }
+    if (!this.live) { this.setAction(this.banner ? esc(this.banner) : pb.current == null ? (pb.phase === 'play' ? 'Le pli se décide…' : '…') : pb.current === me ? 'À vous dans un instant…' : `${name(pb.current)} ${pb.pending ? 'fait un choix' : 'joue'}…`); return; }
     if (pb.phase === 'end') { this.setAction('Partie terminée.', [{ label: 'Classement final', cls: 'gold', on: () => this.finalModal() }, { label: "Retour à l'accueil", cls: 'alt', on: () => this.onExit() }]); return; }
     if (me == null || !pv) { this.setAction(pb.phase === 'bid' ? 'Les joueurs parient…' : (pb.current != null ? `Au tour de ${name(pb.current)}` : '…')); return; }
     if (this.busy) { this.setAction('Envoi…'); return; }
