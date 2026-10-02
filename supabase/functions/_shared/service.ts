@@ -1,5 +1,6 @@
 // Logique serveur des parties, indépendante du stockage (testable en mémoire, branchée sur Supabase dans game/index.ts).
 import * as E from './engine.ts';
+import { settleGame, type SettleInput } from './settle.ts';
 
 export interface GameRow { id: string; code: string; host: string; status: 'lobby' | 'playing' | 'finished'; options: any; state: any; version: number }
 export interface SeatRow { seat: number; user_id: string | null; bot: boolean; name: string; final_score?: number | null; rank?: number | null }
@@ -15,6 +16,8 @@ export interface Store {
   seats(gameId: string): Promise<SeatRow[]>;
   secret(gameId: string): Promise<E.State | null>;
   commit(gameId: string, expectedVersion: number, c: Commit): Promise<number | null>; // null : conflit de version
+  /** Appel d'une fonction SQL réservée au serveur (settle_inputs, game_settle, history_list, history_get, profile_update). */
+  rpc(name: string, args: Record<string, unknown>): Promise<any>;
 }
 export class HttpError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 const bad = (m: string) => new HttpError(400, m);
@@ -38,6 +41,10 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'lobby': return withRetry(() => lobby(store, uid, body));
     case 'start': return withRetry(() => start(store, uid, body));
     case 'act': return withRetry(() => act(store, uid, body));
+    case 'profile.update': return profileUpdate(store, uid, body);
+    case 'history.list': return historyList(store, uid, body);
+    case 'history.get': return historyGet(store, uid, body);
+    case 'rematch': return rematch(store, uid, body);
     default: throw bad('Action inconnue.');
   }
 }
@@ -151,5 +158,93 @@ async function act(store: Store, uid: string, body: any) {
     outSeats = seats.map(s => ({ ...s, final_score: S.players[s.seat].score, rank: ranks[s.seat] }));
   }
   const v = await store.commit(g.id, g.version, { patch, secret: S, events, seats: outSeats, ...snapshotsFor(S, seats) });
-  return v == null ? 'conflict' : { ok: true };
+  if (v == null) return 'conflict';
+  if (S.phase === 'end') {
+    // fin de partie : XP, hauts faits, statistiques et Élo (une erreur ici ne doit pas annuler le dernier coup : history.get réessaiera)
+    try { await settleFinished(store, g.id, S, seats); } catch (e) { console.error('règlement de fin de partie', e); }
+  }
+  return { ok: true };
+}
+
+/* ---------- Fin de partie : règlement idempotent ---------- */
+export async function settleFinished(store: Store, gameId: string, S: E.State, seats: SeatRow[]): Promise<string> {
+  const uids = seats.filter(s => s.user_id && !s.bot).map(s => s.user_id!);
+  if (!uids.length) return 'none';
+  for (let i = 0; i < 4; i++) {
+    const inputs = await store.rpc('settle_inputs', { p_users: uids }) as Record<string, SettleInput>;
+    const payload = settleGame(S, seats, inputs);
+    const r = await store.rpc('game_settle', { p_game: gameId, p_payload: payload });
+    if (r !== 'conflict') return r; // 'ok' ou 'already'
+  }
+  throw new HttpError(409, 'Règlement de la partie interrompu, réessayez.');
+}
+
+/* ---------- Profil ---------- */
+export const PALETTE = ['#d9b25a', '#c8644b', '#7ab874', '#5c9db6', '#a982c4', '#e0954a', '#c9c0ae', '#d77fa1'];
+async function profileUpdate(store: Store, uid: string, body: any) {
+  const p: Record<string, unknown> = {};
+  if (body.pseudo != null) {
+    const ps = String(body.pseudo).trim().replace(/\s+/g, ' ');
+    if (ps.length < 2 || ps.length > 20) throw bad('Le pseudo doit faire entre 2 et 20 caractères.');
+    p.pseudo = ps;
+  }
+  if (body.color != null) { if (!PALETTE.includes(body.color)) throw bad('Couleur inconnue.'); p.color = body.color; }
+  if (body.avatar_kind != null) {
+    if (!['initial', 'art', 'photo'].includes(body.avatar_kind)) throw bad("Type d'image inconnu.");
+    p.avatar_kind = body.avatar_kind;
+    if (body.avatar_kind === 'art') {
+      const a = Number(body.avatar_art); if (!Number.isInteger(a) || a < 0 || a > 7) throw bad('Pirate illustré inconnu.');
+      p.avatar_art = a;
+    }
+    if (body.avatar_kind === 'photo') {
+      // la photo doit être celle de l'utilisateur, dans le stockage du projet : avatars/<uid>/avatar.webp
+      const u = String(body.avatar_url || '');
+      if (!/^https:\/\/[^/]+\/storage\/v1\/object\/public\/avatars\//.test(u) || !u.includes(`/avatars/${uid}/avatar.webp`)) throw bad('Photo invalide.');
+      p.avatar_url = u;
+    }
+  }
+  for (const k of ['public_rank', 'notify_turn', 'sounds']) if (body[k] != null) p[k] = !!body[k];
+  if (!Object.keys(p).length) throw bad('Rien à enregistrer.');
+  await store.rpc('profile_update', { p_user: uid, p });
+  return { ok: true };
+}
+
+/* ---------- Historique ---------- */
+const PAGE = 20;
+async function historyList(store: Store, uid: string, body: any) {
+  const filter = ['all', 'wins', 'ext', 'base'].includes(body.filter) ? body.filter : 'all';
+  const before = typeof body.before === 'string' && !isNaN(Date.parse(body.before)) ? body.before : null;
+  const items = (await store.rpc('history_list', { p_user: uid, p_before: before, p_filter: filter, p_limit: PAGE })) as any[] ?? [];
+  return { items, next: items.length === PAGE ? items[items.length - 1].finished_at : null };
+}
+async function historyGet(store: Store, uid: string, body: any) {
+  if (typeof body.id !== 'string') throw bad('Partie inconnue.');
+  let d = await store.rpc('history_get', { p_user: uid, p_game: body.id });
+  if (!d) throw new HttpError(403, "Vous n'avez pas joué cette partie.");
+  // partie terminée mais pas encore réglée (règlement interrompu) : on le refait ici
+  if (d.status === 'finished' && !d.state?.settled) {
+    const S = await store.secret(body.id);
+    if (S) { await settleFinished(store, body.id, S, await store.seats(body.id)); d = await store.rpc('history_get', { p_user: uid, p_game: body.id }); }
+  }
+  return d;
+}
+
+/* ---------- Revanche : même réglages, mêmes joueurs (déjà assis), mêmes bots ---------- */
+async function rematch(store: Store, uid: string, body: any) {
+  const g = await mustGame(store, body.id);
+  const old = (await store.seats(g.id)).sort((a, b) => a.seat - b.seat);
+  if (!old.some(s => s.user_id === uid)) throw new HttpError(403, "Vous n'avez pas joué cette partie.");
+  if (g.status !== 'finished') throw bad("La partie n'est pas terminée.");
+  let n: GameRow | null = null;
+  for (let i = 0; i < 8 && !n; i++) n = await store.insertGame({ code: newCode(), host: uid, options: g.options });
+  if (!n) throw new HttpError(500, 'Impossible de créer un code de partie.');
+  // celui qui demande la revanche devient l'hôte (siège 0) ; les autres gardent leur ordre
+  const humans = [uid, ...old.filter(s => s.user_id && s.user_id !== uid).map(s => s.user_id!)];
+  const bots = old.filter(s => s.bot).map(s => s.name);
+  const seats: SeatRow[] = [];
+  for (const u of humans) seats.push({ seat: seats.length, bot: false, user_id: u, name: await store.pseudo(u) });
+  for (const b of bots) seats.push({ seat: seats.length, bot: true, user_id: null, name: b });
+  const v = await store.commit(n.id, n.version, { patch: {}, seats });
+  if (v == null) throw new HttpError(500, 'Création interrompue.');
+  return { id: n.id, code: n.code };
 }

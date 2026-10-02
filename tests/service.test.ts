@@ -3,7 +3,7 @@
 // Lancer : npx tsx tests/service.test.ts
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync, readdirSync } from 'node:fs';
-import { handle, HttpError, type Store } from '../supabase/functions/_shared/service.ts';
+import { handle, HttpError, settleFinished, type Store } from '../supabase/functions/_shared/service.ts';
 import * as E from '../supabase/functions/_shared/engine.ts';
 
 const db = new PGlite();
@@ -40,6 +40,13 @@ const store: Store = {
     try {
       return (await db.query<any>('select game_commit($1,$2,$3,$4,$5,$6,$7) as v', [g, v, j(c.patch), j(c.secret), j(c.hands), j(c.events), j(c.seats)])).rows[0].v;
     } finally { await db.exec('reset role'); }
+  },
+  async rpc(name, args) {
+    const keys = Object.keys(args);
+    const vals = Object.values(args).map(v => v != null && typeof v === 'object' && !Array.isArray(v) ? JSON.stringify(v) : v);
+    await db.exec('set role service_role');
+    try { return (await db.query<any>(`select ${name}(${keys.map((k, i) => `${k} => $${i + 1}${Array.isArray(args[k]) ? '::uuid[]' : ''}`).join(', ')}) as r`, vals)).rows[0].r; }
+    finally { await db.exec('reset role'); }
   },
 };
 async function as<T = any>(uid: string, sql: string, params: any[] = []) {
@@ -111,6 +118,43 @@ const lb = await as(U.eve, 'select pseudo, games, wins from leaderboard order by
 ok('classement alimenté', lb.length === 4 && lb.every((x: any) => x.games === 1) && lb.reduce((s: number, x: any) => s + x.wins, 0) >= 1, lb);
 const evLeft = (await db.query<any>('select count(*)::int as n from game_events')).rows[0].n;
 ok('événements nettoyés en fin de partie', evLeft < 40, evLeft);
+
+// ---------- Fin de partie : XP, hauts faits, statistiques, Élo ----------
+const res = (await db.query<any>(`select user_id, place, elo_before::float, elo_after::float, elo_delta::float from game_results where game_id=$1 order by place`, [G])).rows;
+ok('résultats : un par humain', res.length === 4, res);
+ok('Élo : départ à 100, somme des variations nulle', res.every((r: any) => r.elo_before === 100) && Math.abs(res.reduce((a: number, r: any) => a + r.elo_delta, 0)) < .05, res);
+const xpRows = (await db.query<any>('select p.id, p.xp, (select coalesce(sum(amount),0)::int from xp_events x where x.user_id=p.id) as total from profiles p where p.id = any($1::uuid[])', [users])).rows;
+ok('XP : profil = somme des lignes, au moins 50 chacun', xpRows.every((x: any) => x.xp === x.total && x.xp >= 50), xpRows);
+ok('XP : +100 pour le vainqueur', (await db.query<any>("select count(*)::int as n from xp_events where game_id=$1 and reason='win'", [G])).rows[0].n >= 1);
+ok('hauts faits : Premier abordage pour les 4', (await db.query<any>("select count(*)::int as n from user_achievements where code='first_game'")).rows[0].n === 4);
+const stats = (await db.query<any>('select games, ranked_games, bids_total from player_stats where user_id = any($1::uuid[])', [users])).rows;
+ok('statistiques : 1 partie classée, 10 mises', stats.length === 4 && stats.every((x: any) => x.games === 1 && x.ranked_games === 1 && x.bids_total === 10), stats);
+const settledPub = (await as(U.chloe, 'select state from games where id=$1', [G]))[0].state.settled;
+ok('résumé de fin de partie publié', !!settledPub && users.every(u => settledPub[u]?.xpTotal > 0 && settledPub[u]?.elo?.vs.length === 3), settledPub && Object.keys(settledPub));
+// idempotence : un second règlement ne change rien
+const xpBefore = xpRows.map((x: any) => x.xp).join();
+const S_end = await store.secret(G);
+ok('règlement rejoué : « already »', await settleFinished(store, G, S_end!, await store.seats(G)) === 'already');
+const xpAfter = (await db.query<any>('select xp from profiles where id = any($1::uuid[])', [users])).rows.map((x: any) => x.xp);
+ok('règlement rejoué : XP inchangée', xpAfter.sort().join() === xpBefore.split(',').sort().join());
+
+// ---------- Historique, détail, revanche, profil ----------
+const hist = await handle(store, U.alice, { action: 'history.list' });
+ok('historique : la partie terminée', hist.items.length === 1 && hist.items[0].id === G && hist.next === null, hist);
+ok('historique : filtre victoires', (await handle(store, U.alice, { action: 'history.list', filter: 'wins' })).items.length === (res.find((r: any) => r.user_id === U.alice).place === 1 ? 1 : 0));
+const det = await handle(store, U.bob, { action: 'history.get', id: G });
+ok('détail : manches et résultats', det.state.players[0].hist.length === 10 && det.results.length === 4 && det.xp.length >= 1, Object.keys(det));
+await expectErr('détail : refusé à qui n’a pas joué', handle(store, U.eve, { action: 'history.get', id: G }), 403);
+const rm = await handle(store, U.bob, { action: 'rematch', id: G });
+const rmSeats = (await db.query<any>('select seat, user_id, bot from game_players where game_id=$1 order by seat', [rm.id])).rows;
+ok('revanche : mêmes joueurs, demandeur hôte', rmSeats.length === 4 && rmSeats[0].user_id === U.bob && rmSeats.filter((x: any) => x.user_id).length === 4, rmSeats);
+await expectErr('revanche : refusée à qui n’a pas joué', handle(store, U.eve, { action: 'rematch', id: G }), 403);
+await expectErr('profil : couleur hors palette', handle(store, U.alice, { action: 'profile.update', color: '#000000' }), 400);
+await expectErr('profil : pseudo trop court', handle(store, U.alice, { action: 'profile.update', pseudo: 'A' }), 400);
+await expectErr('profil : photo d’un autre', handle(store, U.alice, { action: 'profile.update', avatar_kind: 'photo', avatar_url: `https://x.supabase.co/storage/v1/object/public/avatars/${U.bob}/avatar.webp` }), 400);
+await handle(store, U.alice, { action: 'profile.update', pseudo: 'Alice la Rouge', color: '#c8644b', avatar_kind: 'art', avatar_art: 3, sounds: false });
+const pr = (await as(U.bob, 'select pseudo, color, avatar_kind, avatar_art, sounds from profiles where id=$1', [U.alice]))[0];
+ok('profil : enregistré', pr.pseudo === 'Alice la Rouge' && pr.color === '#c8644b' && pr.avatar_kind === 'art' && pr.avatar_art === 3 && pr.sounds === false, pr);
 
 // ---------- Conflit de version ----------
 const g2 = await handle(store, U.alice, { action: 'create' });

@@ -19,7 +19,10 @@ export interface Pending { t: string; seat: number; data?: any }
 export interface Player {
   name: string; bot: boolean; uid?: string | null; score: number; hist: any[];
   bid: number | null; won: number; bonus: [number, string][]; rascal: number; hand: Card[];
+  /** Compteurs pour les hauts faits (jamais dans la vue publique) : sirènes capturées, plis gagnés avec le Grand Quinze ou la carte imposée par Lise, monstres engloutis par la Fosse, Barbe-Cendre capturé par une Sirène. */
+  feats?: Feats;
 }
+export interface Feats { sirens: number; wild: number; silk: number; abyss: number; mermaidKing: number }
 export interface State {
   v: number; opts: Opts; n: number; players: Player[]; round: number; cards: number; dealer: number; leader: number;
   phase: 'bid' | 'play' | 'end'; bidsRevealed: boolean; trickNo: number; deck: Card[];
@@ -383,6 +386,17 @@ function resolveTrick(S: State) {
   log(S, R.winner ? [msg + ' avec ', { c: R.winner.card, e: R.winner }] : [msg], 'win');
   emit(S, 'trick', { msg });
   // chaque bonus gagné a sa ligne de journal (cls 'bonus', ou 'malus' si négatif) : « +30 pour Maëlle : Pirate capturé par Barbe-Cendre »
+  const feats = (i: number) => (S.players[i].feats ??= { sirens: 0, wild: 0, silk: 0, abyss: 0, mermaidKing: 0 });
+  if (R.davy && R.davy.n) feats(R.davy.p).abyss += R.davy.n;
+  if (R.winner) {
+    const f = feats(R.winner.p), wc = R.winner.card;
+    if (wc.wild) f.wild++;
+    if (R.winner.imposed) f.silk++;
+    if (!R.mode) {
+      if (wc.kind === 'mermaid' && R.captured.some(e => e.card.kind === 'sk')) f.mermaidKing++;
+      if (wc.kind !== 'mermaid') f.sirens += R.captured.filter(e => e.card.kind === 'mermaid').length;
+    }
+  }
   const logBonus = (who: number, b: [number, string]) => log(S, [`${b[0] > 0 ? '+' : '−'}${Math.abs(b[0])} pour ${nm(S, who)} : ${b[1]}`], b[0] < 0 ? 'malus' : 'bonus');
   if (R.davy && R.davy.n) { const db: [number, string] = [20 * R.davy.n, `Fosse des Noyés : ${R.davy.n} monstre(s) englouti(s)`]; S.players[R.davy.p].bonus.push(db); logBonus(R.davy.p, db); }
   S.rosieNext = null; t.stage = 'powers';
