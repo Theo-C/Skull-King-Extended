@@ -645,11 +645,13 @@ export class TableView {
     const played = new Set([...this.playedMine, ...(pb.trick?.entries || []).filter(e => e.p === this.mySeat).map(e => e.card.id)]);
     const hand = this.live ? pv.hand : pv.hand.filter(c => !played.has(c.id));
     $('#handTitle', this.root).innerHTML = '<b>Votre main</b>';
-    const tags: string[] = []; const bid = this.bidOf(this.mySeat); if (!bid.wait) tags.push(`Pari ${bid.txt}`);
-    const won = pb.players[this.mySeat].won; tags.push(`Plis ${won}`);
-    if (pb.players[this.mySeat].rascal) tags.push(`Mise ${pb.players[this.mySeat].rascal}`);
+    const bid = this.bidOf(this.mySeat), won = pb.players[this.mySeat].won, stake = pb.players[this.mySeat].rascal;
     const st = !bid.wait && pb.bidsRevealed ? (won === Number(bid.txt) ? 'ok' : won > Number(bid.txt) ? 'ko' : '') : '';
-    setHTML($('#handMeta', this.root), tags.map((x, i) => `<span class="${i === 1 ? st : ''}">${x}</span>`).join(''));
+    // maquette Main : « 7 cartes » puis « Mise 2 · plis 0 » (l'enjeu de Lazare à part)
+    const tags = [`<span><b>${hand.length}</b> carte${hand.length > 1 ? 's' : ''}</span>`,
+      `<span class="${st}">${bid.wait ? '' : `Mise <b>${bid.txt}</b> · `}${bid.wait ? 'Plis' : 'plis'} <b>${won}</b></span>`];
+    if (stake) tags.push(`<span>Enjeu <b>${stake}</b> pts</span>`);
+    setHTML($('#handMeta', this.root), tags.join(''));
     if (this.sendingId != null && !hand.some(c => c.id === this.sendingId)) this.sendingId = null;
     if (!hand.length) { clear('Plus de cartes en main.'); return; }
     el.querySelector('.hidden-hand')?.remove();
