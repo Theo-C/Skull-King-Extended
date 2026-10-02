@@ -23,6 +23,24 @@ export function modal(html: string, buttons: { label: string; value: any; cls?: 
 }
 export const closeModal = () => { $('#modal').hidden = true; };
 
+/** Copie dans le presse-papiers ; repli sur l'ancienne méthode (zone de texte + execCommand) si l'API est refusée. */
 export async function copyText(text: string) {
-  try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* repli ci-dessous */ }
+  try {
+    const t = document.createElement('textarea'); t.value = text; t.setAttribute('readonly', ''); t.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.append(t); t.select(); const ok = document.execCommand('copy'); t.remove(); return ok;
+  } catch { return false; }
 }
+
+const DAY = 86400000;
+/** « Aujourd'hui », « Hier », « Mardi » (cette semaine), sinon « 26 sept. ». */
+export function relDay(iso: string | null | undefined) {
+  if (!iso) return '';
+  const d = new Date(iso), now = new Date(), start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((start(now) - start(d)) / DAY);
+  if (days <= 0) return "Aujourd'hui"; if (days === 1) return 'Hier';
+  if (days < 7) { const w = d.toLocaleDateString('fr-FR', { weekday: 'long' }); return w[0].toUpperCase() + w.slice(1); }
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
+}
+/** « +12 » / « −3 » (vrai signe moins), arrondi à l'entier sauf précision demandée. */
+export const signed = (v: number, digits = 0) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(digits).replace('.', ',');

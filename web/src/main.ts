@@ -3,11 +3,17 @@ import './game.css';
 import './app.css';
 import { sb, configured, currentUser } from './api';
 import { $, esc, toast } from './util';
-import { loginPage, profilePage, verifyPage } from './pages/auth';
+import { loginPage, verifyPage } from './pages/auth';
+import { shell } from './account';
+import { profilePage } from './pages/profile';
+import { historyPage } from './pages/history';
+import { leaderboardPage } from './pages/leaderboard';
+import { salonByCode } from './pages/salon';
+import { rulesPage } from './pages/rules';
 import { homePage } from './pages/home';
 import { joinPage } from './pages/join';
 import { gamePage } from './pages/game';
-import { leaderboardPage, practicePage } from './pages/misc';
+import { practicePage } from './pages/misc';
 
 const AFTER = 'pli-apres-connexion';
 let cleanup: (() => void)[] = [];
@@ -16,13 +22,6 @@ export function go(hash: string) { if (location.hash === hash) route(); else loc
 const remember = (h: string) => { try { localStorage.setItem(AFTER, h); } catch { /* ignoré */ } };
 const recall = () => { try { const h = localStorage.getItem(AFTER); localStorage.removeItem(AFTER); return h; } catch { return null; } };
 
-function shell(user: any, active: string) {
-  $('#nav').innerHTML = `
-    <a href="#/" class="${active === 'home' ? 'on' : ''}">Parties</a>
-    <a href="#/classement" class="${active === 'lb' ? 'on' : ''}">Classement</a>
-    <a href="#/entrainement" class="${active === 'practice' ? 'on' : ''}">Entraînement</a>
-    ${user ? `<a href="#/profil" class="${active === 'profile' ? 'on' : ''}">Profil</a>` : `<a href="#/connexion" class="${active === 'login' ? 'on' : ''}">Connexion</a>`}`;
-}
 
 async function route() {
   cleanup.forEach(f => { try { f(); } catch { /* ignoré */ } }); cleanup = [];
@@ -45,7 +44,10 @@ async function route() {
       return verifyPage(view, q.get('token_hash') ?? '', q.get('type') ?? 'email');
     }
     case 'entrainement': shell(user, 'practice'); return practicePage(view);
-    case 'classement': shell(user, 'lb'); return leaderboardPage(view, user?.id ?? null);
+    case 'regles': shell(user, 'rules'); return rulesPage(view);
+    case 'classement': if (!user) return needAuth(); shell(user, 'lb'); return leaderboardPage(view, user.id, new URLSearchParams(query));
+    case 'historique': if (!user) return needAuth(); shell(user, 'hist'); return historyPage(view, user.id, new URLSearchParams(query));
+    case 'salon': if (!user) return needAuth('Connectez-vous pour rejoindre la partie de votre ami.'); shell(user, 'home'); return salonByCode(view, (parts[1] || '').toUpperCase());
     case 'rejoindre': if (!user) return needAuth('Connectez-vous pour rejoindre la partie de votre ami.'); shell(user, 'home'); return joinPage(view, (parts[1] || '').toUpperCase());
     case 'partie': if (!user) return needAuth(); shell(user, 'home'); return gamePage(view, parts[1], user.id);
     case 'profil': if (!user) return needAuth(); shell(user, 'profile'); return profilePage(view, user.id, user.email ?? '');
@@ -61,6 +63,8 @@ sb.auth.onAuthStateChange((ev, session) => {
   const uid = session?.user?.id ?? null;
   if (ev === 'INITIAL_SESSION') { authUid = uid; return; }
   if (ev === 'TOKEN_REFRESHED' || uid === authUid) return;
+  // SIGNED_IN peut arriver avant INITIAL_SESSION au démarrage : le premier route() s'en charge déjà
+  if (authUid === undefined) { authUid = uid; return; }
   authUid = uid;
   if (ev === 'SIGNED_IN') { const h = recall(); if (h && h !== location.hash) { location.hash = h; return; } route(); }
   if (ev === 'SIGNED_OUT') route();

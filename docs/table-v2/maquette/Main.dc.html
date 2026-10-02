@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Table de jeu — à vous de jouer</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&amp;family=IM+Fell+English+SC&amp;family=Alegreya+Sans:wght@400;500;700;800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#ead08a}a:hover{color:#f6e3a8}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible{outline:2px solid #ead08a;outline-offset:3px}
+.tb{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px;border-radius:9px;border:1px solid rgba(234,208,138,.28);background:transparent;color:#efe6d2;font-size:14px;font-weight:700;cursor:pointer}
+.tb:hover{border-color:#ead08a;color:#ead08a}
+.emo{display:flex;align-items:center;justify-content:center;gap:8px;height:44px;border-radius:10px;border:1px solid rgba(234,208,138,.22);background:rgba(0,0,0,.25);color:#efe6d2;font-size:14px;font-weight:700;cursor:pointer}
+.emo:hover{border-color:#ead08a;background:rgba(201,161,74,.12)}
+.slot{position:absolute;border-radius:9px}
+@keyframes fly{0%{transform:translate(0,320px) rotate(-16deg) scale(1.3);opacity:.2}65%{opacity:1}100%{transform:none;opacity:1}}
+.slot.fly{animation:fly .55s cubic-bezier(.2,.8,.25,1) both}
+@keyframes winGlow{0%,100%{box-shadow:0 0 0 3px #ead08a,0 0 16px rgba(234,208,138,.5)}50%{box-shadow:0 0 0 3px #ead08a,0 0 40px rgba(234,208,138,.95)}}
+.slot.win{animation:winGlow 1s ease-in-out infinite;z-index:3}
+@keyframes collect{to{transform:translate(var(--dx),var(--dy)) scale(.3);opacity:0}}
+.slot.collect{animation:collect .6s cubic-bezier(.55,0,.8,.2) forwards}
+@keyframes ring{from{stroke-dashoffset:0}to{stroke-dashoffset:170}}
+.ring{stroke-dasharray:170;animation:ring 30s linear forwards}
+@keyframes breathe{0%,100%{box-shadow:0 0 0 2px #ead08a,0 0 16px rgba(234,208,138,.3),0 8px 18px rgba(0,0,0,.55)}50%{box-shadow:0 0 0 2px #ead08a,0 0 34px rgba(234,208,138,.6),0 8px 18px rgba(0,0,0,.55)}}
+.pod{transition:box-shadow .3s}
+.pod.active{animation:breathe 2s ease-in-out infinite}
+@keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.4)}100%{transform:scale(1)}}
+.gauge.bump{animation:bump .55s ease-out}
+@keyframes plus{0%{transform:translateY(10px);opacity:0}20%{opacity:1}100%{transform:translateY(-30px);opacity:0}}
+.plus{animation:plus 1.8s ease-out forwards}
+@keyframes pop{from{transform:scale(.8);opacity:0}to{transform:none;opacity:1}}
+.banner,.bubble{animation:pop .25s ease-out both}
+@keyframes timer{from{width:100%}to{width:0%}}
+.tbar{animation:timer 30s linear forwards}
+@keyframes dash{0%,100%{border-color:rgba(234,208,138,.25)}50%{border-color:rgba(234,208,138,.7)}}
+.empty{animation:dash 1.6s ease-in-out infinite}
+.hc{transition:transform .16s ease,filter .16s}
+.hc.ok{cursor:pointer}
+.hc.ok:hover,.hc.ok:focus-visible{transform:translateY(-22px) scale(1.04);filter:drop-shadow(0 0 12px rgba(234,208,138,.8))}
+.hc.no:hover{transform:translateY(-8px)}
+@keyframes zoomIn{from{transform:translateY(16px) scale(.85);opacity:0}to{transform:none;opacity:1}}
+.zoom{animation:zoomIn .18s ease-out both}
+.hc.no{filter:grayscale(.8) brightness(.48);cursor:not-allowed}
+.hc.wait{filter:brightness(.8)}
+.rp{background:transparent;border:0;color:#2b2117;font-weight:800;font-size:14px;padding:9px 14px;border-radius:8px;background:#c9a14a;cursor:pointer}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; background: radial-gradient(ellipse at 38% 40%, #2a1f17 0%, #120e0b 70%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+
+<header style="position: absolute; left: 0; top: 0; width: 1440px; height: 56px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 20px; border-bottom: 1px solid rgba(234,208,138,.16); background: rgba(18,14,11,.85);">
+<svg viewBox="0 0 40 40" style="width: 30px; height: 30px; flex: none;" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="none" stroke="#c9a14a" stroke-width="1.5"></circle><path d="M20 3l3.2 13.8L37 20l-13.8 3.2L20 37l-3.2-13.8L3 20l13.8-3.2z" fill="#c9a14a"></path><circle cx="20" cy="20" r="2.4" fill="#ead08a"></circle></svg>
+<div style="display: flex; align-items: baseline; gap: 10px;">
+<span style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">Manche 7</span>
+<span style="font-size: 14px; color: #a8987f;">sur 10 · 7 cartes · pli 2 sur 7</span>
+</div>
+<div style="display: flex; gap: 5px; align-items: center;" aria-label="Progression des manches">
+<sc-for list="{{rounds}}" as="r" hint-placeholder-count="10">
+<span style="width: 10px; height: 10px; border-radius: 50%; background: {{r.bg}}; box-shadow: {{r.ring}};"></span>
+</sc-for>
+</div>
+<div style="flex-grow: 1;"></div>
+<button class="tb"><svg viewBox="0 0 20 20" style="width: 16px; height: 16px;" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4a6 6 0 1 1-6 6M4 4v4h4"></path></svg>Dernier pli</button>
+<button class="tb"><svg viewBox="0 0 20 20" style="width: 16px; height: 16px;" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 3h12v14H4zM7 7h6M7 10h6M7 13h4"></path></svg>Scores</button>
+<button class="tb"><svg viewBox="0 0 20 20" style="width: 16px; height: 16px;" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 4c3-1 5-1 7 1 2-2 4-2 7-1v12c-3-1-5-1-7 1-2-2-4-2-7-1zM10 5v12"></path></svg>Règles</button>
+<button class="tb" aria-label="Couper le son"><svg viewBox="0 0 20 20" style="width: 16px; height: 16px;" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h3l4-3v10l-4-3H3zM13 7.5a3.5 3.5 0 0 1 0 5M15.5 5a7 7 0 0 1 0 10"></path></svg></button>
+<button class="tb">Quitter</button>
+</header>
+
+<div style="position: absolute; left: 24px; top: 72px; width: 1040px; height: 520px; border-radius: 50%; background: linear-gradient(180deg, #8a5833, #5e381d 55%, #4a2b16); box-shadow: 0 26px 50px rgba(0,0,0,.7), 0 6px 0 #2a170b, inset 0 2px 0 rgba(255,220,170,.18);"></div>
+<div style="position: absolute; left: 38px; top: 86px; width: 1012px; height: 492px; box-sizing: border-box; border-radius: 50%; border: 2px solid #b38a3c;"></div>
+<div style="position: absolute; left: 50px; top: 98px; width: 988px; height: 468px; border-radius: 50%; overflow: hidden; background: radial-gradient(ellipse at 50% 46%, #2a6066 0%, #1f4c50 42%, #102c31 100%); box-shadow: inset 0 0 50px rgba(0,0,0,.6);">
+<svg viewBox="0 0 400 400" style="position: absolute; left: 344px; top: 84px; width: 300px; height: 300px; opacity: .14;" aria-hidden="true"><circle cx="200" cy="200" r="150" fill="none" stroke="#ead08a" stroke-width="2"></circle><circle cx="200" cy="200" r="120" fill="none" stroke="#ead08a" stroke-dasharray="3 8"></circle><path d="M200 30l20 150 150 20-150 20-20 150-20-150-150-20 150-20z" fill="#ead08a"></path></svg>
+</div>
+
+<div style="position: absolute; left: 404px; top: 142px; width: 280px; display: flex; justify-content: center; z-index: 2;">
+<div style="display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px 5px 6px; border-radius: 999px; background: rgba(10,20,22,.85); border: 1px solid rgba(234,208,138,.35); font-size: 14px; font-weight: 700; color: #f2e7cd;">
+<span style="width: 18px; height: 18px; border-radius: 50%; background: #b47d0e; box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);"></span>Doublon demandé
+</div>
+</div>
+
+<sc-if value="{{showEmpty}}" hint-placeholder-val="{{true}}">
+<div class="empty" style="position: absolute; left: 498px; top: 356px; width: 92px; height: 129px; box-sizing: border-box; border-radius: 9px; border: 2px dashed rgba(234,208,138,.4); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 12px; font-weight: 700; color: rgba(234,208,138,.75); padding: 8px;">Votre carte</div>
+</sc-if>
+
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="3">
+<div class="{{s.cls}}" style="left: {{s.x}}px; top: {{s.y}}px; transform: rotate({{s.r}}deg); --dx: {{s.dx}}px; --dy: {{s.dy}}px; z-index: {{s.z}};">
+<dc-import name="Card" card="{{s.card}}" w="{{92}}" hint-size="92px,129px"></dc-import>
+<sc-if value="{{s.lead}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; left: 50%; bottom: -26px; transform: translateX(-50%); white-space: nowrap; padding: 3px 10px; border-radius: 999px; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;">En tête</div>
+</sc-if>
+</div>
+</sc-for>
+
+<sc-if value="{{showBanner}}" hint-placeholder-val="{{false}}">
+<div class="banner" style="position: absolute; left: 374px; top: 306px; width: 340px; box-sizing: border-box; padding: 11px 18px; text-align: center; background: #f2e7cd; color: #2b2117; border-top: 2px solid #c9a96a; border-bottom: 2px solid #c9a96a; border-radius: 4px; box-shadow: 0 10px 26px rgba(0,0,0,.55); z-index: 8;">
+<div style="font-family: 'IM Fell English SC', serif; font-size: 22px; line-height: 1.15;">{{bannerTitle}}</div>
+<div style="font-size: 13px; color: #5d4c37;">{{bannerSub}}</div>
+</div>
+</sc-if>
+
+<sc-for list="{{pods}}" as="p" hint-placeholder-count="4">
+<div class="{{p.cls}}" style="position: absolute; left: {{p.x}}px; top: {{p.y}}px; width: 236px; height: 78px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 10px; border-radius: 40px 14px 14px 40px; background: linear-gradient(180deg, #2c221a, #1a130e); border: 1px solid rgba(234,208,138,.3); box-shadow: 0 8px 18px rgba(0,0,0,.55); z-index: 5;">
+<div style="position: relative; width: 56px; height: 56px; flex: none;">
+<sc-if value="{{p.active}}" hint-placeholder-val="{{false}}">
+<svg viewBox="0 0 60 60" style="position: absolute; left: -4px; top: -4px; width: 64px; height: 64px;" aria-hidden="true"><circle cx="30" cy="30" r="27" fill="none" stroke="rgba(234,208,138,.18)" stroke-width="3"></circle><circle class="ring" cx="30" cy="30" r="27" fill="none" stroke="#ead08a" stroke-width="3" stroke-linecap="round" transform="rotate(-90 30 30)"></circle></svg>
+</sc-if>
+<div style="width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'IM Fell English SC', serif; font-size: 24px; color: #1b140e; background: {{p.color}}; box-shadow: 0 0 0 2px #1b140e, 0 0 0 4px {{p.color}};">{{p.init}}</div>
+</div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+<div style="display: flex; align-items: center; gap: 6px;">
+<span style="font-weight: 800; font-size: 16px; color: #f2e7cd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{p.name}}</span>
+<sc-if value="{{p.lead}}" hint-placeholder-val="{{false}}"><span style="flex: none; padding: 2px 6px; border-radius: 5px; background: #c9a14a; color: #2b2117; font-size: 10px; font-weight: 800; letter-spacing: .06em;">ENTAME</span></sc-if>
+</div>
+<div style="font-size: 13px; color: #a8987f; white-space: nowrap;">{{p.score}} pts · {{p.cards}} cartes</div>
+</div>
+<div class="{{p.gaugeCls}}" style="flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 10px; border-radius: 10px; background: {{p.gBg}}; border: 1px solid {{p.gBd}};">
+<span style="font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: {{p.gInk}};">plis / mise</span>
+<span style="font-weight: 800; font-size: 22px; line-height: 1; color: {{p.gInk}}; font-variant-numeric: tabular-nums;">{{p.won}} / {{p.bid}}</span>
+</div>
+<sc-if value="{{p.plus}}" hint-placeholder-val="{{false}}">
+<div class="plus" style="position: absolute; right: 18px; top: -14px; padding: 3px 9px; border-radius: 999px; background: #86c98a; color: #12301a; font-size: 13px; font-weight: 800;">+1 pli</div>
+</sc-if>
+</div>
+</sc-for>
+
+<sc-if value="{{emote}}" hint-placeholder-val="{{false}}">
+<div class="bubble" style="position: absolute; left: 680px; top: 506px; padding: 9px 14px; border-radius: 14px 14px 14px 4px; background: #f2e7cd; color: #2b2117; font-weight: 800; font-size: 15px; box-shadow: 0 8px 20px rgba(0,0,0,.5); z-index: 9;">{{emote}}</div>
+</sc-if>
+
+<div style="position: absolute; left: 184px; top: 614px; width: 720px; height: 56px; box-sizing: border-box; padding: 0 12px 0 20px; display: flex; align-items: center; gap: 16px; background: linear-gradient(180deg, #f6ecd4, #eadbb7); color: #2b2117; border-top: 2px solid #c9a96a; border-bottom: 2px solid #c9a96a; border-radius: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.45); z-index: 6;">
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
+<div style="font-family: 'IM Fell English SC', serif; font-size: 21px; line-height: 1.1;">{{promptTitle}}</div>
+<div style="font-size: 14px; font-weight: 700; color: {{subInk}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{promptSub}}</div>
+</div>
+<sc-if value="{{showTimer}}" hint-placeholder-val="{{true}}">
+<div style="flex: none; width: 92px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end;">
+<span style="font-size: 13px; font-weight: 800; color: #5d4c37; font-variant-numeric: tabular-nums;">30 s</span>
+<div style="width: 92px; height: 6px; border-radius: 3px; background: rgba(43,33,23,.15); overflow: hidden;"><div class="tbar" style="height: 6px; background: #8a5e0e; border-radius: 3px;"></div></div>
+</div>
+</sc-if>
+<sc-if value="{{showReplay}}" hint-placeholder-val="{{false}}">
+<button class="rp" onClick="{{replay}}">Rejouer la démo</button>
+</sc-if>
+</div>
+
+<div style="position: absolute; left: 24px; top: 684px; width: 1040px; height: 204px; border-radius: 16px; background: linear-gradient(180deg, #5a3720, #3a2214); box-shadow: inset 0 2px 0 rgba(255,220,170,.15), inset 0 -4px 10px rgba(0,0,0,.4), 0 10px 24px rgba(0,0,0,.5); border: 1px solid #2a170b;"></div>
+<div style="position: absolute; left: 44px; top: 698px; font-family: 'IM Fell English SC', serif; font-size: 17px; color: #f2e7cd;">Votre main</div>
+<div style="position: absolute; left: 44px; top: 724px; width: 120px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #d9c7a4;">
+<span><b style="color: #f2e7cd;">{{handCount}}</b> cartes</span>
+<span>Mise <b style="color: #f2e7cd;">2</b> · plis <b style="color: #f2e7cd;">{{myWon}}</b></span>
+</div>
+
+<sc-for list="{{hand}}" as="c" hint-placeholder-count="6">
+<div style="position: absolute; left: {{c.x}}px; top: {{c.y}}px; transform: rotate({{c.r}}deg); transform-origin: 50% 130%; z-index: {{c.z}};">
+<button class="{{c.cls}}" onClick="{{c.play}}" onMouseEnter="{{c.enter}}" onMouseLeave="{{leave}}" onFocus="{{c.enter}}" onBlur="{{leave}}" aria-label="{{c.label}}" aria-disabled="{{c.ariaDis}}" style="display: block; padding: 0; margin: 0; border: 0; background: transparent; border-radius: 9px;">
+<dc-import name="Card" card="{{c.card}}" w="{{140}}" hint-size="140px,196px"></dc-import>
+</button>
+</div>
+</sc-for>
+
+<sc-if value="{{zoom}}" hint-placeholder-val="{{false}}">
+<div class="zoom" style="position: absolute; left: {{zoom.x}}px; top: 196px; z-index: 30; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 8px; filter: drop-shadow(0 18px 30px rgba(0,0,0,.7));">
+<dc-import name="Card" card="{{zoom.card}}" w="{{300}}" detail="{{true}}" hint-size="300px,420px"></dc-import>
+<span style="padding: 4px 12px; border-radius: 999px; background: rgba(10,8,6,.85); color: {{zoom.ink}}; font-size: 13px; font-weight: 800; white-space: nowrap;">{{zoom.note}}</span>
+</div>
+</sc-if>
+
+<aside style="position: absolute; left: 1088px; top: 72px; width: 328px; display: flex; flex-direction: column; gap: 14px;">
+<section style="padding: 14px 16px; border-radius: 12px; background: linear-gradient(180deg, #2a2019, #1f1813); border: 1px solid rgba(234,208,138,.18); display: flex; flex-direction: column; gap: 4px;">
+<div style="display: flex; justify-content: space-between; align-items: baseline;"><h2 style="margin: 0; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 18px; color: #ead08a;">Classement</h2><span style="font-size: 12px; color: #a8987f;">plis / mise · total</span></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.06);">
+<span style="width: 16px; font-weight: 800; color: #a8987f; font-size: 14px;">{{r.rank}}</span>
+<span style="width: 10px; height: 10px; border-radius: 50%; background: {{r.color}}; flex: none;"></span>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+<span style="font-weight: 700; font-size: 15px; color: #f2e7cd;">{{r.name}}</span>
+<div style="display: flex; gap: 4px; align-items: center;">
+<sc-for list="{{r.pips}}" as="q" hint-placeholder-count="2"><span style="width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box; background: {{q.bg}}; border: 1.5px solid {{q.bd}};"></span></sc-for>
+<span style="font-size: 12px; color: {{r.stInk}}; font-weight: 700; margin-left: 4px;">{{r.st}}</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: flex-end;">
+<span style="font-weight: 800; font-size: 20px; color: #f2e7cd; font-variant-numeric: tabular-nums;">{{r.score}}</span>
+<span style="font-size: 12px; font-weight: 700; color: {{r.dInk}};">{{r.delta}} manche 6</span>
+</div>
+</div>
+</sc-for>
+</section>
+
+<section style="padding: 14px 16px; border-radius: 12px; background: linear-gradient(180deg, #2a2019, #1f1813); border: 1px solid rgba(234,208,138,.18); display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 0; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 18px; color: #ead08a;">Réactions</h2>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+<sc-for list="{{emotes}}" as="e" hint-placeholder-count="4">
+<button class="emo" onClick="{{e.send}}">{{e.label}}</button>
+</sc-for>
+</div>
+</section>
+
+<section style="padding: 14px 16px; border-radius: 12px; background: linear-gradient(180deg, #2a2019, #1f1813); border: 1px solid rgba(234,208,138,.18); display: flex; flex-direction: column; gap: 6px;">
+<div style="display: flex; justify-content: space-between; align-items: baseline;"><h2 style="margin: 0; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 18px; color: #ead08a;">Journal</h2><a href="#journal" style="font-size: 13px;">Tout voir</a></div>
+<sc-for list="{{log}}" as="l" hint-placeholder-count="6">
+<sc-if value="{{l.plain}}" hint-placeholder-val="{{true}}">
+<div style="font-size: 13.5px; line-height: 1.4; color: #d9cdb6; padding-left: 9px; border-left: 2px solid {{l.bar}};">{{l.pre}}<span style="font-weight: 800; color: {{l.chipInk}};">{{l.chip}}</span>{{l.post}}</div>
+</sc-if>
+<sc-if value="{{l.bonus}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; gap: 10px; padding: 7px 10px 7px 8px; border-radius: 8px; background: {{l.bg}}; border-left: 3px solid {{l.edge}};">
+<span style="flex: none; min-width: 38px; text-align: center; padding: 3px 7px; border-radius: 999px; background: {{l.edge}}; color: #1f160c; font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums;">{{l.pts}}</span>
+<div style="display: flex; flex-direction: column; min-width: 0; line-height: 1.25;">
+<span style="font-size: 13.5px; font-weight: 800; color: #f2e7cd;">{{l.who}} · {{l.why}}</span>
+<span style="font-size: 11.5px; color: #a8987f;">compte si sa mise est tenue</span>
+</div>
+</div>
+</sc-if>
+</sc-for>
+</section>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  state = { phase: 'turn', hover: null, playedId: null, emote: null, zoom: null };
+  componentWillUnmount() { (this.t || []).forEach(clearTimeout); clearTimeout(this.et); clearTimeout(this.zt); }
+  later(ms, f) { (this.t = this.t || []).push(setTimeout(f, ms)); }
+  play(id) {
+    var LEGAL = { p: 1, m: 1, y2: 1, y13: 1 };
+    if (this.state.phase !== 'turn' || !LEGAL[id]) return;
+    this.setState({ phase: 'played', playedId: id, hover: null });
+    this.later(650, () => this.setState({ phase: 'resolved' }));
+    this.later(1950, () => this.setState({ phase: 'collect' }));
+    this.later(2600, () => this.setState({ phase: 'done' }));
+  }
+  replay() { (this.t || []).forEach(clearTimeout); this.t = []; this.setState({ phase: 'turn', playedId: null, hover: null }); }
+  emote(txt) { clearTimeout(this.et); this.setState({ emote: txt }); this.et = setTimeout(() => this.setState({ emote: null }), 2200); }
+  renderVals() {
+    var st = this.state, ph = st.phase;
+    var HAND = [
+      { id: 'p', card: { kind: 'pirate', name: 'Anne Boussole', power: 'Si vous remportez le pli : choisissez qui entame le pli suivant.' }, label: 'Anne Boussole' },
+      { id: 'm', card: { kind: 'mermaid', name: 'Ondine' }, label: 'Ondine' },
+      { id: 'b5', card: { kind: 'num', suit: 'black', rank: 5 }, label: '5 Pavillon noir' },
+      { id: 'y2', card: { kind: 'num', suit: 'yellow', rank: 2 }, label: '2 Doublon' },
+      { id: 'y13', card: { kind: 'num', suit: 'yellow', rank: 13 }, label: '13 Doublon' },
+      { id: 'g10', card: { kind: 'num', suit: 'green', rank: 10 }, label: '10 Perroquet' }
+    ];
+    var LEGAL = { p: 1, m: 1, y2: 1, y13: 1 };
+    var WIN = { p: 'you', m: 'you', y13: 'you', y2: 'top' };
+    var HINT = {
+      p: ['Anne Boussole bat toutes les cartes numérotées : vous prenez le pli', 'win'],
+      m: ['Ondine bat toutes les cartes numérotées : vous prenez le pli', 'win'],
+      y13: ['13 Doublon bat le 11 d’Ysolde : vous prenez le pli', 'win'],
+      y2: ['2 Doublon est trop faible : Ysolde garde le pli', 'lose'],
+      b5: ['Bloquée : vous devez fournir du Doublon', 'no'],
+      g10: ['Bloquée : vous devez fournir du Doublon', 'no']
+    };
+    var P = {
+      you: { name: 'Vous', init: 'V', color: '#d9b25a', score: 110, bid: 2, won: 0, cards: 6, x: 426, y: 521, cx: 544, cy: 560, delta: '+40' },
+      left: { name: 'Maëlle', init: 'M', color: '#7ab874', score: 65, bid: 1, won: 1, cards: 5, x: 32, y: 293, cx: 150, cy: 332, delta: '−10' },
+      top: { name: 'Ysolde', init: 'Y', color: '#5c9db6', score: 40, bid: 2, won: 0, cards: 5, x: 426, y: 61, cx: 544, cy: 100, delta: '+20' },
+      right: { name: 'Corentin', init: 'C', color: '#c8644b', score: 85, bid: 0, won: 0, cards: 5, x: 820, y: 293, cx: 938, cy: 332, delta: '+60' }
+    };
+    var SLOT = { left: { x: 374, y: 268, r: -7 }, top: { x: 498, y: 176, r: 2 }, right: { x: 622, y: 268, r: 7 }, you: { x: 498, y: 356, r: -2 } };
+    var TRICK = { left: { kind: 'num', suit: 'yellow', rank: 4 }, top: { kind: 'num', suit: 'yellow', rank: 11 }, right: { kind: 'num', suit: 'yellow', rank: 7 } };
+    var played = st.playedId ? HAND.filter(h => h.id === st.playedId)[0] : null;
+    var winner = played ? WIN[played.id] : null;
+    var wonOf = k => P[k].won + (ph === 'done' && winner === k ? 1 : 0);
+    var cardsOf = k => P[k].cards - (k === 'you' && played ? 1 : 0);
+
+    var slots = [];
+    if (ph !== 'done') ['left', 'top', 'right', 'you'].forEach(k => {
+      var card = k === 'you' ? (played ? played.card : null) : TRICK[k];
+      if (!card) return;
+      var s = SLOT[k], cls = 'slot';
+      if (k === 'you' && ph === 'played') cls += ' fly';
+      if (ph === 'resolved' && k === winner) cls += ' win';
+      if (ph === 'collect') cls += ' collect';
+      var tx = winner ? P[winner].cx - (s.x + 46) : 0, ty = winner ? P[winner].cy - (s.y + 64) : 0;
+      slots.push({ card: card, cls: cls, x: s.x, y: s.y, r: s.r, dx: tx, dy: ty, z: k === 'you' ? 2 : 1, lead: ph === 'turn' && k === 'top' });
+    });
+
+    var gauge = p => {
+      var w = p.won, b = p.bid;
+      if (w > b) return { gBg: 'rgba(232,131,107,.14)', gBd: 'rgba(232,131,107,.5)', gInk: '#f0a08b' };
+      if (w === b) return { gBg: 'rgba(134,201,138,.14)', gBd: 'rgba(134,201,138,.5)', gInk: '#9bd69f' };
+      return { gBg: 'rgba(234,208,138,.1)', gBd: 'rgba(234,208,138,.35)', gInk: '#ead08a' };
+    };
+    var leader = ph === 'done' ? winner : 'left';
+    var pods = ['top', 'left', 'right', 'you'].map(k => {
+      var p = P[k], won = wonOf(k), g = gauge({ won: won, bid: p.bid });
+      var active = (ph === 'turn' && k === 'you') || (ph === 'done' && k === winner && k !== 'you');
+      return Object.assign({ name: p.name, init: p.init, color: p.color, score: p.score, cards: cardsOf(k), bid: p.bid, won: won, x: p.x, y: p.y,
+        cls: 'pod' + (active ? ' active' : ''), active: active, lead: k === leader,
+        gaugeCls: 'gauge' + (ph === 'done' && k === winner ? ' bump' : ''), plus: ph === 'done' && k === winner }, g);
+    });
+
+    var promptTitle, promptSub, subInk = '#5d4c37';
+    if (ph === 'turn') {
+      promptTitle = 'À vous de jouer';
+      if (st.hover && HINT[st.hover]) { promptSub = HINT[st.hover][0]; subInk = { win: '#2b6a33', lose: '#8a5e0e', no: '#a03123' }[HINT[st.hover][1]]; }
+      else promptSub = 'Survolez une carte pour voir si elle prend le pli';
+    } else if (ph === 'done') {
+      promptTitle = winner === 'you' ? 'Pli remporté : encore un pour tenir votre mise' : 'Ysolde prend le pli';
+      promptSub = 'Pli 3 sur 7 · ' + (winner === 'you' ? 'vous entamez' : 'Ysolde entame');
+    } else {
+      promptTitle = winner === 'you' ? 'Vous remportez le pli' : 'Ysolde remporte le pli';
+      promptSub = 'avec ' + (winner === 'you' ? played.label : '11 Doublon');
+    }
+
+    var n = HAND.length - (played ? 1 : 0), i = 0;
+    var hand = HAND.filter(h => !played || h.id !== played.id).map(h => {
+      // Taille dictée par le bloc : hauteur carte = hauteur du bloc − 8 px ; écart = le plus large possible sans dépasser 740 px
+      var CW = 140, step = Math.min(CW * 0.96, (740 - CW) / Math.max(1, n - 1));
+      var x0 = 544 - ((n - 1) * step + CW) / 2, d = i - (n - 1) / 2;
+      var ok = ph === 'turn' && LEGAL[h.id];
+      var o = { card: h.card, x: Math.round(x0 + i * step), y: Math.round(688 + d * d * 1), r: (d * 1).toFixed(1), z: i + 1,
+        cls: 'hc ' + (ph !== 'turn' ? 'wait' : ok ? 'ok' : 'no'), ariaDis: ok ? 'false' : 'true',
+        label: (ok ? 'Jouer ' : 'Bloquée : ') + h.label,
+        play: () => this.play(h.id), enter: () => { if (this.state.phase === 'turn') this.setState({ hover: h.id }); clearTimeout(this.zt); this.zt = setTimeout(() => this.setState({ zoom: h.id }), 450); } };
+      i++; return o;
+    });
+
+    var zoom = null;
+    if (st.zoom) {
+      var zc = hand.filter((o, k) => HAND.filter(h => !played || h.id !== played.id)[k].id === st.zoom)[0];
+      if (zc) {
+        var zh = HINT[st.zoom];
+        zoom = { card: zc.card, x: Math.max(24, Math.min(1064 - 300, zc.x + 70 - 150)),
+          note: ph === 'turn' && zh ? (zh[1] === 'no' ? 'Bloquée : fournissez du Doublon' : zh[1] === 'win' ? 'Prendrait le pli' : 'Ne prendrait pas le pli') : 'Maintenez le survol pour lire la carte',
+          ink: ph === 'turn' && zh ? { win: '#9bd69f', lose: '#ead08a', no: '#f0a08b' }[zh[1]] : '#d9cdb6' };
+      }
+    }
+    var rowsData = [['you', 1], ['right', 2], ['left', 3], ['top', 4]];
+    var rows = rowsData.map(([k, rank]) => {
+      var p = P[k], won = wonOf(k), pips = [];
+      for (var j = 0; j < Math.max(p.bid, won); j++) {
+        var over = j >= p.bid, on = j < won;
+        pips.push(over ? { bg: '#e8836b', bd: '#e8836b' } : on ? { bg: '#86c98a', bd: '#86c98a' } : { bg: 'transparent', bd: 'rgba(234,208,138,.55)' });
+      }
+      var stx, sInk;
+      if (won > p.bid) { stx = (won - p.bid) + ' de trop'; sInk = '#f0a08b'; }
+      else if (won === p.bid) { stx = p.bid === 0 ? 'mise 0 tenue' : 'mise tenue'; sInk = '#9bd69f'; }
+      else { stx = 'il manque ' + (p.bid - won); sInk = '#ead08a'; }
+      return { rank: rank, name: p.name, color: p.color, score: p.score, delta: p.delta, dInk: p.delta[0] === '+' ? '#9bd69f' : '#f0a08b', pips: pips, st: stx, stInk: sInk };
+    });
+
+    var log = [
+      { pre: 'Maëlle remporte le pli 1 avec ', chip: 'Barbe-Cendre', chipInk: '#f2e7cd', post: '', bar: '#ead08a' },
+      { bonus: true, pts: '+30', who: 'Maëlle', why: 'Pirate capturé par Barbe-Cendre', bg: 'rgba(201,161,74,.14)', edge: '#ead08a' },
+      { bonus: true, pts: '+10', who: 'Maëlle', why: '14 Perroquet capturé', bg: 'rgba(201,161,74,.14)', edge: '#ead08a' },
+      { pre: 'Maëlle joue ', chip: '4 Doublon', chipInk: '#e8b94a', post: '', bar: 'rgba(201,161,74,.25)' },
+      { pre: 'Ysolde joue ', chip: '11 Doublon', chipInk: '#e8b94a', post: '', bar: 'rgba(201,161,74,.25)' },
+      { pre: 'Corentin joue ', chip: '7 Doublon', chipInk: '#e8b94a', post: '', bar: 'rgba(201,161,74,.25)' }
+    ];
+    if (played) log.push({ pre: 'Vous jouez ', chip: played.label, chipInk: played.card.kind === 'num' ? '#e8b94a' : '#f2e7cd', post: '', bar: 'rgba(201,161,74,.25)' });
+    if (ph === 'resolved' || ph === 'collect' || ph === 'done') log.push({ pre: (winner === 'you' ? 'Vous remportez' : 'Ysolde remporte') + ' le pli 2', chip: '', chipInk: '#f2e7cd', post: '', bar: '#ead08a' });
+    log = log.slice(-8).map(l => Object.assign({ plain: !l.bonus, bonus: !!l.bonus }, l));
+
+    var rounds = [];
+    for (var r = 1; r <= 10; r++) rounds.push({ bg: r < 7 ? '#c9a14a' : r === 7 ? '#ead08a' : 'rgba(234,208,138,.18)', ring: r === 7 ? '0 0 0 3px rgba(234,208,138,.3)' : 'none' });
+
+    var EMO = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
+    return {
+      rounds: rounds, slots: slots, pods: pods, hand: hand, rows: rows, log: log,
+      showEmpty: ph === 'turn', showBanner: ph === 'resolved',
+      bannerTitle: winner === 'you' ? 'Vous remportez le pli' : 'Ysolde remporte le pli',
+      bannerSub: winner === 'you' ? (played ? played.label + ' l’emporte' : '') : '11 Doublon reste le plus fort',
+      promptTitle: promptTitle, promptSub: promptSub, subInk: subInk, showTimer: ph === 'turn', showReplay: ph === 'done',
+      handCount: n, myWon: wonOf('you'), emote: st.emote, zoom: zoom,
+      emotes: EMO.map(e => ({ label: e, send: () => this.emote(e) })),
+      leave: () => { clearTimeout(this.zt); if (this.state.hover || this.state.zoom) this.setState({ hover: null, zoom: null }); },
+      replay: () => this.replay()
+    };
+  }
+}
+</script>
+</body>
+</html>

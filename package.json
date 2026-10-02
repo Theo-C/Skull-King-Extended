@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "tsx tests/engine.test.ts && tsx tests/sql.test.ts && tsx tests/service.test.ts",
+    "test": "tsx tests/engine.test.ts && tsx tests/account.test.ts && tsx tests/sql.test.ts && tsx tests/service.test.ts",
     "dev": "vite web",
     "build": "vite build web",
     "typecheck": "tsc --noEmit -p ."

@@ -55,6 +55,11 @@ const store: Store = {
     if (error) fail(error, 'enregistrement');
     return (data as number | null) ?? null;
   },
+  async rpc(name, args) {
+    const { data, error } = await admin.rpc(name, args);
+    if (error) fail(error, name);
+    return data;
+  },
 };
 
 Deno.serve(async (req) => {
