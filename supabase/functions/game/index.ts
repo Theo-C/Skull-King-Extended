@@ -18,6 +18,7 @@ function fail(e: { message: string } | null, what: string): never { throw new Er
 const GAME_COLS = 'id, code, host, status, options, state, version';
 
 const store: Store = {
+  origin: URL_,
   async pseudo(uid) {
     const { data } = await admin.from('profiles').select('pseudo').eq('id', uid).maybeSingle();
     return data?.pseudo ?? 'Pirate';

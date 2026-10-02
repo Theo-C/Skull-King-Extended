@@ -11,9 +11,9 @@ export const ACHIEVEMENTS: Record<string, { name: string; description: string }>
   kraken_bet: { name: 'Pari du Kraken', description: 'Tenir une mise de 0 à la manche 10' },
   siren_hunter: { name: 'Chasseur de sirènes', description: 'Capturer 10 sirènes au total' },
   grand_quinze: { name: 'Grand Quinze', description: 'Remporter un pli avec le Grand Quinze' },
-  silk_thread: { name: 'Fil-de-Soie', description: 'Remporter un pli avec la carte imposée par Lise' },
+  silk_thread: { name: 'Fil-de-Soie', description: 'Imposer avec Lise une carte qui remporte le pli' },
   captain: { name: 'Capitaine des mers', description: 'Gagner 10 parties' },
-  abyss: { name: 'Fosse insondable', description: 'Engloutir un monstre avec la Fosse des Noyés' },
+  abyss: { name: 'Fosse insondable', description: 'Engloutir un monstre avec la Fosse des Noyés' }, // la Fosse ne remporte jamais de pli (règle)
   mermaid_king: { name: 'La Sirène et le Roi', description: 'Capturer Barbe-Cendre avec une sirène' },
   velvet: { name: 'Main de velours', description: 'Tenir 5 mises à 0 au total' },
 };
@@ -25,7 +25,8 @@ export interface SettleInput {
   sirens_captured: number; zero_bids_made: number; achievements: string[];
 }
 export interface Settlement {
-  results: { user_id: string; place: number; score: number; bids_made: number; rounds: number; players: number; elo_before: number; elo_after: number | null; elo_delta: number | null }[];
+  results: { user_id: string; place: number; score: number; bids_made: number; rounds: number; players: number; elo_before: number; elo_after: number | null; elo_delta: number | null;
+    /** état lu avant le calcul : game_settle refuse le règlement si l'un d'eux a changé entre-temps */ ranked_before: number; games_before: number }[];
   xp: { user_id: string; reason: string; amount: number }[];
   achievements: { user_id: string; code: string }[];
   stats: { user_id: string; win: number; bids_made: number; bids_total: number; score: number; sirens: number; zero_bids_made: number; ranked: boolean; elo_after: number }[];
@@ -70,7 +71,7 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
 
     const e = elo.find(x => x.id === uid);
     out.results.push({ user_id: uid, place, score: p.score, bids_made: made, rounds: hist.length, players: seats.length,
-      elo_before: Number(inp.elo), elo_after: e ? e.after : null, elo_delta: e ? e.delta : null });
+      elo_before: Number(inp.elo), elo_after: e ? e.after : null, elo_delta: e ? e.delta : null, ranked_before: inp.ranked_games, games_before: inp.games });
     out.xp.push(...lines.map(l => ({ user_id: uid, ...l })));
     out.achievements.push(...fresh.map(code => ({ user_id: uid, code })));
     out.stats.push({ user_id: uid, win, bids_made: made, bids_total: hist.length, score: p.score, sirens: f.sirens, zero_bids_made: zeroMade, ranked, elo_after: e ? e.after : Number(inp.elo) });

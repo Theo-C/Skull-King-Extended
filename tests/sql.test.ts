@@ -57,8 +57,8 @@ await as(A, `update profiles set pseudo='Alice' where id='${A}'`);
 await as(A, `update profiles set pseudo='Pirate' where id='${B}'`);
 const ps = await db.query<any>(`select pseudo from profiles where id in ('${A}','${B}') order by pseudo`);
 ok('chacun ne modifie que son pseudo', ps.rows.map((r: any) => r.pseudo).join() === 'Alice,bob', ps.rows);
-const lb = await as(C, 'select pseudo, games, wins, avg_score, best_score from leaderboard order by wins desc, avg_score desc');
-ok('classement visible par tous, sans les bots', JSON.stringify(lb) === JSON.stringify([{ pseudo: 'Alice', games: 1, wins: 1, avg_score: 180, best_score: 180 }, { pseudo: 'bob', games: 1, wins: 0, avg_score: 90, best_score: 90 }]), lb);
+const oldView = (await db.query<any>(`select to_regclass('public.leaderboard') as v`)).rows[0].v;
+ok('ancienne vue de classement supprimée (ignorait public_rank)', oldView == null, oldView);
 
 // ---------- Écrans du compte : profils, XP, Élo, résultats ----------
 const prof = (await db.query<any>(`select avatar_kind, color, xp, public_rank from profiles where id='${A}'`)).rows[0];
