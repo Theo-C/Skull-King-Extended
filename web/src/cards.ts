@@ -1,6 +1,6 @@
 // Rendu des cartes « Mers Sauvages ».
 import { ALT2, ALT2B, NUM2 } from './cardsdata';
-import { cardTitle, SUIT, type Card, type Entry } from '@engine';
+import { cardTitle, cname, SUIT, type Card, type Entry } from '@engine';
 import { esc } from './util';
 
 const wrapF = (b: number, h: string) => `<div class="fb${b}">${h}</div>`;
@@ -24,6 +24,7 @@ export function cardHTML(c: Partial<Card>, e?: Partial<Entry> | null, extra = ''
   if (e && e.as) tag = e.as === 'pirate' ? 'Pirate' : 'Fuite';
   if (e && c.zf && e.val != null) tag = 'vaut ' + e.val;
   if (e && c.wild && e.ws) tag = SUIT[e.ws].n;
-  return `<div class="${cl} ${extra}" data-id="${c.id}" title="${esc(cardTitle(c as Card))}" ${attrs}><div class="face">${faceHTML(c)}</div>${tag ? `<span class="tag">${tag}</span>` : ''}</div>`;
+  // nom accessible (le title seul n'est pas fiable pour les lecteurs d'écran) ; la main remplace role et libellé quand la carte devient jouable
+  return `<div class="${cl} ${extra}" data-id="${c.id}" role="img" aria-label="${esc(cname(c as Card, e ?? undefined))}" title="${esc(cardTitle(c as Card))}" ${attrs}><div class="face">${faceHTML(c)}</div>${tag ? `<span class="tag">${tag}</span>` : ''}</div>`;
 }
 export const backFace = () => `<div class="face">${faceOf('back')}</div>`;

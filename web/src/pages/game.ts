@@ -55,6 +55,8 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       ready: round => cast('ready', { round }),
       gameId: id, uid, seatUids: seats.map(s => s.user_id ?? null),
       rematch: async () => (await callGame<{ id: string }>('rematch', { id })).id,
+      // règlement de fin de partie relu au serveur (il le refait s'il a été interrompu)
+      settled: async () => (await callGame<any>('history.get', { id }))?.state?.settled ?? null,
     }, () => go('#/'));
     // avatars et couleurs des joueurs (les bots gardent l'initiale sur la couleur par défaut)
     const ids = seats.filter(s => s.user_id).map(s => s.user_id);

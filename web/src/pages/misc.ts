@@ -23,7 +23,9 @@ export function practicePage(root: HTMLElement) {
       },
     }, () => go('#/'));
     view.push(E.takeEvents(S)); view.setLatest(E.publicView(S), E.privateView(S, 0));
-    (window as any).__practice = { S, view, E }; // accès de débogage (tests de bout en bout)
+    // accès de débogage (tests de bout en bout) : en développement, ou si localStorage « pli-debug » vaut « 1 »
+    let dbg = import.meta.env.DEV; try { dbg ||= localStorage.getItem('pli-debug') === '1'; } catch { /* stockage indisponible */ }
+    if (dbg) (window as any).__practice = { S, view, E };
     setCleanup(() => { view.destroy(); document.body.classList.remove('at-table'); });
   };
 }
