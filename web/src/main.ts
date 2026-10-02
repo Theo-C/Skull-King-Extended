@@ -2,8 +2,8 @@
 import './game.css';
 import './app.css';
 import { sb, configured, currentUser } from './api';
-import { $, esc } from './util';
-import { loginPage, profilePage } from './pages/auth';
+import { $, esc, toast } from './util';
+import { loginPage, profilePage, verifyPage } from './pages/auth';
 import { homePage } from './pages/home';
 import { joinPage } from './pages/join';
 import { gamePage } from './pages/game';
@@ -26,7 +26,8 @@ function shell(user: any, active: string) {
 
 async function route() {
   cleanup.forEach(f => { try { f(); } catch { /* ignoré */ } }); cleanup = [];
-  const view = $('#view'); const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  const [path, query = ''] = location.hash.replace(/^#\/?/, '').split('?');
+  const view = $('#view'); const parts = path.split('/').filter(Boolean);
   const page = parts[0] || '';
   if (!configured && page !== 'entrainement') {
     shell(null, 'practice');
@@ -38,6 +39,11 @@ async function route() {
   window.scrollTo(0, 0);
   switch (page) {
     case 'connexion': shell(user, 'login'); if (user) { go('#/'); return; } return loginPage(view);
+    case 'verifier': {
+      if (user) { go('#/'); return; }
+      const q = new URLSearchParams(query); shell(null, 'login');
+      return verifyPage(view, q.get('token_hash') ?? '', q.get('type') ?? 'email');
+    }
     case 'entrainement': shell(user, 'practice'); return practicePage(view);
     case 'classement': shell(user, 'lb'); return leaderboardPage(view, user?.id ?? null);
     case 'rejoindre': if (!user) return needAuth('Connectez-vous pour rejoindre la partie de votre ami.'); shell(user, 'home'); return joinPage(view, (parts[1] || '').toUpperCase());
@@ -53,4 +59,9 @@ sb.auth.onAuthStateChange((ev) => {
   if (ev === 'SIGNED_OUT') route();
 });
 $('#brandLink').addEventListener('click', () => go('#/'));
+// Retour d'un lien de connexion refusé par Supabase (déjà utilisé, expiré…) : on prévient et on nettoie l'adresse.
+if (new URLSearchParams(location.search).get('error_code')) {
+  toast('Ce lien de connexion a expiré ou a déjà servi. Demandez-en un nouveau.', 'err');
+  history.replaceState(null, '', location.pathname + '#/connexion');
+}
 route().catch(e => { console.error(e); $('#view').innerHTML = `<section class="page narrow"><div class="box"><h1>Oups</h1><p class="lead">${esc(e.message)}</p></div></section>`; });

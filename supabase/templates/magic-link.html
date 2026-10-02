@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Ton lien pour regagner le navire</title>
+  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:#120e0b;">
+  <!-- Texte d'aperçu (affiché dans la liste des emails) -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Ton lien de connexion t'attend, le Skull King distribue déjà les cartes.</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#120e0b;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+
+          <!-- En-tête -->
+          <tr>
+            <td align="center" style="padding:0 0 20px 0;">
+              <div style="font-size:44px;line-height:1;">☠️</div>
+              <div style="font-family:'IM Fell English SC',Georgia,'Times New Roman',serif;font-size:30px;color:#ead08a;letter-spacing:1px;padding-top:10px;">Skull King Extended</div>
+              <div style="font-family:'Alegreya Sans','Segoe UI',Arial,sans-serif;font-size:13px;color:#a8987f;letter-spacing:3px;text-transform:uppercase;padding-top:4px;">Plis, paris &amp; trahisons</div>
+            </td>
+          </tr>
+
+          <!-- Parchemin -->
+          <tr>
+            <td style="background-color:#f2e7cd;border:3px solid #c9a14a;border-radius:10px;padding:36px 32px;">
+
+              <div style="font-family:'IM Fell English SC',Georgia,'Times New Roman',serif;font-size:26px;color:#2b2117;text-align:center;margin:0 0 6px 0;">Retour à bord, matelot !</div>
+              <div style="text-align:center;color:#c9a14a;font-size:14px;letter-spacing:6px;margin:0 0 22px 0;">⚓ ⚔ ⚓</div>
+
+              <p style="font-family:'Alegreya Sans','Segoe UI',Arial,sans-serif;font-size:16px;line-height:1.6;color:#2b2117;margin:0 0 14px 0;">
+                Tu as demandé à remonter sur le navire avec l'adresse <strong>{{ .Email }}</strong>.
+              </p>
+              <p style="font-family:'Alegreya Sans','Segoe UI',Arial,sans-serif;font-size:16px;line-height:1.6;color:#2b2117;margin:0 0 26px 0;">
+                Clique sur le bouton pour te connecter. Ce lien ne sert qu'une seule fois et expire vite : la marée n'attend pas.
+              </p>
+
+              <!-- Bouton -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;">
+                <tr>
+                  <td align="center" bgcolor="#6f4628" style="border-radius:8px;border:2px solid #c9a14a;">
+                    <a href="{{ .RedirectTo }}#/verifier?token_hash={{ .TokenHash }}&amp;type=email" target="_blank" style="display:inline-block;padding:14px 34px;font-family:'IM Fell English SC',Georgia,'Times New Roman',serif;font-size:20px;color:#ead08a;text-decoration:none;border-radius:8px;">Monter à bord</a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Code -->
+              <p style="font-family:'Alegreya Sans','Segoe UI',Arial,sans-serif;font-size:14px;line-height:1.5;color:#5d4c37;text-align:center;margin:26px 0 8px 0;">Ou saisis ce code sur la page de connexion :</p>
+              <div style="font-family:Georgia,'Times New Roman',serif;font-size:32px;font-weight:bold;letter-spacing:8px;color:#2b2117;text-align:center;background-color:#e2d2ad;border:1px dashed #c9a14a;border-radius:8px;padding:12px 0;">{{ .Token }}</div>
+
+              <!-- Séparateur -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:30px 0 18px 0;">
+                <tr><td style="border-top:1px dashed #c9a14a;font-size:0;line-height:0;">&nbsp;</td></tr>
+              </table>
+
+              <p style="font-family:'Alegreya Sans','Segoe UI',Arial,sans-serif;font-size:13px;line-height:1.5;color:#5d4c37;margin:0 0 8px 0;">
+                Le bouton prend l'eau ? Copie ce lien dans ton navigateur :
+              </p>
+              <p style="font-family:'Alegreya Sans','Segoe UI',Arial,sans-serif;font-size:12px;line-height:1.5;margin:0 0 16px 0;word-break:break-all;">
+                <a href="{{ .RedirectTo }}#/verifier?token_hash={{ .TokenHash }}&amp;type=email" target="_blank" style="color:#6f4628;">{{ .RedirectTo }}#/verifier?token_hash={{ .TokenHash }}&amp;type=email</a>
+              </p>
+              <p style="font-family:'Alegreya Sans','Segoe UI',Arial,sans-serif;font-size:13px;line-height:1.5;color:#5d4c37;margin:0;">
+                Ce n'est pas toi ? Ignore ce message, personne ne pourra se connecter à ta place.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Pied de page -->
+          <tr>
+            <td align="center" style="padding:22px 16px 0 16px;font-family:'Alegreya Sans','Segoe UI',Arial,sans-serif;font-size:12px;line-height:1.5;color:#a8987f;">
+              Skull King Extended · un projet de pirates, pour des pirates<br>
+              Cet email a été envoyé automatiquement, inutile d'y répondre.
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
