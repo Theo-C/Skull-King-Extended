@@ -4,6 +4,15 @@ import { cname, leadSuitOf, wildRule, SUIT, WILD_SUITS, PIRATES, type Action, ty
 import { cardHTML, backFace } from './cards';
 import { $, esc, modal, sleep, toast } from './util';
 import { rulesHTML } from './rules';
+import { sfx, soundOn, setSound } from './sound';
+import { installCardZoom } from './zoom';
+
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** Remplace le contenu d'un élément seulement s'il a changé : évite de recréer le DOM (et de casser animations et survol). */
+const htmlCache = new WeakMap<Element, string>();
+function setHTML(el: Element, html: string) { if (htmlCache.get(el) !== html) { el.innerHTML = html; htmlCache.set(el, html); } }
+function elFrom(html: string) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild as HTMLElement; }
+const center = (r: DOMRect) => [r.left + r.width / 2, r.top + r.height / 2];
 
 export interface TableBackend { send(move: Action): Promise<void> }
 const PCOL = ['#d9b25a', '#c8644b', '#5c9db6', '#7ab874', '#a982c4', '#e0954a', '#cfc6b0', '#6f8fd0', '#d47fa6'];
@@ -23,6 +32,13 @@ export class TableView {
   private pick: { k: number; sel: Set<number> } | null = null;
   private choice: { id: number; need: string[]; move: any } | null = null;
   private shownRound = 0; private shownEnd = false;
+  // éléments conservés d'un rendu à l'autre
+  private seatEls: HTMLElement[] = []; private centerEl: HTMLElement | null = null;
+  private tcards = new Map<string, HTMLElement>(); private collectTo: number | null = null;
+  private handEls = new Map<number, HTMLElement>(); private handRound = -1;
+  private flyFrom: { id: number; rect: DOMRect } | null = null; private sendingId: number | null = null;
+  private prevScores: (number | undefined)[] = []; private revealRound = -1;
+  private wasMyTurn = false; private baseTitle = document.title; private resizeRaf = 0;
   speed = 1;
 
   constructor(private root: HTMLElement, private mySeat: number | null, private backend: TableBackend, private onExit: () => void) {
@@ -35,7 +51,8 @@ export class TableView {
           <div id="pRound" class="track" aria-label="Progression des manches"></div>
           <div class="tools">
             <select id="speed" class="tbtn" aria-label="Vitesse des animations"><option value="1.7">Lente</option><option value="1">Normale</option><option value="0.45">Rapide</option></select>
-            <button class="tbtn" id="bScores">Scores</button><button class="tbtn" id="bRules">Règles</button><button class="tbtn" id="bExit">Quitter la table</button>
+            <button class="tbtn" id="bSound" aria-pressed="${soundOn()}" title="Activer / couper le son">${soundOn() ? '🔊' : '🔇'}<span> Son</span></button>
+            <button class="tbtn" id="bLast">Dernier pli</button><button class="tbtn" id="bScores">Scores</button><button class="tbtn" id="bRules">Règles</button><button class="tbtn" id="bExit">Quitter</button>
           </div>
         </div>
         <section id="table" aria-label="Table de jeu"><div class="rim"></div><div class="mat">${roseSVG()}</div><div id="layer"></div></section>
@@ -50,14 +67,18 @@ export class TableView {
     const sp = $('#speed', root) as HTMLSelectElement; sp.value = String(sel);
     sp.onchange = () => { this.speed = Number(sp.value); try { localStorage.setItem('pli-speed', sp.value); } catch { /* ignoré */ } };
     $('#bScores', root).onclick = () => this.scoreSheet();
+    $('#bLast', root).onclick = () => this.lastTrickModal();
+    const bs = $('#bSound', root); bs.onclick = () => { setSound(!soundOn()); bs.setAttribute('aria-pressed', String(soundOn())); bs.innerHTML = `${soundOn() ? '🔊' : '🔇'}<span> Son</span>`; if (soundOn()) sfx.coin(); };
+    installCardZoom();
     $('#bRules', root).onclick = () => modal(rulesHTML());
     $('#bExit', root).onclick = () => this.onExit();
     $('#hand', root).addEventListener('click', ev => { const el = (ev.target as HTMLElement).closest('.card') as HTMLElement | null; if (el) this.handClick(Number(el.dataset.id)); });
     $('#hand', root).addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { const el = (ev.target as HTMLElement).closest('.card') as HTMLElement | null; if (el) { ev.preventDefault(); this.handClick(Number(el.dataset.id)); } } });
-    addEventListener('resize', this.onResize);
+    addEventListener('resize', this.onResize); document.addEventListener('visibilitychange', this.onVis);
   }
-  private onResize = () => this.renderTable();
-  destroy() { removeEventListener('resize', this.onResize); this.queue = []; }
+  private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
+  private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
+  destroy() { removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {
@@ -81,6 +102,7 @@ export class TableView {
         if (last && JSON.stringify(this.logLines.at(-1)) !== JSON.stringify(last)) this.logLines.push(last);
         if (ev.k === 'bids' || ev.k === 'trick') this.banner = ev.msg; else if (ev.k !== 'play') this.banner = null;
         this.render();
+        if (ev.k === 'trick') sfx.win(); else if (ev.k === 'bids') sfx.coin();
         if (ev.k === 'round') this.maybeRoundSummary(ev.snap);
         await sleep((DELAY[ev.k] ?? 300) * this.speed * (this.queue.length > 40 ? .2 : 1));
         if (ev.k === 'bids' || ev.k === 'trick') this.banner = null;
@@ -93,7 +115,18 @@ export class TableView {
   /* ---------- Rendu ---------- */
   private bottom() { return this.mySeat ?? 0; }
   private seatPos(i: number, n: number, rx: number, ry: number) { const rel = (i - this.bottom() + n) % n; const a = (90 + rel * 360 / n) * Math.PI / 180; return [50 + rx * Math.cos(a), 50 + ry * Math.sin(a)]; }
-  render() { if (!this.pub) return; this.renderBar(); this.renderTable(); this.renderHand(); this.renderMini(); this.renderLog(); this.renderAction(); }
+  render() { if (!this.pub) return; this.renderBar(); this.renderTable(); this.renderHand(); this.renderMini(); this.renderLog(); this.renderAction(); this.turnCue(); }
+  /** Signale le début de son tour : son, barre d'action qui s'illumine, titre de l'onglet. */
+  private turnCue() {
+    const pb = this.pub!, pv = this.priv;
+    const mine = this.live && !this.busy && this.mySeat != null && !!pv && pb.phase !== 'end' &&
+      ((pb.phase === 'bid' && pv.bid == null) || (pb.pending ? pb.pending.seat === this.mySeat : pb.current === this.mySeat));
+    $('#action', this.root).classList.toggle('mine', mine);
+    if (mine && !this.wasMyTurn) { sfx.turn(); const a = $('#action', this.root); a.classList.remove('nudge'); void a.offsetWidth; a.classList.add('nudge'); }
+    this.wasMyTurn = mine;
+    document.title = mine && document.hidden ? '⚓ À vous de jouer ! · ' + this.baseTitle : this.baseTitle;
+  }
+  private get animMs() { return reduceMotion() ? 0 : Math.max(.5, Math.min(this.speed, 1.4)); }
   private renderBar() {
     let h = '<span class="lbl">Manche</span>';
     for (let r = 1; r <= 10; r++) h += `<i class="${r < this.pub!.round ? 'done' : r === this.pub!.round ? 'now' : ''}">${r}</i>`;
@@ -112,69 +145,170 @@ export class TableView {
   }
   private turnSeats(): number[] { const pb = this.pub!; if (pb.phase === 'bid') return pb.players.map((p, i) => p.hasBid ? -1 : i).filter(i => i >= 0); return pb.current == null ? [] : [pb.current]; }
   renderTable() {
-    const pb = this.pub; if (!pb) return; const n = pb.players.length, mob = innerWidth < 640, b = this.bottom();
-    const turn = new Set(this.turnSeats()); let h = '';
+    const pb = this.pub; if (!pb) return;
+    const tbl = $('#table', this.root), layer = $('#layer', this.root);
+    const n = pb.players.length, W = tbl.clientWidth, H = tbl.clientHeight, mob = W < 600, b = this.bottom();
+    // taille des cartes du pli : proportionnelle au plateau, réduite quand la table est pleine
+    const ts = mob ? Math.min(.26, Math.max(.19, H * .17 / 352)) * (n >= 6 ? .85 : 1) : Math.min(.44, Math.max(.2, H * .25 / 352)) * (n >= 8 ? .82 : n >= 6 ? .9 : 1);
+    tbl.style.setProperty('--ts', ts.toFixed(3));
+    const turn = new Set(this.turnSeats());
+    if (this.seatEls.length && !this.seatEls[0].isConnected) { this.seatEls = []; this.centerEl = null; this.tcards.clear(); }
+
     pb.players.forEach((p, i) => {
-      const [x, y] = this.seatPos(i, n, mob ? 36 : 40, 42); const bid = this.bidOf(i);
-      const k = Math.min(p.handCount, 10); let fan = '';
-      if (i !== b && k) { fan = '<div class="fan">'; for (let j = 0; j < k; j++) fan += `<div class="bk" style="transform:rotate(${(j - (k - 1) / 2) * 7}deg)">${backFace()}</div>`; fan += '</div>'; }
-      h += `<div class="seat ${turn.has(i) && pb.phase !== 'end' ? 'turn' : ''}" style="left:${x}%;top:${y}%;--pc:${PCOL[i % 9]}">${fan}
-        <div class="plate" style="position:relative">${pb.leader === i && pb.phase === 'play' ? '<span class="leadtag">ENTAME</span>' : ''}
-          <div class="medal">${esc((p.name.trim()[0] || '?').toUpperCase())}</div>
-          <div class="pi"><div class="nm">${esc(p.name)}${i === this.mySeat && p.name !== 'Vous' ? ' <span class="you">vous</span>' : ''}</div><div class="sub"><b>${p.score}</b> pts<span class="bt">${p.bot ? ' · bot' : ''}</span></div></div>
-          <div class="coin ${bid.wait ? 'wait' : ''}" title="Pari">${bid.txt}</div></div>
-        <div class="pips">${this.pips(i)}</div></div>`;
-    });
-    const t = pb.trick;
-    if (t) {
-      const tk = pb.trickNo * 100 + pb.round;
-      if (tk !== this.seenTrick) { this.seenTrick = tk; this.seenEntries = 0; }
-      const by: Record<number, { e: any; idx: number }[]> = {};
-      t.entries.forEach((e, idx) => { (by[e.p] = by[e.p] || []).push({ e, idx }); });
-      for (const i in by) {
-        const [x, y] = this.seatPos(+i, n, mob ? 18 : 21, mob ? 17 : 19);
-        h += `<div class="slot" style="left:${x}%;top:${y}%">` + by[i].map(({ e, idx }) => {
-          let cls = 'sm' + (idx >= this.seenEntries ? ' fresh' : '');
-          if (t.res) { if (t.res.winner === idx) cls += ' win'; if (t.res.removed?.includes(idx) || t.res.discarded) cls += ' gone'; }
-          else if (t.removals?.includes(idx)) cls += ' gone';
-          return cardHTML(e.card, e, cls);
-        }).join('') + '</div>';
+      let el = this.seatEls[i];
+      if (!el) { el = document.createElement('div'); el.className = 'seat'; el.innerHTML = '<div class="fan"></div><div class="plate"></div><div class="pips"></div>'; layer.append(el); this.seatEls[i] = el; }
+      const [x, y] = this.seatPos(i, n, mob ? 37 : 40, mob ? 41 : 42); const bid = this.bidOf(i);
+      el.style.left = x + '%'; el.style.top = y + '%'; el.style.setProperty('--pc', PCOL[i % 9]);
+      el.classList.toggle('turn', turn.has(i) && pb.phase !== 'end'); el.classList.toggle('me', i === this.mySeat);
+      const k = i === b ? 0 : Math.min(p.handCount, 10); let fan = '';
+      for (let j = 0; j < k; j++) fan += `<div class="bk" style="transform:rotate(${(j - (k - 1) / 2) * 7}deg)">${backFace()}</div>`;
+      setHTML(el.children[0], fan);
+      const reveal = pb.bidsRevealed && this.revealRound !== pb.round;
+      setHTML(el.children[1], `${pb.leader === i && pb.phase === 'play' ? '<span class="leadtag">ENTAME</span>' : ''}
+        <div class="medal">${esc((p.name.trim()[0] || '?').toUpperCase())}</div>
+        <div class="pi"><div class="nm">${esc(p.name)}${i === this.mySeat && p.name !== 'Vous' ? ' <span class="you">vous</span>' : ''}</div><div class="sub"><b>${p.score}</b> pts<span class="bt">${p.bot ? ' · bot' : ''}</span></div></div>
+        <div class="coin ${bid.wait ? 'wait' : ''} ${reveal ? 'reveal' : ''}" title="Pari">${bid.txt}</div>`);
+      setHTML(el.children[2], this.pips(i));
+      // variation de score : petite bulle +/- au-dessus du siège
+      const prev = this.prevScores[i];
+      if (prev != null && prev !== p.score && !reduceMotion()) {
+        const d = p.score - prev, f = document.createElement('div');
+        f.className = 'float ' + (d < 0 ? 'neg' : ''); f.textContent = (d > 0 ? '+' : '') + d; el.append(f); setTimeout(() => f.remove(), 2000);
       }
-      this.seenEntries = t.entries.length;
+      this.prevScores[i] = p.score;
+    });
+    if (pb.bidsRevealed) this.revealRound = pb.round;
+
+    // pli en cours : une carte = un élément conservé, qui arrive en volant et repart vers le gagnant
+    const t = pb.trick, want = new Set<string>();
+    if (t) {
+      const base = `${pb.round}-${pb.trickNo}`, cnt: Record<number, number> = {}, seen: Record<number, number> = {};
+      t.entries.forEach(e => { cnt[e.p] = (cnt[e.p] || 0) + 1; });
+      t.entries.forEach((e, idx) => {
+        const key = `${base}-${idx}`; want.add(key);
+        const j = seen[e.p] = (seen[e.p] ?? -1) + 1;
+        const [x, y] = this.seatPos(e.p, n, mob ? 19 : 21, mob ? 19 : 20);
+        let w = this.tcards.get(key); const fresh = !w;
+        if (!w) {
+          w = elFrom(`<div class="tslot">${cardHTML(e.card, e)}<span class="who" style="--pc:${PCOL[e.p % 9]}">${esc(pb.players[e.p].name)}</span></div>`);
+          (w.firstElementChild as HTMLElement).style.rotate = `${((idx * 37 + pb.trickNo * 11) % 9) - 4}deg`;
+          layer.append(w); this.tcards.set(key, w);
+        }
+        w.style.left = x + '%'; w.style.top = y + '%'; w.style.zIndex = String(10 + idx);
+        w.style.setProperty('--off', String(j - (cnt[e.p] - 1) / 2));
+        const c = w.firstElementChild as HTMLElement, res = t.res;
+        c.classList.toggle('win', !!res && res.winner === idx);
+        c.classList.toggle('gone', res ? (!!res.removed?.includes(idx) || !!res.discarded) : !!t.removals?.includes(idx));
+        if (fresh) this.flyIn(c, e.p, e.card.id);
+      });
+      this.collectTo = t.res ? (t.res.winner != null ? t.entries[t.res.winner].p : -1) : null;
     }
+    let out = 0;
+    for (const [key, w] of this.tcards) if (!want.has(key)) { this.tcards.delete(key); this.flyOut(w, this.collectTo, out++); }
+    if (!t) this.collectTo = null;
+
     let mid = '';
     if (this.banner) { mid = `<div class="banner ${this.bannerShown !== this.banner ? 'fresh' : ''}">${esc(this.banner)}</div>`; this.bannerShown = this.banner; }
     else if (pb.phase === 'play' && t) {
       const ls = leadSuitOf(t.entries);
-      mid = `<div class="rd">Pli ${pb.trickNo}</div>` + (ls ? `<span class="chip s-${ls}"><i></i>${SUIT[ls].n}<span class="long"> demandé</span></span>` : (t.entries.length ? '<span class="chip none"><span class="long">Aucune couleur demandée</span><span class="short">Sans couleur</span></span>' : ''));
-    } else if (pb.round) mid = `<div class="rd">Manche ${pb.round}</div>`;
-    h += `<div class="center">${mid}</div>`;
-    $('#layer', this.root).innerHTML = h;
+      mid = `<div class="rd">Pli ${pb.trickNo} / ${pb.cards}</div>` + (ls ? `<span class="chip s-${ls}"><i></i>${SUIT[ls].n}<span class="long"> demandé</span></span>` : (t.entries.length ? '<span class="chip none"><span class="long">Aucune couleur demandée</span><span class="short">Sans couleur</span></span>' : ''));
+    } else if (pb.phase === 'bid') mid = `<div class="rd big">Manche ${pb.round}</div><div class="rd">Les pirates parient…</div>`;
+    else if (pb.round) mid = `<div class="rd">Manche ${pb.round}</div>`;
+    if (!this.centerEl) { this.centerEl = document.createElement('div'); this.centerEl.className = 'center'; layer.append(this.centerEl); }
+    setHTML(this.centerEl, mid); this.centerEl.classList.toggle('front', !!this.banner);
+  }
+  /** Carte qui arrive sur le pli : depuis la main (si c'est la nôtre) ou depuis le siège de l'adversaire. */
+  private flyIn(c: HTMLElement, seat: number, id: number) {
+    sfx.card(); const k = this.animMs; if (!k) return;
+    const to = c.getBoundingClientRect(); let from: DOMRect | null = null, s0 = .45, op = .2;
+    if (this.flyFrom && this.flyFrom.id === id) { from = this.flyFrom.rect; s0 = from.width / Math.max(1, to.width); op = 1; this.flyFrom = null; }
+    else { const pl = this.seatEls[seat]?.querySelector('.plate'); if (pl) from = pl.getBoundingClientRect(); }
+    if (!from) { c.animate([{ opacity: 0, scale: '.8' }, { opacity: 1, scale: '1' }], { duration: 220 * k, easing: 'ease-out' }); return; }
+    const [fx, fy] = center(from), [tx, ty] = center(to);
+    c.animate([
+      { translate: `${fx - tx}px ${fy - ty}px`, scale: String(s0), opacity: op, offset: 0 },
+      { translate: '0 0', scale: '1.07', opacity: 1, offset: .82 },
+      { translate: '0 0', scale: '1', opacity: 1 },
+    ], { duration: 420 * k, easing: 'cubic-bezier(.2,.8,.25,1)' });
+  }
+  /** Fin du pli : les cartes glissent vers le gagnant (ou coulent si le pli est défaussé). */
+  private flyOut(w: HTMLElement, seat: number | null, i: number) {
+    const k = this.animMs, c = w.firstElementChild as HTMLElement;
+    if (!k) { w.remove(); return; }
+    w.classList.add('leaving'); let kf: Keyframe[];
+    const pl = seat != null && seat >= 0 ? this.seatEls[seat]?.querySelector('.plate') : null;
+    if (pl) { const [fx, fy] = center(c.getBoundingClientRect()), [tx, ty] = center(pl.getBoundingClientRect()); kf = [{ translate: '0 0', scale: '1' }, { translate: `${tx - fx}px ${ty - fy}px`, scale: '.3', opacity: .1 }]; }
+    else kf = [{ translate: '0 0', scale: '1', opacity: 1 }, { translate: '0 40px', scale: '.7', opacity: 0 }];
+    const a = c.animate(kf, { duration: 480 * k, delay: i * 40 * k, easing: 'cubic-bezier(.55,0,.7,.4)', fill: 'forwards' });
+    a.onfinish = () => w.remove(); a.oncancel = () => w.remove();
   }
   private myTurnToPlay() {
     const pb = this.pub!; return this.live && !this.busy && this.mySeat != null && pb.phase === 'play' && !pb.pending && pb.current === this.mySeat;
   }
   private renderHand() {
     const el = $('#hand', this.root);
-    if (this.mySeat == null || !this.priv) { $('#handTitle', this.root).innerHTML = '<b>Spectateur</b>'; $('#handMeta', this.root).innerHTML = ''; el.innerHTML = '<span class="hidden-hand">Vous regardez la partie.</span>'; return; }
+    const clear = (msg: string) => { this.handEls.clear(); el.innerHTML = `<span class="hidden-hand">${msg}</span>`; };
+    if (this.mySeat == null || !this.priv) { $('#handTitle', this.root).innerHTML = '<b>Spectateur</b>'; $('#handMeta', this.root).innerHTML = ''; clear('Vous regardez la partie.'); return; }
     const pv = this.priv, pb = this.pub!;
     const played = new Set((pb.trick?.entries || []).filter(e => e.p === this.mySeat).map(e => e.card.id));
     const hand = this.live ? pv.hand : pv.hand.filter(c => !played.has(c.id));
     $('#handTitle', this.root).innerHTML = '<b>Votre main</b>';
-    const tags: string[] = []; const bid = this.bidOf(this.mySeat); if (!bid.wait) tags.push(`Pari ${bid.txt}`); tags.push(`Plis ${pb.players[this.mySeat].won}`);
+    const tags: string[] = []; const bid = this.bidOf(this.mySeat); if (!bid.wait) tags.push(`Pari ${bid.txt}`);
+    const won = pb.players[this.mySeat].won; tags.push(`Plis ${won}`);
     if (pb.players[this.mySeat].rascal) tags.push(`Mise ${pb.players[this.mySeat].rascal}`);
-    $('#handMeta', this.root).innerHTML = tags.map(x => `<span>${x}</span>`).join('');
+    const st = !bid.wait && pb.bidsRevealed ? (won === Number(bid.txt) ? 'ok' : won > Number(bid.txt) ? 'ko' : '') : '';
+    setHTML($('#handMeta', this.root), tags.map((x, i) => `<span class="${i === 1 ? st : ''}">${x}</span>`).join(''));
+    if (this.sendingId != null && !hand.some(c => c.id === this.sendingId)) this.sendingId = null;
+    if (!hand.length) { clear('Plus de cartes en main.'); return; }
+    el.querySelector('.hidden-hand')?.remove();
+
+    const before = new Map<number, number>(); for (const [id, c] of this.handEls) before.set(id, c.getBoundingClientRect().left);
+    // taille : la plus grande qui tient dans la largeur, en resserrant l'éventail si besoin
+    const len = hand.length, mob = innerWidth < 640, Wd = Math.max(220, el.clientWidth - 20);
+    const sMax = Math.min(mob ? .4 : .56, (innerHeight * (mob ? .19 : .2)) / 352), sMin = mob ? .27 : .34;
+    let v = .78, s = Math.min(sMax, Wd / (252 * (1 + (len - 1) * v)));
+    if (s < sMin) { s = sMin; if (len > 1) v = Math.max(.28, (Wd / (252 * s) - 1) / (len - 1)); }
+    el.style.setProperty('--hs', s.toFixed(3)); el.style.setProperty('--hv', v.toFixed(3));
+
+    const ids = new Set(hand.map(c => c.id));
+    for (const [id, c] of this.handEls) if (!ids.has(id)) { c.remove(); this.handEls.delete(id); }
     const playing = this.myTurnToPlay() && !this.choice; const legal = new Set(pv.legal);
-    const len = hand.length, m = (len - 1) / 2, step = Math.min(3.2, 26 / Math.max(len, 1));
-    el.innerHTML = hand.map((c, j) => {
-      let cls = '', at = '';
-      if (playing) { if (legal.has(c.id)) { cls = 'playable'; at = 'tabindex="0" role="button"'; } else cls = 'dim'; }
-      if (this.pick) { cls = 'playable' + (this.pick.sel.has(c.id) ? ' sel' : ''); at = 'tabindex="0" role="button"'; }
-      if (this.choice?.id === c.id) cls += ' sel';
-      if (pv.forced === c.id) cls += ' forced';
-      const d = j - m; at += ` style="--r:${(d * step).toFixed(2)}deg;--y:${(d * d * .55).toFixed(1)}px;z-index:${j + 1}"`;
-      return cardHTML(c, null, cls, at);
-    }).join('') || '<span class="hidden-hand">Plus de cartes en main.</span>';
+    const m = (len - 1) / 2, step = Math.min(3, 24 / Math.max(len, 1)); const added: HTMLElement[] = [];
+    let prev: HTMLElement | null = null;
+    hand.forEach((c, j) => {
+      let ce = this.handEls.get(c.id);
+      if (!ce) { ce = elFrom(cardHTML(c)); this.handEls.set(c.id, ce); added.push(ce); }
+      const spot: Element | null = prev ? prev.nextElementSibling : el.firstElementChild;
+      if (spot !== ce) el.insertBefore(ce, spot);
+      prev = ce;
+      const pick = !!this.pick, ok = playing && legal.has(c.id), act = pick || ok;
+      ce.classList.toggle('playable', act);
+      ce.classList.toggle('dim', playing && !legal.has(c.id) && !pick);
+      ce.classList.toggle('sel', (pick && this.pick!.sel.has(c.id)) || this.choice?.id === c.id);
+      ce.classList.toggle('forced', pv.forced === c.id);
+      ce.classList.toggle('sending', this.sendingId === c.id);
+      if (act) { ce.tabIndex = 0; ce.setAttribute('role', 'button'); } else { ce.removeAttribute('tabindex'); ce.removeAttribute('role'); }
+      const d = j - m; ce.style.setProperty('--r', (d * step).toFixed(2) + 'deg'); ce.style.setProperty('--y', (d * d * .6).toFixed(1) + 'px'); ce.style.zIndex = String(j + 1);
+    });
+    const k = this.animMs; if (!k) return;
+    // nouvelle donne : les cartes partent du centre de la table, une à une
+    const dealing = added.length > 1 && this.handRound !== pb.round; this.handRound = pb.round;
+    if (dealing) {
+      const [cx, cy] = center($('#table', this.root).getBoundingClientRect());
+      added.forEach((ce, i) => {
+        const [x, y] = center(ce.getBoundingClientRect());
+        ce.animate([{ translate: `${cx - x}px ${cy - y}px`, scale: '.35', rotate: '-160deg', opacity: 0 }, { translate: '0 0', scale: '1', rotate: '0deg', opacity: 1 }],
+          { duration: 420 * k, delay: i * 75 * k, easing: 'cubic-bezier(.2,.75,.3,1)', fill: 'backwards' });
+      });
+      sfx.deal(added.length); return;
+    }
+    // le reste de la main se resserre en douceur
+    for (const [id, x0] of before) {
+      const ce = this.handEls.get(id); if (!ce) continue;
+      const dx = x0 - ce.getBoundingClientRect().left;
+      if (Math.abs(dx) > 1) ce.animate([{ translate: `${dx}px 0` }, { translate: '0 0' }], { duration: 300 * k, easing: 'cubic-bezier(.25,.8,.3,1)' });
+    }
+    added.forEach(ce => ce.animate([{ opacity: 0, translate: '0 -30px' }, { opacity: 1, translate: '0 0' }], { duration: 280 * k, easing: 'ease-out' }));
   }
   private renderMini() {
     const pb = this.pub!; const rows = pb.players.map((p, i) => ({ p, i })).sort((a, b) => b.p.score - a.p.score);
@@ -185,8 +319,10 @@ export class TableView {
     }).join('');
   }
   private renderLog() {
-    const el = $('#log', this.root);
-    el.innerHTML = this.logLines.slice(-150).map(l => `<div class="${l.cls || ''}">${l.s.map(seg => typeof seg === 'string' ? esc(seg) : lc(seg.c, seg.e)).join('')}</div>`).join('');
+    const el = $('#log', this.root), lines = this.logLines.slice(-150);
+    const key = lines.length + '|' + JSON.stringify(lines.at(-1) ?? null);
+    if (htmlCache.get(el) === key) return; htmlCache.set(el, key);
+    el.innerHTML = lines.map(l => `<div class="${l.cls || ''}">${l.s.map(seg => typeof seg === 'string' ? esc(seg) : lc(seg.c, seg.e)).join('')}</div>`).join('');
     el.scrollTop = el.scrollHeight;
   }
 
@@ -234,7 +370,7 @@ export class TableView {
     }
     if (pb.current === me) {
       if (this.choice) return this.askChoice();
-      this.setAction(pv.forced != null ? `${PIRATES.mary.n} vous impose cette carte` : (pb.trick && pb.trick.stage === 'volley' ? 'Dernière Bordée : jouez votre carte supplémentaire' : 'À vous de jouer'));
+      this.setAction(pv.forced != null ? `${PIRATES.mary.n} vous impose cette carte` : (pb.trick && pb.trick.stage === 'volley' ? 'Dernière Bordée : jouez votre carte supplémentaire' : 'À vous de jouer !<small>Cliquez sur une carte en surbrillance · survol prolongé ou appui long pour la lire en grand</small>'));
       return;
     }
     this.setAction(pb.current != null ? `Au tour de ${name(pb.current)}` : '…');
@@ -252,15 +388,27 @@ export class TableView {
     const ch = this.choice!; const k = ch.need[0];
     const done = (field: string, v: any) => { ch.move[field] = v; ch.need.shift(); if (!ch.need.length) { this.choice = null; this.send(ch.move); } else this.askChoice(); };
     const cancel = { label: 'Annuler', cls: 'alt', on: () => { this.choice = null; this.render(); } };
-    if (k === 'as') this.setAction('Morgane la Louve : la jouer comme…', [{ label: 'Pirate', on: () => done('as', 'pirate') }, { label: 'Fuite', on: () => done('as', 'escape') }, cancel]);
+    if (k === 'as') this.setAction('Morgane la Louve : la jouer comme…', [{ label: '☠ Pirate', cls: 'gold big', on: () => done('as', 'pirate') }, { label: '🏳 Fuite', cls: 'big', on: () => done('as', 'escape') }, cancel]);
     if (k === 'val') this.setAction('0/14 : quelle valeur ?', [{ label: '0', on: () => done('val', 0) }, { label: '14', on: () => done('val', 14) }, cancel]);
     if (k === 'ws') this.setAction('Le Grand Quinze : de quelle couleur est-il ?<small>Il fixe la couleur demandée du pli.</small>', [...WILD_SUITS.map(s => ({ label: SUIT[s].n, on: () => done('ws', s) })), cancel]);
   }
   private async send(move: Action) {
-    if (this.busy) return; this.busy = true; this.renderAction(); this.renderHand();
+    if (this.busy) return; this.busy = true;
+    if (move.t === 'play') {
+      // la carte quitte la main tout de suite ; elle réapparaîtra en vol sur le pli
+      const ce = this.handEls.get(move.id); if (ce) this.flyFrom = { id: move.id, rect: ce.getBoundingClientRect() };
+      this.sendingId = move.id;
+    }
+    this.renderAction(); this.renderHand();
     try { await this.backend.send(move); }
-    catch (e: any) { toast(e.message || 'Action refusée.', 'err'); }
+    catch (e: any) { this.sendingId = null; this.flyFrom = null; sfx.bad(); toast(e.message || 'Action refusée.', 'err'); }
     finally { this.busy = false; this.render(); }
+  }
+  private lastTrickModal() {
+    const lt = this.latest?.pub.lastTrick, pb = this.latest?.pub;
+    if (!lt || !pb) { modal('<h2>Dernier pli</h2><p class="sub">Aucun pli n’a encore été joué dans cette manche.</p>'); return; }
+    const cards = lt.entries.map((e: any, i: number) => `<figure class="${lt.res?.winner === i ? 'w' : ''}">${cardHTML(e.card, e, lt.res?.winner === i ? 'win' : (lt.res?.removed?.includes(i) || lt.res?.discarded ? 'gone' : ''))}<figcaption>${esc(pb.players[e.p]?.name ?? '?')}</figcaption></figure>`).join('');
+    modal(`<h2>Pli ${lt.trickNo}</h2><p class="sub">${esc(lt.res?.msg ?? '')}</p><div class="lasttrick">${cards}</div>`);
   }
   private async showDeck() {
     const deck = this.priv?.pendingData?.deck || [];

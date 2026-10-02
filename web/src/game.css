@@ -306,3 +306,82 @@ legend{font:400 17px var(--f-disp);padding:0 6px}
   .seatrow{grid-template-columns:28px minmax(0,1fr) 96px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===== Refonte de la table : cartes plus grandes, animations, retours visuels ===== */
+body.at-table #table{height:clamp(360px,calc(100dvh - 500px),680px)}
+.tablepage{max-width:1500px}
+@media (min-width:1021px){.main{grid-template-columns:minmax(0,1fr) 280px}}
+
+/* Pli : cartes conservées d'un rendu à l'autre (taille --ts calculée selon le plateau) */
+.tslot{position:absolute;z-index:3;display:flex;flex-direction:column;align-items:center;gap:5px;
+  transform:translate(calc(-50% + var(--off,0) * 252px * var(--ts,.34) * .55),-50%);transition:left .3s,top .3s}
+.tslot .card{--s:var(--ts,.34);box-shadow:0 6px 14px rgba(0,0,0,.55)}
+.tslot .who{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);z-index:3;font:700 11px/1.3 var(--f-body);color:var(--parch);background:rgba(10,8,6,.72);border-bottom:2px solid var(--pc);padding:1px 8px;border-radius:6px;
+  white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;transition:opacity .2s}
+.tslot.leaving .who{opacity:0}
+.tslot .card.win{box-shadow:0 0 0 3px #f0d48a,0 0 34px 6px rgba(240,212,138,.75),0 8px 18px rgba(0,0,0,.6);z-index:2;animation:winpulse 1s ease-in-out}
+@keyframes winpulse{0%,100%{scale:1}35%{scale:1.12}65%{scale:1.04}}
+.tslot .card.gone{filter:grayscale(1) brightness(.55);opacity:.6;transition:filter .3s,opacity .3s}
+.center .rd.big{font-size:24px;color:var(--parch)}
+
+/* Sièges : tour en cours qui « respire », bulle de score, jeton de pari qui se retourne */
+.seat.turn .plate{animation:turnglow 1.8s ease-in-out infinite}
+@keyframes turnglow{0%,100%{box-shadow:0 0 0 2px var(--brass2),0 0 14px rgba(234,208,138,.35),0 6px 16px rgba(0,0,0,.55)}
+  50%{box-shadow:0 0 0 3px var(--brass2),0 0 34px rgba(234,208,138,.7),0 6px 16px rgba(0,0,0,.55)}}
+.seat.me .plate{border-color:rgba(234,208,138,.55)}
+.coin.reveal{animation:coinflip .7s cubic-bezier(.3,1.4,.5,1)}
+@keyframes coinflip{0%{transform:rotateY(90deg) scale(.5)}60%{transform:rotateY(-15deg) scale(1.2)}100%{transform:none}}
+.float{position:absolute;left:50%;top:-14px;z-index:8;pointer-events:none;font:800 20px/1 var(--f-body);color:var(--good);
+  text-shadow:0 2px 0 #000,0 0 12px rgba(0,0,0,.8);transform:translateX(-50%);animation:floatup 1.9s ease-out forwards}
+.float.neg{color:var(--bad)}
+@keyframes floatup{0%{opacity:0;translate:0 12px;scale:.7}15%{opacity:1;translate:0 0;scale:1.15}25%{scale:1}80%{opacity:1}100%{opacity:0;translate:0 -38px}}
+.fan{height:36px;width:140px}
+.fan .bk{width:26px;height:36px;margin-left:-13px}
+.fan .bk .face{transform:scale(.1032)}
+
+/* Barre d'action : s'illumine quand on attend le joueur */
+#action{transition:box-shadow .3s}
+#action.mine{box-shadow:0 0 0 3px var(--brass2),0 0 30px rgba(234,208,138,.45),0 6px 18px rgba(0,0,0,.45)}
+#action.nudge{animation:nudge .55s cubic-bezier(.3,1.5,.5,1)}
+@keyframes nudge{0%{transform:scale(.97)}50%{transform:scale(1.025)}100%{transform:none}}
+.btn{transition:transform .12s,filter .12s,background .12s}
+.btn:active{transform:translateY(1px) scale(.98)}
+.btn.coin{width:50px;height:50px;font-size:19px}
+.btn.coin:hover{transform:translateY(-3px) scale(1.06)}
+
+/* Main : taille --hs et recouvrement --hv calculés selon la largeur disponible */
+.rail{padding:10px 16px 14px}
+#hand{padding-top:34px;padding-bottom:12px;min-height:calc(352px * var(--hs,.42) + 40px);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+#hand .card{--s:var(--hs,.42);transition:transform .18s cubic-bezier(.25,.8,.3,1),filter .2s,box-shadow .2s,opacity .2s;-webkit-touch-callout:none}
+#hand .card + .card{margin-left:calc(252px * var(--s) * (var(--hv,.78) - 1))}
+#hand .card.playable:hover,#hand .card.playable:focus-visible{transform:translateY(calc(var(--y,0px) - 26px)) rotate(var(--r,0deg)) scale(1.07);z-index:30!important}
+#hand .card.playable{box-shadow:0 0 0 2px rgba(240,212,138,.9),0 0 16px rgba(240,212,138,.35),0 6px 12px rgba(0,0,0,.5)}
+#hand .card.dim{filter:saturate(.2) brightness(.5);transform:translateY(calc(var(--y,0px) + 8px)) rotate(var(--r,0deg))}
+#hand .card.sel{transform:translateY(calc(var(--y,0px) - 30px)) rotate(var(--r,0deg)) scale(1.05);z-index:30!important}
+#hand .card.sending{opacity:0;transform:translateY(calc(var(--y,0px) - 60px)) rotate(var(--r,0deg)) scale(.9);pointer-events:none}
+.handhead .tags span.ok{color:var(--good);border-color:rgba(134,201,138,.5)}
+.handhead .tags span.ko{color:var(--bad);border-color:rgba(232,131,107,.5)}
+
+/* Carte agrandie (survol prolongé / appui long) */
+.zoom{position:fixed;z-index:80;pointer-events:none;filter:drop-shadow(0 18px 40px rgba(0,0,0,.75));animation:zoomin .16s ease-out}
+.zoom .card{--s:.92;box-shadow:0 0 0 2px rgba(240,212,138,.6)}
+@keyframes zoomin{from{opacity:0;scale:.85}to{opacity:1;scale:1}}
+
+/* Dernier pli */
+.lasttrick{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:8px}
+.lasttrick figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.lasttrick .card{--s:.42}
+.lasttrick figcaption{font-weight:700;font-size:13px}
+.lasttrick figure.w figcaption{color:#7a5410}
+.lasttrick figure.w figcaption::before{content:"★ "}
+
+@media (max-width:1020px){body.at-table #table{height:clamp(380px,62dvh,560px)}}
+@media (max-width:640px){
+  body.at-table #table{height:clamp(360px,58dvh,470px)}
+  .tslot .who{font-size:9.5px;padding:0 5px;max-width:70px}
+  .float{font-size:16px}
+  .btn.coin{width:44px;height:44px;font-size:17px}
+  #hand{padding-top:26px}
+  .zoom .card{--s:.8}
+}
+.center.front{z-index:60}
