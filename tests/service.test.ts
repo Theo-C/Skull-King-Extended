@@ -24,7 +24,9 @@ const dir = new URL('../supabase/migrations/', import.meta.url);
 for (const f of readdirSync(dir).sort()) await db.exec(readFileSync(new URL(f, dir), 'utf8'));
 
 // Store branché sur PGlite (équivalent de game/index.ts, en SQL direct, rôle « service »)
+const ORIGIN = 'https://proj.supabase.co';
 const store: Store = {
+  origin: ORIGIN,
   async pseudo(uid) { return (await db.query<any>('select pseudo from profiles where id=$1', [uid])).rows[0]?.pseudo ?? 'Pirate'; },
   async insertGame(row) {
     try { return (await db.query<any>('insert into games(code,host,options) values($1,$2,$3) returning id,code,host,status,options,state,version', [row.code, row.host, JSON.stringify(row.options)])).rows[0]; }
@@ -114,8 +116,8 @@ for (let step = 0; step < 5000; step++) {
 const fin = (await as(U.bob, 'select status, state from games'))[0];
 ok('partie terminée', fin.status === 'finished', fin.status);
 ok('10 manches jouées', fin.state.players.every((p: any) => p.hist.length === 10));
-const lb = await as(U.eve, 'select pseudo, games, wins from leaderboard order by pseudo');
-ok('classement alimenté', lb.length === 4 && lb.every((x: any) => x.games === 1) && lb.reduce((s: number, x: any) => s + x.wins, 0) >= 1, lb);
+const lb = (await db.query<any>('select games, wins from player_stats')).rows;
+ok('statistiques alimentées', lb.length === 4 && lb.every((x: any) => x.games === 1) && lb.reduce((s: number, x: any) => s + x.wins, 0) >= 1, lb);
 const evLeft = (await db.query<any>('select count(*)::int as n from game_events')).rows[0].n;
 ok('événements nettoyés en fin de partie', evLeft < 40, evLeft);
 
@@ -146,12 +148,28 @@ const det = await handle(store, U.bob, { action: 'history.get', id: G });
 ok('détail : manches et résultats', det.state.players[0].hist.length === 10 && det.results.length === 4 && det.xp.length >= 1, Object.keys(det));
 await expectErr('détail : refusé à qui n’a pas joué', handle(store, U.eve, { action: 'history.get', id: G }), 403);
 const rm = await handle(store, U.bob, { action: 'rematch', id: G });
+const rm2 = await handle(store, U.chloe, { action: 'rematch', id: G });
+ok('revanche : un seul salon même si deux joueurs la demandent', rm2.id === rm.id, { rm, rm2 });
 const rmSeats = (await db.query<any>('select seat, user_id, bot from game_players where game_id=$1 order by seat', [rm.id])).rows;
 ok('revanche : mêmes joueurs, demandeur hôte', rmSeats.length === 4 && rmSeats[0].user_id === U.bob && rmSeats.filter((x: any) => x.user_id).length === 4, rmSeats);
 await expectErr('revanche : refusée à qui n’a pas joué', handle(store, U.eve, { action: 'rematch', id: G }), 403);
 await expectErr('profil : couleur hors palette', handle(store, U.alice, { action: 'profile.update', color: '#000000' }), 400);
 await expectErr('profil : pseudo trop court', handle(store, U.alice, { action: 'profile.update', pseudo: 'A' }), 400);
-await expectErr('profil : photo d’un autre', handle(store, U.alice, { action: 'profile.update', avatar_kind: 'photo', avatar_url: `https://x.supabase.co/storage/v1/object/public/avatars/${U.bob}/avatar.webp` }), 400);
+await expectErr('profil : photo d’un autre', handle(store, U.alice, { action: 'profile.update', avatar_kind: 'photo', avatar_url: `${ORIGIN}/storage/v1/object/public/avatars/${U.bob}/avatar.webp` }), 400);
+await expectErr('profil : photo hébergée ailleurs', handle(store, U.alice, { action: 'profile.update', avatar_kind: 'photo', avatar_url: `https://evil.tld/storage/v1/object/public/avatars/${U.alice}/avatar.webp` }), 400);
+await expectErr('profil : réglage non booléen', handle(store, U.alice, { action: 'profile.update', sounds: 'false' }), 400);
+await expectErr('détail : identifiant invalide', handle(store, U.alice, { action: 'history.get', id: 'abc' }), 404);
+await handle(store, U.alice, { action: 'profile.update', avatar_kind: 'photo', avatar_url: `${ORIGIN}/storage/v1/object/public/avatars/${U.alice}/avatar.jpg?v=1700000000000` });
+ok('profil : sa propre photo acceptée', (await db.query<any>('select avatar_kind from profiles where id=$1', [U.alice])).rows[0].avatar_kind === 'photo');
+// salon de revanche : l'hôte (bob) retire chloé, sa place redevient libre
+await handle(store, U.bob, { action: 'lobby', id: rm.id, kick: U.chloe });
+const kicked = (await db.query<any>('select user_id from game_players where game_id=$1 and user_id=$2', [rm.id, U.chloe])).rows;
+ok('salon : l’hôte retire un joueur', kicked.length === 0, kicked);
+await expectErr('salon : l’hôte ne peut pas se retirer', handle(store, U.bob, { action: 'lobby', id: rm.id, kick: U.bob }), 400);
+// règlement perdu (simulé) : history.list le refait
+await db.exec(`delete from xp_events where game_id='${G}'; delete from game_results where game_id='${G}';`);
+const re = await handle(store, U.alice, { action: 'history.list' });
+ok('historique : règlement perdu refait avant de lister', re.items.length === 1 && re.items[0].id === G, re);
 await handle(store, U.alice, { action: 'profile.update', pseudo: 'Alice la Rouge', color: '#c8644b', avatar_kind: 'art', avatar_art: 3, sounds: false });
 const pr = (await as(U.bob, 'select pseudo, color, avatar_kind, avatar_art, sounds from profiles where id=$1', [U.alice]))[0];
 ok('profil : enregistré', pr.pseudo === 'Alice la Rouge' && pr.color === '#c8644b' && pr.avatar_kind === 'art' && pr.avatar_art === 3 && pr.sounds === false, pr);

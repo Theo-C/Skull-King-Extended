@@ -7,7 +7,7 @@ export interface Card {
   id: number; kind: string; suit?: Suit | 'wild'; rank?: number; pid?: string; v?: number;
   mod?: number; zf?: 1; wild?: 1; exp?: 1;
 }
-export interface Entry { p: number; card: Card; as?: 'pirate' | 'escape'; val?: number; ws?: Suit | null; extra?: boolean; imposed?: boolean }
+export interface Entry { p: number; card: Card; as?: 'pirate' | 'escape'; val?: number; ws?: Suit | null; extra?: boolean; imposed?: boolean; imposedBy?: number }
 export interface Opts {
   kraken: boolean; whale: boolean; loot: boolean; powers: boolean; score: 'sk' | 'rascal';
   exp: boolean; con: boolean; volley: boolean; ray: boolean; davy: boolean; plank: boolean;
@@ -27,7 +27,7 @@ export interface State {
   v: number; opts: Opts; n: number; players: Player[]; round: number; cards: number; dealer: number; leader: number;
   phase: 'bid' | 'play' | 'end'; bidsRevealed: boolean; trickNo: number; deck: Card[];
   trick: null | { entries: Entry[]; order: number[]; pos: number; volleyQ: number[]; vpos: number; stage: 'main' | 'volley' | 'plank' | 'powers'; removals: number[]; res: any };
-  forced: Record<number, number>; alliances: [number, number][]; pending: Pending[]; rosieNext: number | null;
+  forced: Record<number, number>; /** qui a imposé la carte (Lise Fil-de-Soie), pour le haut fait */ forcedBy?: Record<number, number>; alliances: [number, number][]; pending: Pending[]; rosieNext: number | null;
   lastTrick: any; log: LogLine[]; ev?: any[]; rng?: number;
   /** Dernier pouvoir de Lise Fil-de-Soie : qui a choisi, dans quelle main, à quelle position de l'éventail face cachée. */
   lastLise?: LiseInfo | null;
@@ -297,7 +297,7 @@ function startRound(S: State) {
   const deck = shuffle(S, buildDeck(S.opts));
   S.round++; S.cards = Math.min(S.round, Math.floor(deck.length / S.n));
   S.players.forEach(p => { p.hand = sortHand(deck.splice(0, S.cards)); p.bid = null; p.won = 0; p.bonus = []; p.rascal = 0; });
-  S.deck = deck; S.forced = {}; S.alliances = []; S.trickNo = 0; S.bidsRevealed = false; S.trick = null; S.pending = []; S.lastTrick = null; S.lastLise = null;
+  S.deck = deck; S.forced = {}; S.forcedBy = {}; S.alliances = []; S.trickNo = 0; S.bidsRevealed = false; S.trick = null; S.pending = []; S.lastTrick = null; S.lastLise = null;
   S.dealer = (S.dealer + 1 + S.n) % S.n; S.leader = (S.dealer + 1) % S.n; S.phase = 'bid';
   log(S, [`Manche ${S.round} — ${S.cards} carte${S.cards > 1 ? 's' : ''} par joueur`], 'rnd');
   S.players.forEach(p => { if (p.bot) p.bid = botBid(S, p); });
@@ -391,7 +391,8 @@ function resolveTrick(S: State) {
   if (R.winner) {
     const f = feats(R.winner.p), wc = R.winner.card;
     if (wc.wild) f.wild++;
-    if (R.winner.imposed) f.silk++;
+    // Fil-de-Soie : le haut fait revient à celui qui a imposé la carte gagnante avec Lise
+    if (R.winner.imposed) feats(R.winner.imposedBy ?? R.winner.p).silk++;
     if (!R.mode) {
       if (wc.kind === 'mermaid' && R.captured.some(e => e.card.kind === 'sk')) f.mermaidKing++;
       if (wc.kind !== 'mermaid') f.sirens += R.captured.filter(e => e.card.kind === 'mermaid').length;
@@ -480,7 +481,7 @@ export function apply(S: State, seat: number, a: Action) {
     const legal = legalCards(p.hand, t.entries, S.forced[seat]);
     const card = legal.find(c => c.id === a.id); if (!card) throw new RuleError('Cette carte ne peut pas être jouée.');
     const e: Entry = { p: seat, card, extra: t.stage === 'volley' };
-    if (S.forced[seat] === card.id) e.imposed = true;
+    if (S.forced[seat] === card.id) { e.imposed = true; const by = S.forcedBy?.[seat]; if (by != null) e.imposedBy = by; }
     if (card.kind === 'tigress') { if (a.as !== 'pirate' && a.as !== 'escape') throw new RuleError('Choisissez Pirate ou Fuite.'); e.as = a.as; }
     if (card.zf) { if (a.val !== 0 && a.val !== 14) throw new RuleError('Choisissez 0 ou 14.'); e.val = a.val; }
     if (card.wild) { const wr = wildRule(t.entries); if (wr.choose) { if (!WILD_SUITS.includes(a.ws as Suit)) throw new RuleError('Choisissez la couleur du Grand Quinze.'); e.ws = a.ws; } else e.ws = wr.auto ?? null; }
@@ -516,7 +517,7 @@ function choose(S: State, pd: Pending, v: any) {
         if (!Number.isInteger(pos) || pos < 0 || pos >= q.hand.length) throw new RuleError('Cette carte n\'existe pas.');
       } else pos = Math.floor(rand(S) * q.hand.length);
       const perm: number[] = pd.data?.perm?.[seat] ?? q.hand.map((_, k) => k);
-      S.forced[seat] = q.hand[perm[pos] ?? pos].id;
+      S.forced[seat] = q.hand[perm[pos] ?? pos].id; (S.forcedBy ??= {})[seat] = pd.seat;
       S.lastLise = { by: pd.seat, seat, pos, round: S.round, trickNo: S.trickNo };
       log(S, seat === pd.seat ? [`${p.name} tire une carte face cachée dans sa propre main : elle devra la jouer au prochain pli`]
         : [`${p.name} tire une carte face cachée dans la main de ${q.name} : elle devra être jouée au prochain pli`]);

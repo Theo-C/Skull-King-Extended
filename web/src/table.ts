@@ -1,11 +1,11 @@
 // Vue de la table, partagée par le mode en ligne et l'entraînement hors ligne.
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
-import { cname, leadSuitOf, resolve, wildRule, SUIT, WILD_SUITS, PIRATES, type Action, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
+import { cname, leadSuitOf, resolve, wildRule, SUIT, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
 import { cardHTML, backFace } from './cards';
 import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
-import { installCardZoom } from './zoom';
+import { installCardZoom, setZoomNote } from './zoom';
 import { avatarHTML, type AvatarData } from './avatar';
 import { levelFor, xpToReach, LEVEL_TITLES, fmt, xpReason as xpLabel } from './xp';
 
@@ -26,6 +26,8 @@ export interface TableBackend {
   send(move: Action): Promise<void>; emote?(text: string): void; ready?(round: number): void;
   /** Partie en ligne : identifiant, utilisateur courant, utilisateur de chaque siège, et revanche (renvoie l'identifiant du nouveau salon). */
   gameId?: string; uid?: string; seatUids?: (string | null)[]; rematch?(): Promise<string>;
+  /** Règlement de fin de partie relu au serveur (history.get) quand il tarde à arriver par l'état de la partie. */
+  settled?(): Promise<any>;
 }
 /** Réactions proposées (les seules acceptées, y compris depuis le réseau). */
 export const EMOTES = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
@@ -42,6 +44,8 @@ const ICON = {
   menu: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h12"/></svg>',
   soundOff: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8h3l4-3v10l-4-3H3zM13 8l4 4M17 8l-4 4"/></svg>',
 };
+/** Portrait de Lise Fil-de-Soie (maquette Lise : silhouette sur médaillon prune). */
+const LISE_PORTRAIT = '<span class="lport" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M14 100c3-26 18-36 36-36s33 10 36 36z" fill="#15110E"/><ellipse cx="50" cy="48" rx="14" ry="17" fill="#15110E"/><path d="M24 40c8-16 44-16 52 0-9 3-43 3-52 0z" fill="#15110E"/><path d="M25 40c11 3 39 3 50 0" stroke="#C9A24A" stroke-width="2.5" fill="none"/></svg></span>';
 const SEAL = '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 4l3 13 13 3-13 3-3 13-3-13-13-3 13-3z" fill="#c9a14a"/></svg>';
 /** Plateau dessiné en 1040 × 520 (comme la maquette) puis mis à l'échelle. */
 const BW = 1040, BH = 520;
@@ -78,7 +82,7 @@ function mobileGeometry(n: number): Spot[] {
 }
 const PENDING_LABEL: Record<string, string> = {
   plank: 'choisit le pirate qui marche sur la planche', rosie: 'choisit qui entame le prochain pli', bahij: 'pioche et défausse deux cartes',
-  rascal: 'choisit sa mise', juanita: 'consulte la pioche', harry: 'décide de modifier son pari', mary: 'choisit une carte face cachée',
+  rascal: 'choisit sa mise', juanita: 'consulte la pioche', harry: 'décide de modifier sa mise', mary: 'choisit une carte face cachée',
 };
 
 export class TableView {
@@ -114,13 +118,13 @@ export class TableView {
     <header class="gbar">
       <svg class="glogo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="none" stroke="#c9a14a" stroke-width="1.5"/><path d="M20 3l3.2 13.8L37 20l-13.8 3.2L20 37l-3.2-13.8L3 20l13.8-3.2z" fill="#c9a14a"/><circle cx="20" cy="20" r="2.4" fill="#ead08a"/></svg>
       <div class="gtitle"><b id="gRound">Manche</b><span id="gSub"></span></div>
-      <div class="gdots" id="gDots" aria-label="Progression des manches"></div>
+      <div class="gdots" id="gDots" role="img" aria-label="Progression des manches"></div>
       <div class="gsp"></div>
       <div class="gtools">
         <select id="speed" class="tb" aria-label="Vitesse des animations"><option value="1.7">Lente</option><option value="1">Normale</option><option value="0.45">Rapide</option></select>
-        <button class="tb" id="bLast">${ICON.last}<span class="lbl">Dernier pli</span></button>
-        <button class="tb" id="bScores">${ICON.scores}<span class="lbl">Scores</span></button>
-        <button class="tb" id="bRules">${ICON.rules}<span class="lbl">Règles</span></button>
+        <button class="tb" id="bLast" aria-label="Dernier pli">${ICON.last}<span class="lbl">Dernier pli</span></button>
+        <button class="tb" id="bScores" aria-label="Scores">${ICON.scores}<span class="lbl">Scores</span></button>
+        <button class="tb" id="bRules" aria-label="Règles">${ICON.rules}<span class="lbl">Règles</span></button>
         <button class="tb ico" id="bSound"></button>
         <button class="tb" id="bExit">Quitter</button>
         <button class="tb ico" id="bMenu" aria-label="Menu">${ICON.menu}</button>
@@ -131,7 +135,7 @@ export class TableView {
         <div class="opps" id="opps" aria-label="Adversaires"></div>
         <section class="board" id="table" aria-label="Table de jeu"><div class="bstage" id="bstage"><div class="rim"></div><div class="mat">${roseSVG()}</div><div id="layer"></div></div></section>
         <div id="action" aria-live="polite"><div class="prompt">Chargement de la partie…</div></div>
-        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span></div><div id="hand"></div><div class="qemo">${EMOTES.slice(0, 3).map(e => `<button data-emo="${esc(e)}">${esc(e)}</button>`).join('')}</div></section>
+        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span></div><div id="hand"></div><div class="qemo">${[EMOTES[0], EMOTES[1], EMOTES[3]].map(e => `<button data-emo="${esc(e)}">${esc(e)}</button>`).join('')}</div></section>
       </div>
       <aside class="side" id="side">
         <div class="drawerbar"><button class="tb" id="dSheet">Feuille de scores</button><button class="tb" id="dClose">Fermer</button></div>
@@ -158,7 +162,7 @@ export class TableView {
     const bs = $('#bSound', root);
     const paintSound = () => { bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff; bs.setAttribute('aria-label', soundOn() ? 'Couper le son' : 'Activer le son'); bs.title = bs.getAttribute('aria-label')!; };
     paintSound(); bs.onclick = () => { setSound(!soundOn()); paintSound(); if (soundOn()) sfx.coin(); };
-    installCardZoom();
+    installCardZoom(); setZoomNote(card => this.zoomNote(card));
     $('#bRules', root).onclick = () => modal(rulesHTML());
     $('#bExit', root).onclick = () => this.onExit();
     $('#layer', root).addEventListener('click', ev => {
@@ -177,7 +181,7 @@ export class TableView {
   }
   private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
   private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
-  destroy() { this.finEl?.remove(); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
+  destroy() { this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {
@@ -189,6 +193,8 @@ export class TableView {
     this.latest = { pub, priv };
     if (this.finEl) this.fillSettled();
     if (!this.running && !this.queue.length) this.applyLatest();
+    // révélation de Lise en cours : la main qui porte la carte imposée vient d'arriver, on la montre sans attendre la fin de la file
+    else if (this.running && this.evk === 'lise' && this.liseNow()) { this.renderHand(); this.renderAction(); }
   }
   push(events: any[]) { if (!events.length) return; this.queue.push(...events); this.run(); }
 
@@ -252,7 +258,7 @@ export class TableView {
     setHTML($('#gDots', this.root), h);
   }
   /** Met le plateau (1040 × 520) à l'échelle de la place disponible ; l'action et la main prennent la même largeur. */
-  private get mob() { return innerWidth < 640; }
+  private get mob() { return innerWidth < 720; }
   private fitBoard() {
     const mob = this.mob; this.root.classList.toggle('mob', mob);
     if (!mob) this.root.classList.remove('drawer');
@@ -302,12 +308,12 @@ export class TableView {
       const x = Math.min(Math.max(g.px, w / 2 + 6), BW - w / 2 - 6), y = g.py < 400 ? g.py + 50 : g.py - 50 - h;
       return `left:${x}px;top:${y}px`;
     };
-    const owner = (seat: number) => seat === me ? 'votre main' : 'la main de ' + pb.players[seat].name;
+    const owner = (seat: number) => seat === me ? 'votre main' : 'la main ' + de(pb.players[seat].name);
     if (this.liseChoosing()) {
       for (const o of (pb.pending!.opts as any[]) || []) {
         const who = o.v === me ? 'Vous' : pb.players[o.v].name;
         let backs = '';
-        for (let j = 0; j < o.count; j++) backs += `<button class="bk2 ok" data-lseat="${o.v}" data-lpos="${j}" aria-label="Carte ${j + 1} de ${o.v === me ? 'votre main' : esc(pb.players[o.v].name)}">${backFace()}</button>`;
+        for (let j = 0; j < o.count; j++) backs += `<button class="bk2 ok" data-lseat="${o.v}" data-lpos="${j}" aria-label="Carte ${j + 1} ${o.v === me ? 'de votre main' : esc(de(pb.players[o.v].name))}">${backFace()}</button>`;
         fans.push(`<div class="lfan pick" role="group" aria-label="${esc(owner(o.v))}" style="${place(o.v, o.count)}"><span class="lname">${esc(who)}</span><div class="lbacks">${backs}</div></div>`);
       }
     } else {
@@ -316,12 +322,32 @@ export class TableView {
       if (lf && (me !== lf.seat || me === lf.by)) {
         const count = pb.players[lf.seat].handCount, by = lf.by === me ? 'vous' : pb.players[lf.by].name;
         let backs = '';
-        for (let j = 0; j < count; j++) backs += `<div class="bk2 ${j === lf.pos ? 'pick' : 'off'}">${backFace()}${j === lf.pos ? `<span class="listag">Choisie par ${esc(by)}</span>` : ''}</div>`;
+        // maquettes Lise / LiseAutres : « Imposée » chez celui qui a choisi, « Choisie par Théo » chez les autres
+        for (let j = 0; j < count; j++) backs += `<div class="bk2 ${j === lf.pos ? 'pick' : 'off'}">${backFace()}${j === lf.pos ? `<span class="listag">${lf.by === me ? 'Imposée' : 'Choisie par ' + esc(by)}</span>` : ''}</div>`;
         const cap = lf.seat === me ? 'Vous devrez la jouer' : pb.players[lf.seat].name + ' devra la jouer';
         fans.push(`<div class="lfan done" id="liseFan" role="group" aria-label="${esc(owner(lf.seat))}" style="${place(lf.seat, count)}"><span class="lname">${esc(lf.seat === me ? 'Vous' : pb.players[lf.seat].name)}</span><div class="lbacks">${backs}</div><span class="lcap">${esc(cap)}</span></div>`);
       }
     }
     setHTML(box, fans.join('')); box.hidden = !fans.length;
+  }
+  /** Centre de la table pendant le pouvoir de Lise (maquettes Lise, LiseAutres, LiseCible) : portrait, titre, explication. */
+  private liseMid(): string | null {
+    const pb = this.pub!, me = this.mySeat, pd = pb.pending, lf = this.liseNow();
+    const nm = (i: number) => pb.players[i]?.name ?? '?';
+    // téléphone : les éventails occupent déjà tout le plateau
+    if (this.mob && (this.liseChoosing() || (lf && (me !== lf.seat || me === lf.by)))) return null;
+    let by: number, text: string;
+    if (lf) {
+      by = lf.by; const nth = lf.pos ? `${lf.pos + 1}e` : '1re';
+      if (lf.seat === me) text = by === me ? 'Vous avez tiré une carte dans votre propre main.' : 'Une carte a été tirée au hasard dans votre main.';
+      else if (by === me) text = 'Carte imposée. Personne ne sait laquelle, pas même vous.';
+      else text = `${nth} carte ${lf.seat === by ? 'de sa propre main' : de(nm(lf.seat))} : ${nm(lf.seat)} devra la jouer au prochain pli.`;
+    } else if (pd && pd.t === 'mary' && pb.phase === 'play') {
+      by = pd.seat;
+      text = by === me ? "Choisissez une carte face cachée dans la main d'un joueur, la vôtre comprise." : `${nm(by)} choisit une carte face cachée dans la main d'un joueur.`;
+    } else return null;
+    const title = by === me ? `Pouvoir de ${PIRATES.mary.n}` : `${nm(by)} utilise ${PIRATES.mary.n}`;
+    return `<div class="lisemid">${LISE_PORTRAIT}<b>${esc(title)}</b><span>${esc(text)}</span></div>`;
   }
   private thread: SVGSVGElement | null = null;
   /** Fil doré en pointillés, de la plaque de celui qui a choisi vers la main ciblée (coordonnées de l'écran). */
@@ -499,11 +525,12 @@ export class TableView {
     empty.hidden = !mine;
     if (mine) { const g = slotOf(this.mySeat!); empty.style.left = g.sx + 'px'; empty.style.top = g.sy + 'px'; empty.style.width = cw + 'px'; empty.style.height = ch + 'px'; empty.style.rotate = g.r + 'deg'; }
 
-    let mid = '';
+    let mid = ''; const lm = this.banner ? null : this.liseMid();
     if (this.banner) {
       const res = pb.trick?.res, we = res && res.winner != null ? pb.trick!.entries[res.winner] : null;
       const sub = we ? `<small>avec ${esc(cname(we.card, we))}</small>` : '';
       mid = `<div class="banner ${this.bannerShown !== this.banner ? 'fresh' : ''}">${esc(vous(this.banner))}${sub}</div>`; this.bannerShown = this.banner; }
+    else if (lm) mid = lm;
     else if (pb.phase === 'bid' || this.evk === 'bids') {
       const n2 = pb.players.length, sealed = pb.players.filter(p => p.hasBid).length;
       let line = `Mises secrètes · ${sealed} joueur${sealed > 1 ? 's' : ''} sur ${n2} ${sealed > 1 ? 'ont' : 'a'} misé`, note = '';
@@ -517,7 +544,7 @@ export class TableView {
       mid = `<div class="bidcenter"><div class="bt">Manche ${pb.round}</div><div class="bs">${pb.cards} carte${pb.cards > 1 ? 's' : ''} · ${pb.cards} pli${pb.cards > 1 ? 's' : ''} à prendre</div><div class="bp ${this.evk === 'bids' ? 'pop' : ''}">${line}</div>${note}</div>`;
     }
     if (!this.centerEl) { this.centerEl = document.createElement('div'); this.centerEl.className = 'center'; layer.append(this.centerEl); }
-    setHTML(this.centerEl, mid); this.centerEl.classList.toggle('front', !!this.banner);
+    setHTML(this.centerEl, mid); this.centerEl.classList.toggle('front', !!this.banner || !!lm);
   }
   /** Élément unique posé sur le plateau (créé à la demande). */
   private pieces: Record<string, HTMLElement> = {};
@@ -567,6 +594,21 @@ export class TableView {
     }
     const w = best.R.winner;
     return { text: `${name} est trop faible : ${!w ? 'personne ne prend le pli' : w.p === me ? 'vous gardez le pli' : `${owner(w.p)} garde le pli`}`, tone: 'lose' };
+  }
+  /** Pastille sous la carte agrandie (maquette Main) : verdict pendant votre tour, sinon invitation à lire la carte. */
+  private zoomNote(card: HTMLElement): { text: string; ink: string } | null {
+    if (!this.root.contains(card) || !card.closest('#hand')) return null;
+    const id = Number(card.dataset.id), pv = this.priv, t = this.pub?.trick;
+    if (this.myTurnToPlay() && pv && t && pv.hand.some(c => c.id === id)) {
+      if (!pv.legal.includes(id)) {
+        const ls = leadSuitOf(t.entries);
+        return { text: pv.forced != null ? 'Bloquée : une autre carte vous est imposée' : ls ? `Bloquée : fournissez ${du(SUIT[ls].n)}` : 'Bloquée', ink: '#f0a08b' };
+      }
+      const p = this.preview(id);
+      if (p) return p.tone === 'win' ? { text: 'Prendrait le pli', ink: '#9bd69f' } : { text: 'Ne prendrait pas le pli', ink: '#ead08a' };
+      return { text: 'Jouable', ink: '#9bd69f' };
+    }
+    return { text: TOUCH() ? "Maintenez l'appui pour lire la carte" : 'Maintenez le survol pour lire la carte', ink: '#d9cdb6' };
   }
   /** Met à jour la deuxième ligne du bandeau pendant votre tour (survol, focus, premier appui sur téléphone). */
   private showHint(id: number | null) {
@@ -645,11 +687,16 @@ export class TableView {
     const played = new Set([...this.playedMine, ...(pb.trick?.entries || []).filter(e => e.p === this.mySeat).map(e => e.card.id)]);
     const hand = this.live ? pv.hand : pv.hand.filter(c => !played.has(c.id));
     $('#handTitle', this.root).innerHTML = '<b>Votre main</b>';
-    const tags: string[] = []; const bid = this.bidOf(this.mySeat); if (!bid.wait) tags.push(`Pari ${bid.txt}`);
-    const won = pb.players[this.mySeat].won; tags.push(`Plis ${won}`);
-    if (pb.players[this.mySeat].rascal) tags.push(`Mise ${pb.players[this.mySeat].rascal}`);
+    const bid = this.bidOf(this.mySeat), won = pb.players[this.mySeat].won, stake = pb.players[this.mySeat].rascal;
     const st = !bid.wait && pb.bidsRevealed ? (won === Number(bid.txt) ? 'ok' : won > Number(bid.txt) ? 'ko' : '') : '';
-    setHTML($('#handMeta', this.root), tags.map((x, i) => `<span class="${i === 1 ? st : ''}">${x}</span>`).join(''));
+    // maquette Main : « 7 cartes » puis « Mise 2 · plis 0 » (l'enjeu de Lazare à part)
+    // phase de mise (maquette Bid) : « 2 atouts · 1 pirate · 1 sirène » à la place de « Mise · plis »
+    const tags = [`<span><b>${hand.length}</b> carte${hand.length > 1 ? 's' : ''}</span>`];
+    if (pb.phase === 'bid') { const s = handSummary(hand); if (s) tags.push(`<span>${s}</span>`); }
+    else tags.push(`<span class="${st}">${bid.wait ? '' : `Mise <b>${bid.txt}</b> · `}${bid.wait ? 'Plis' : 'plis'} <b>${won}</b></span>`);
+    if (stake) tags.push(`<span>Enjeu <b>${stake}</b> pts</span>`);
+    if (this.liseChoosing()) tags.push(`<span class="note">Masquée pendant le choix : on tire à l'aveugle, même dans sa propre main.</span>`);
+    setHTML($('#handMeta', this.root), tags.join(''));
     if (this.sendingId != null && !hand.some(c => c.id === this.sendingId)) this.sendingId = null;
     if (!hand.length) { clear('Plus de cartes en main.'); return; }
     el.querySelector('.hidden-hand')?.remove();
@@ -682,7 +729,7 @@ export class TableView {
       if (!hit) ce.querySelector('.listag')?.remove();
       ce.classList.toggle('sending', this.sendingId === c.id);
       // pendant votre tour, toutes les cartes se survolent et se focalisent (l'aperçu explique pourquoi une carte est bloquée)
-      if (act || playing) { ce.tabIndex = 0; ce.setAttribute('role', 'button'); } else { ce.removeAttribute('tabindex'); ce.removeAttribute('role'); }
+      if (act || playing) { ce.tabIndex = 0; ce.setAttribute('role', 'button'); } else { ce.removeAttribute('tabindex'); ce.setAttribute('role', 'img'); }
       if (playing && !legal.has(c.id) && !pick) ce.setAttribute('aria-disabled', 'true'); else ce.removeAttribute('aria-disabled');
       ce.setAttribute('aria-label', (playing && !pick ? (legal.has(c.id) ? 'Jouer ' : 'Bloquée : ') : '') + cname(c));
       // éventail plat : 1° par carte, 1 px × d² de décalage vertical
@@ -772,37 +819,40 @@ export class TableView {
   }
 
   /* ---------- Actions ---------- */
-  private setAction(text: string, btns: { label: string; on: () => void; cls?: string; disabled?: boolean; n?: number }[] = [], timer = false) {
+  private setAction(text: string, btns: { label: string; on: () => void; cls?: string; disabled?: boolean; n?: number; aria?: string }[] = [], timer = false) {
     const a = $('#action', this.root); a.innerHTML = `${this.meRow('pre')}<div class="prompt">${text}</div>${this.meRow('post')}`;
     if (timer && !this.mob) {
       const left = Math.max(0, TURN_S - (Date.now() - this.turnStart) / 1000);
       a.insertAdjacentHTML('beforeend', `<div class="ttimer" aria-hidden="true"><span id="tLeft">${Math.ceil(left)} s</span><div><i style="animation-duration:${TURN_S}s;animation-delay:-${(TURN_S - left).toFixed(1)}s"></i></div></div>`);
     }
-    if (btns.length) { const w = document.createElement('div'); w.className = 'btns'; btns.forEach(b => { const el = document.createElement('button'); el.className = 'btn ' + (b.cls || ''); el.textContent = b.label; if (b.n != null) { el.dataset.n = String(b.n); el.setAttribute('aria-label', 'Miser ' + b.n); } el.disabled = !!b.disabled || this.busy; el.onclick = b.on; w.append(el); }); a.append(w); }
+    if (btns.length) { const w = document.createElement('div'); w.className = 'btns'; btns.forEach(b => { const el = document.createElement('button'); el.className = 'btn ' + (b.cls || ''); el.textContent = b.label; if (b.n != null) { el.dataset.n = String(b.n); el.setAttribute('aria-label', 'Miser ' + b.n); } if (b.aria) el.setAttribute('aria-label', b.aria); el.disabled = !!b.disabled || this.busy; el.onclick = b.on; w.append(el); }); a.append(w); }
   }
   private renderAction() {
     const pb = this.pub!, me = this.mySeat, pv = this.priv;
     const name = (i: number) => esc(pb.players[i]?.name ?? '?');
     if (!this.live && this.evk === 'lise' && this.liseNow()) {
-      const lf = this.liseNow()!, by = lf.by === me ? 'Vous' : name(lf.by), cible = lf.seat === me ? 'vous' : name(lf.seat);
+      const lf = this.liseNow()!;
+      // maquettes LiseCible (la cible), Lise (celui qui choisit), LiseAutres (les autres joueurs)
       if (lf.seat === me) {
         const id = this.liseCard(), c = (this.latest?.priv ?? pv)?.hand.find(x => x.id === id);
-        const carte = c ? esc(cname(c)) : 'une carte';
-        this.setAction(`${lf.by === me ? 'Vous vous imposez' : by + ' vous impose'} votre ${carte}<small>Vous devrez la jouer au prochain pli, même sans suivre la couleur</small>`);
-      } else this.setAction(`${by} ${lf.by === me ? 'utilisez' : 'utilise'} ${PIRATES.mary.n}<small>Carte ${lf.pos + 1} de ${cible} : ${cible === 'vous' ? 'vous devrez' : cible + ' devra'} la jouer au prochain pli</small>`);
+        const carte = c ? 'votre ' + esc(cname(c)) : 'une carte';
+        this.setAction(`${lf.by === me ? 'Vous vous imposez' : name(lf.by) + ' vous impose'} ${carte}<small>Vous devrez la jouer au prochain pli, même si elle ne suit pas la couleur demandée</small>`);
+      } else if (lf.by === me) this.setAction(`${name(lf.seat)} devra jouer cette carte au prochain pli<small>Elle sera jouée même si elle ne suit pas la couleur demandée</small>`);
+      else this.setAction(`${name(lf.seat)} a une carte imposée<small>Au prochain pli, sa carte arrivera sur la table avec l'étiquette « Imposée »</small>`);
       return;
     }
     if (!this.live && this.evk === 'bids') { this.setAction(`Les mises sont révélées<small>${pb.leader == null ? '' : pb.leader === me ? 'Vous entamez le premier pli' : `${name(pb.leader)} entame le premier pli`}</small>`); return; }
+    if (!this.live && this.evk === 'trick' && this.banner) { this.setAction(this.trickPrompt()); return; }
     if (!this.live) { this.setAction(this.banner ? esc(vous(this.banner)) : this.evk === 'trickEnd' ? 'Pli ramassé' : this.evk === 'round' ? 'Fin de la manche' : pb.current == null ? (pb.phase === 'play' ? 'Le pli se décide…' : '…') : pb.current === me ? 'À vous dans un instant…' : `${name(pb.current)} ${pb.pending ? 'fait un choix' : 'joue'}…`); return; }
     if (pb.phase === 'end') { this.setAction('Partie terminée.', [{ label: 'Classement final', cls: 'gold', on: () => this.finalOverlay() }, { label: "Retour à l'accueil", cls: 'alt', on: () => this.onExit() }]); return; }
-    if (me == null || !pv) { this.setAction(pb.phase === 'bid' ? 'Les joueurs parient…' : (pb.current != null ? `Au tour de ${name(pb.current)}` : '…')); return; }
+    if (me == null || !pv) { this.setAction(pb.phase === 'bid' ? 'Les joueurs misent…' : (pb.current != null ? `Au tour ${de(name(pb.current))}` : '…')); return; }
     if (this.busy) { this.setAction('Envoi…'); return; }
     if (pb.phase === 'bid') {
       const coins = (pick: number | null) => Array.from({ length: pb.cards + 1 }, (_, b) => ({ label: String(b), n: b, cls: 'coin' + (pick === b ? ' sel' : pick != null ? ' off' : ''), disabled: pick != null, on: () => this.send({ t: 'bid', n: b }) }));
       if (pv.bid == null) this.setAction("Combien de plis allez-vous remporter ?<small>Les autres ne verront votre mise qu'une fois tout le monde décidé</small>", coins(null));
       else {
         const w = pb.players.map((p, i) => p.hasBid ? null : name(i)).filter(Boolean);
-        this.setAction(`Mise scellée : ${pv.bid}<small>${w.length ? `En attente de ${w.join(', ')}…` : 'Révélation des mises…'}</small>`, coins(pv.bid));
+        this.setAction(`Mise scellée : ${pv.bid}<small>${w.length ? `En attente ${de(w.join(', '))}…` : 'Révélation des mises…'}</small>`, coins(pv.bid));
       }
       return;
     }
@@ -814,10 +864,15 @@ export class TableView {
       switch (pd.t) {
         case 'plank': return this.setAction('La Planche : quel pirate faites-vous marcher sur la planche ?', btns(opts));
         case 'rosie': return this.setAction(`${PIRATES.rosie.n} : qui entame le prochain pli ?`, btns(opts));
-        case 'mary': return this.setAction(`Cliquez une carte face cachée chez un joueur, vous compris<small>${PIRATES.mary.n} : les cartes sont mélangées, leur place ne dit rien de leur valeur</small>`,
-          opts.map(o => ({ label: `Au hasard · ${o.v === me ? 'vous' : pb.players[o.v].name}`, cls: 'alt', on: () => this.send({ t: 'choose', v: o.v }) })));
-        case 'rascal': return this.setAction(`${PIRATES.rascal.n} : combien misez-vous sur votre pari ?<small>Gagnés si le pari est réussi, perdus sinon.</small>`, btns(opts));
-        case 'harry': return this.setAction(`${PIRATES.harry.n} : votre pari est de ${pv.bid}. Le modifier ?`, btns(opts));
+        case 'mary': {
+          // maquette Lise : petite étiquette « Au hasard » puis un bouton par joueur
+          this.setAction(`Cliquez une carte face cachée chez un joueur, vous compris<small>${PIRATES.mary.n} : les cartes sont mélangées, leur place ne dit rien de leur valeur</small>`,
+            opts.map(o => ({ label: o.v === me ? 'Vous' : pb.players[o.v].name, aria: `Au hasard dans ${o.v === me ? 'votre main' : 'la main ' + de(pb.players[o.v].name)}`, cls: 'alt', on: () => this.send({ t: 'choose', v: o.v }) })));
+          this.root.querySelector('#action .btns')?.insertAdjacentHTML('afterbegin', '<span class="rndlbl" aria-hidden="true">Au hasard</span>');
+          return;
+        }
+        case 'rascal': return this.setAction(`${PIRATES.rascal.n} : combien de points engagez-vous sur votre mise ?<small>Gagnés si la mise est tenue, perdus sinon.</small>`, btns(opts));
+        case 'harry': return this.setAction(`${PIRATES.harry.n} : votre mise est de ${pv.bid}. La modifier ?`, btns(opts));
         case 'juanita': return this.setAction(`${PIRATES.juanita.n} : vous pouvez consulter les cartes non distribuées.`, [{ label: 'Voir la pioche', cls: 'gold', on: () => this.showDeck() }]);
         case 'bahij': {
           const k = pv.pendingData?.k ?? 2; if (!this.pick || this.pick.k !== k) { this.pick = { k, sel: new Set() }; this.renderHand(); }
@@ -833,7 +888,26 @@ export class TableView {
       this.showHint(this.previewId);
       return;
     }
-    this.setAction(pb.current != null ? `Au tour de ${name(pb.current)}` : '…');
+    this.setAction(pb.current != null ? `Au tour ${de(name(pb.current))}` : '…');
+  }
+  /** Bandeau d'action après un pli (maquette Main) : ce que le pli change pour votre mise, puis « Pli 3 sur 7 · vous entamez ». */
+  private trickPrompt() {
+    const pb = this.pub!, me = this.mySeat, t = pb.trick, res = t?.res;
+    const we = res && res.winner != null ? t!.entries[res.winner] : null;
+    let title = esc(vous(this.banner!));
+    if (we && we.p === me && pb.bidsRevealed) {
+      // l'instantané « trick » précède le décompte : le pli n'est pas encore dans won
+      const p = pb.players[me], left = (p.bid ?? 0) - (p.won + 1);
+      title = left > 0 ? `Pli remporté : encore ${left === 1 ? 'un' : left} pour tenir votre mise` : left === 0 ? (pb.trickNo >= pb.cards ? 'Pli remporté : mise tenue' : "Pli remporté : mise tenue pour l'instant")
+        : `Pli remporté : ${left === -1 ? 'un pli' : -left + ' plis'} de trop`;
+    }
+    // Kraken, pli défaussé : le message dit déjà qui entame
+    if (!res || res.discarded) return title;
+    if (pb.trickNo >= pb.cards) return `${title}<small>Dernier pli de la manche</small>`;
+    // Anne Boussole choisira qui entame : on ne l'annonce pas
+    const rosie = we?.card.kind === 'pirate' && we.card.pid === 'rosie' && pb.opts?.powers, next = res.next as number | null;
+    const lead = rosie || next == null ? '' : ` · ${next === me ? 'vous entamez' : esc(pb.players[next].name) + ' entame'}`;
+    return `${title}<small>Pli ${pb.trickNo + 1} sur ${pb.cards}${lead}</small>`;
   }
   private handClick(id: number) {
     if (this.pick) { const s = this.pick.sel; if (s.has(id)) s.delete(id); else if (s.size < this.pick.k) s.add(id); this.renderHand(); this.renderAction(); return; }
@@ -903,14 +977,15 @@ export class TableView {
         <div class="rt" style="animation-delay:calc(${600 + k * 120}ms * var(--spd,1))">${sg(x.tot)}</div><div class="rs">${p.score}</div></div>`;
     }).join('');
     const coup = coupDeLaManche(ps);
-    const ov = document.createElement('div'); ov.className = 'roverlay';
+    const ov = document.createElement('div'); ov.className = 'roverlay'; this.copySpd(ov);
+    const back = document.activeElement as HTMLElement | null;
     ov.innerHTML = `<div class="rsheet" role="dialog" aria-modal="true" aria-labelledby="rTitle">
       <div class="rhead"><div><div class="rsub">Manche ${r} sur 10 · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">Fin de la manche</h2></div>
         <div class="rready"><span id="rCount"></span><div class="rbar"><i style="animation-duration:${READY_S}s"></i></div></div></div>
       <div class="rcols"><span>#</span><span>Pirate</span><span>Mise → plis</span><span>Points</span><span>Bonus</span><span class="r">Manche</span><span class="r">Total</span></div>
       <div class="rrows">${rows}</div>
       ${coup ? `<div class="coup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg><div><b>Coup de la manche</b><span>${esc(coup)}</span></div></div>` : ''}
-      <div class="rfoot"><button class="btn alt" id="rSheet">Feuille de scores</button>${this.mySeat != null ? '<button class="btn gold big" id="rReady">Je suis prêt</button>' : ''}</div></div>`;
+      <div class="rfoot"><button class="btn alt" id="rSheet">Feuille complète</button>${this.mySeat != null ? '<button class="btn gold big" id="rReady">Je suis prêt</button>' : ''}</div></div>`;
     document.body.append(ov);
     // les bots sont toujours prêts ; les « prêt » reçus avant l'ouverture de la fenêtre sont repris
     const ready = new Set<number>([...ps.map((p, i) => p.bot ? i : -1).filter(i => i >= 0), ...(this.earlyReady[r] || [])]);
@@ -924,9 +999,17 @@ export class TableView {
         if (ready.size >= ps.length) close();
       };
       const close = () => {
-        if (done) return; done = true; clearInterval(iv); this.roundGate = null; this.roundOpen = null;
+        if (done) return; done = true; clearInterval(iv); this.roundGate = null; this.roundOpen = null; document.removeEventListener('keydown', onKey);
+        // le focus revient où il était (s'il était dans la fenêtre ou perdu, on ne le force pas ailleurs)
+        if (ov.contains(document.activeElement)) { if (back?.isConnected && !ov.contains(back)) back.focus(); else (document.activeElement as HTMLElement).blur(); }
         ov.classList.add('out'); setTimeout(() => ov.remove(), 260); res();
       };
+      // Échap : comme « Je suis prêt » (la fenêtre se ferme ; la feuille de scores ouverte par-dessus garde la main)
+      const onKey = (ev: KeyboardEvent) => {
+        const m = document.getElementById('modal'); if (ev.key !== 'Escape' || (m && !m.hidden)) return;
+        ev.preventDefault(); if (btn && !btn.disabled) btn.click(); close();
+      };
+      document.addEventListener('keydown', onKey);
       const iv = setInterval(() => { if (Date.now() - t0 >= READY_S * 1000) close(); else update(); }, 250);
       this.roundOpen = { round: r, ready, update, close };
       btn?.addEventListener('click', () => { ready.add(this.mySeat!); this.backend.ready?.(r); update(); });
@@ -940,40 +1023,65 @@ export class TableView {
     else (this.earlyReady[r] = this.earlyReady[r] || []).push(seat);
   }
   /* ---------- Fin de partie (maquette FinPartie) ---------- */
-  private finEl: HTMLElement | null = null;
+  private finEl: HTMLElement | null = null; private finTimer: any = 0;
+  /** Les fenêtres posées sur body héritent de la vitesse d'animation de la table. */
+  private copySpd(el: HTMLElement) { el.style.setProperty('--spd', this.root.style.getPropertyValue('--spd') || '1'); }
+  /** Ferme la fin de partie : la table redevient accessible. */
+  private closeFin() { clearTimeout(this.finTimer); this.finEl?.remove(); this.finEl = null; this.root.inert = false; }
   /** Superposition de fin : podium, XP (lignes puis barre), Élo, haut fait. Se complète quand le règlement du serveur arrive. */
   private finalOverlay() {
     const pb = this.latest?.pub ?? this.pub; if (!pb) return;
-    this.finEl?.remove();
+    this.closeFin();
     const ps = pb.players, order = ps.map((p, i) => ({ p, i })).sort((a, b) => b.p.score - a.p.score);
     const rank = (i: number) => 1 + ps.filter(p => p.score > ps[i].score).length;
     const me = this.mySeat, myRank = me != null ? rank(me) : 0;
     const TITLE = ['Victoire, capitaine !', 'Deuxième place, belle traversée', 'Troisième place', 'Fin de la traversée'];
     const H = [120, 92, 70, 52], ORD = [2, 1, 3, 4], DL = [1.05, .75, .6, .45], ORDN = ['1er', '2e', '3e'];
-    const ov = document.createElement('div'); ov.className = 'finov';
+    const ov = document.createElement('div'); ov.className = 'finov'; this.copySpd(ov);
     const pod = order.slice(0, 4).map(({ p, i }, k) => `<div class="fpod" style="order:${ORD[k]}">${this.avatar(i, p.name, k ? 52 : 68)}<b>${esc(i === me ? 'Vous' : p.name)}</b>
       <div class="col c${Math.min(rank(i), 4)}" style="height:${H[k]}px;animation-delay:calc(${DL[k]}s * var(--spd,1))"><span class="t">${p.score}</span><span class="r" data-elo="${i}">${rank(i) <= 3 ? ORDN[rank(i) - 1] : rank(i) + 'e'}</span></div></div>`).join('');
     ov.innerHTML = `<div class="sparks" aria-hidden="true">${Array.from({ length: 8 }, (_, k) => `<span style="left:${18 + k * 9}%;top:${240 + (k % 3) * 30}px;animation-delay:${(k * .37).toFixed(2)}s"></span>`).join('')}</div>
       <div class="fcard" role="dialog" aria-modal="true" aria-labelledby="fp-t">
-        <div class="fhead"><div class="ftag">Fin de la partie · ${pb.round} manche${pb.round > 1 ? 's' : ''}</div><h2 id="fp-t">${me == null ? 'Partie terminée' : TITLE[Math.min(myRank, 4) - 1]}</h2></div>
+        <div class="fhead"><div class="ftag">Fin de la partie · ${pb.round} manche${pb.round > 1 ? 's' : ''}</div><h2 id="fp-t" tabindex="-1">${me == null ? 'Partie terminée' : TITLE[Math.min(myRank, 4) - 1]}</h2></div>
         <div class="fpodium">${pod}</div>
         <div class="fgrid" id="fgrid"><p class="fwait">${this.backend.gameId ? 'Calcul de l\'XP et de l\'Élo…' : 'Partie d\'entraînement : elle ne rapporte ni XP ni Élo.'}</p></div>
         <div class="fbtns"><button class="abtn ghost" id="fHome">Retour au port</button>
           ${this.backend.gameId ? '<button class="abtn ghost" id="fDetail">Détail de la partie</button><button class="abtn gold" id="fRematch">Revanche avec la même table</button>'
             : '<button class="abtn ghost" id="fSheet">Feuille de scores</button><button class="abtn gold" id="fAgain">Nouvelle partie</button>'}</div>
       </div>`;
-    document.body.append(ov); this.finEl = ov;
+    document.body.append(ov); this.finEl = ov; this.root.inert = true;
     const q = (s: string) => ov.querySelector(s) as HTMLElement | null;
-    q('#fHome')!.onclick = () => { ov.remove(); this.onExit(); };
-    if (q('#fDetail')) q('#fDetail')!.onclick = () => { ov.remove(); location.hash = '#/partie/' + this.backend.gameId; location.reload(); };
+    q('#fHome')!.onclick = () => { this.closeFin(); this.onExit(); };
+    if (q('#fDetail')) q('#fDetail')!.onclick = () => { this.closeFin(); location.hash = '#/partie/' + this.backend.gameId; location.reload(); };
     if (q('#fSheet')) q('#fSheet')!.onclick = () => this.scoreSheet();
-    if (q('#fAgain')) q('#fAgain')!.onclick = () => { ov.remove(); location.hash = '#/entrainement'; location.reload(); };
+    if (q('#fAgain')) q('#fAgain')!.onclick = () => { this.closeFin(); location.hash = '#/entrainement'; location.reload(); };
     if (q('#fRematch')) q('#fRematch')!.onclick = async () => {
       const b = q('#fRematch') as HTMLButtonElement; b.disabled = true; b.textContent = 'Préparation du salon…';
-      try { const id = await this.backend.rematch!(); ov.remove(); location.hash = '#/partie/' + id; }
+      try { const id = await this.backend.rematch!(); this.closeFin(); location.hash = '#/partie/' + id; }
       catch (e: any) { toast(e.message || 'Revanche impossible.', 'err'); b.disabled = false; b.textContent = 'Revanche avec la même table'; }
     };
+    // focus sur le titre, tabulation piégée dans la carte ; Échap ne ferme pas (la partie est finie)
+    ov.addEventListener('keydown', ev => {
+      if (ev.key === 'Escape') { ev.preventDefault(); return; }
+      if (ev.key !== 'Tab') return;
+      const f = [...ov.querySelectorAll<HTMLElement>('.fcard button:not(:disabled), .fcard [href], .fcard [tabindex]:not([tabindex="-1"])')];
+      if (!f.length) { ev.preventDefault(); return; }
+      const a = document.activeElement, i = f.indexOf(a as HTMLElement);
+      if (ev.shiftKey && i <= 0) { ev.preventDefault(); f[f.length - 1].focus(); }
+      else if (!ev.shiftKey && (i === -1 || i === f.length - 1)) { ev.preventDefault(); f[0].focus(); }
+    });
+    q('#fp-t')!.focus();
     this.fillSettled();
+    // règlement en retard (partie en ligne) : on le relit au serveur après 8 s, sinon on renvoie vers l'historique
+    if (this.backend.gameId && this.backend.uid) this.finTimer = setTimeout(async () => {
+      const grid = () => (this.finEl === ov ? ov.querySelector('#fgrid') as HTMLElement : null);
+      if (!grid() || grid()!.dataset.done) return;
+      try {
+        const s = await this.backend.settled?.(), pub = this.latest?.pub as any;
+        if (s && pub) { pub.settled = { ...(pub.settled || {}), ...s }; this.fillSettled(); }
+      } catch { /* on garde le message ci-dessous */ }
+      const g = grid(); if (g && !g.dataset.done) g.innerHTML = '<p class="fwait">Le calcul prend plus de temps que prévu : retrouvez-le dans l\'historique.</p>';
+    }, 8000);
   }
   /** Partie du règlement propre au joueur (XP, Élo, haut fait), dès qu'elle est disponible dans l'état de la partie. */
   private fillSettled() {
@@ -992,8 +1100,8 @@ export class TableView {
         <span class="lbl">${up ? '' : `${fmt(after.inLevel)} / ${fmt(after.need)} XP${nextT ? ` · encore ${fmt(xpToReach(nextT[0]) - s.xpAfter)} avant ${esc(nextT[1])}` : ''}`}</span>
         ${up ? `<span class="lvup">Niveau ${after.level} · ${esc(after.title)} !</span>` : ''}</div>
       ${elo ? `<div class="fbox fxl" style="animation-delay:calc(2.3s * var(--spd,1))"><span class="ftag">Élo</span>
-        <span class="felo"><span class="o">${Math.round(elo.before)}</span><span class="o">→</span><span class="n">${Math.round(elo.after)}</span><b class="${elo.delta >= 0 ? 'pos' : 'neg'}">${signedOne(elo.delta)}</b></span>
-        ${(elo.vs as any[]).map(v => `<div class="fvs"><span>${v.delta >= 0 ? 'Devant' : 'Derrière'} ${esc(v.name)}</span><b class="${v.delta >= 0 ? 'pos' : 'neg'}">${signedOne(v.delta)}</b></div>`).join('')}</div>`
+        <span class="felo"><span class="o">${Math.round(elo.before)}</span><span class="o">→</span><span class="n">${Math.round(elo.after)}</span><b class="${elo.delta >= 0 ? 'pos' : 'neg'}">${signed(Math.round(elo.delta))}</b></span>
+        ${((elo.vs || []) as any[]).map(v => `<div class="fvs"><span>${vsLabel(v)}</span><b class="${v.delta >= 0 ? 'pos' : 'neg'}">${signedOne(v.delta)}</b></div>`).join('')}</div>`
         : '<div class="fbox"><span class="ftag">Élo</span><span class="lbl">Partie non classée : il faut au moins deux joueurs humains.</span></div>'}
       ${ach ? `<div class="fach"><span class="medal2">${ACH_STAR}</span><span><span class="ftag dark">Haut fait débloqué</span><b>${esc(ach.name)}</b><span>${esc(ach.description)}${s.achievements.length > 1 ? ` · et ${s.achievements.length - 1} autre${s.achievements.length > 2 ? 's' : ''}` : ''}</span></span></div>` : ''}`;
     // place et Élo de chacun sous le podium
@@ -1006,7 +1114,7 @@ export class TableView {
   private maybeFinal() { if (this.pub?.phase === 'end' && !this.shownEnd) { this.shownEnd = true; this.finalOverlay(); } }
   scoreSheet() {
     const ps = this.latest?.pub.players || this.pub?.players || []; if (!ps.length) return;
-    let h = `<h2>Feuille de scores</h2><p class="sub">Pari / plis remportés, puis points de la manche.</p><div class="scroll"><table class="st"><tr><th>Manche</th>${ps.map(p => `<th>${esc(p.name)}</th>`).join('')}</tr>`;
+    let h = `<h2>Feuille de scores</h2><p class="sub">Mise / plis remportés, puis points de la manche.</p><div class="scroll"><table class="st"><tr><th>Manche</th>${ps.map(p => `<th>${esc(p.name)}</th>`).join('')}</tr>`;
     for (let r = 1; r <= 10; r++) h += `<tr><td>${r}</td>` + ps.map(p => { const x = p.hist?.[r - 1]; return `<td>${x ? `${x.bid}/${x.won} · ${sgn(x.tot)}` : '—'}</td>`; }).join('') + '</tr>';
     h += `<tr class="tot"><td>Total</td>${ps.map(p => `<td>${p.score}</td>`).join('')}</tr></table></div>`;
     modal(h);
@@ -1042,8 +1150,17 @@ function handLayout(Wbox: number, Hbox: number, n: number) {
   // trop de cartes : on les réduit jusqu'à ce que l'écart vaille 0,38 × largeur
   if (n > 1 && step < cardW * .38) { cardW = W / (1 + .38 * (n - 1)); cardH = cardW * 1.4; step = cardW * .38; }
   // la partie visible (cliquable) d'une carte fait au moins 44 px, quand la largeur le permet
-  if (n > 1 && step < 44 && 44 * (n - 1) + 60 <= W) { step = 44; cardW = Math.min(cardW, W - 44 * (n - 1)); cardH = cardW * 1.4; }
+  // en dernier recours on réduit les cartes (40 px de large au moins) ; sur un téléphone étroit à 9-10 cartes, 44 px restent hors d'atteinte
+  if (n > 1 && step < 44) { cardW = Math.max(40, Math.min(cardW, W - 44 * (n - 1))); cardH = cardW * 1.4; step = Math.min(cardW * .96, (W - cardW) / (n - 1)); }
   return { cardW, cardH, step };
+}
+/** Résumé de la main pendant la mise (maquette Bid) : « 2 atouts · 1 pirate · 1 sirène ». */
+function handSummary(hand: Card[]) {
+  const n = (f: (c: Card) => boolean) => hand.filter(f).length;
+  const parts: [number, string, string][] = [
+    [n(c => c.kind === 'num' && c.suit === 'black'), 'atout', 'atouts'], [n(c => c.kind === 'sk'), 'Barbe-Cendre', 'Barbe-Cendre'],
+    [n(c => c.kind === 'pirate'), 'pirate', 'pirates'], [n(c => c.kind === 'tigress'), 'Morgane', 'Morgane'], [n(c => c.kind === 'mermaid'), 'sirène', 'sirènes']];
+  return parts.filter(p => p[0]).map(([k, s, p]) => `${k} ${k > 1 ? p : s}`).join(' · ');
 }
 /** Notification du navigateur quand c'est à vous et que l'onglet est caché (préférence « Me prévenir quand c'est mon tour »). */
 function notifyTurn() {
@@ -1055,6 +1172,12 @@ function notifyTurn() {
 const ACH_STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z"/></svg>';
 /** « +9,7 » avec une décimale et un vrai signe moins. */
 const signedOne = (v: number) => signed(Math.round(v * 10) / 10, Math.abs(v) < 100 ? 1 : 0);
+/** « Devant Maëlle (172) », « À égalité avec Maëlle (172) » ; anciennes parties sans s ni elo : signe de la variation, sans parenthèses. */
+function vsLabel(v: { name: string; delta: number; s?: number; elo?: number }) {
+  const nm = esc(v.name) + (v.elo != null ? ` (${Math.round(v.elo)})` : '');
+  if (v.s === 1) return 'Devant ' + nm; if (v.s === 0.5) return 'À égalité avec ' + nm; if (v.s === 0) return 'Derrière ' + nm;
+  return `${v.delta >= 0 ? 'Devant' : 'Derrière'} ${esc(v.name)}`;
+}
 function stakeLines(b: number, cards: number, rascal: boolean): [string, number][] {
   const tenue = `Mise ${b} tenue`;
   if (rascal) return [[tenue, 10 * cards], ["Un pli d'écart", 5 * cards], ["Deux plis d'écart ou plus", 0]];
@@ -1063,7 +1186,7 @@ function stakeLines(b: number, cards: number, rascal: boolean): [string, number]
 }
 const VERBS: Record<string, string> = { joue: 'jouez', remporte: 'remportez', entame: 'entamez', mise: 'misez', fait: 'faites', choisit: 'choisissez', pioche: 'piochez', consulte: 'consultez', décide: 'décidez', garde: 'gardez', prend: 'prenez', tire: 'tirez' };
 /** « Vous remporte le pli » (texte du moteur) → « Vous remportez le pli ». */
-const vous = (t: string) => t.replace(/la main de Vous\b/g, 'votre main').replace(/\bVous (\p{L}+)/gu, (m, v) => VERBS[v] ? 'Vous ' + VERBS[v] : m);
+const vous = (t: string) => t.replace(/^Paris : /, 'Mises : ').replace(/^Vous (change|garde) son pari\b/, 'Vous $1z votre mise').replace(/(change|garde) son pari\b/, '$1 sa mise').replace(/la main de Vous\b/g, 'votre main').replace(/\bVous (\p{L}+)/gu, (m, v) => VERBS[v] ? 'Vous ' + VERBS[v] : m);
 /** Ligne du journal. Les bonus (« +30 pour Maëlle : Pirate capturé par Barbe-Cendre ») ont leur propre mise en forme : pastille de points, « Joueur · raison ». */
 function logLine(l: { s: LogSeg[]; cls?: string }, me?: string) {
   if (l.cls === 'bonus' || l.cls === 'malus') {

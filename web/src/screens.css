@@ -1,0 +1,30 @@
+/* Écrans du compte (historique, détail, classement, salon) : compléments et surcharges d'app.css (chargé après). */
+
+/* Squelettes de chargement */
+@keyframes skPulse{0%,100%{opacity:.45}50%{opacity:.8}}
+.skel{animation:skPulse 1.4s ease-in-out infinite}
+.sum.skel .big,.sum.skel .lbl{display:block;border-radius:6px;background:rgba(234,208,138,.08)}
+.sum.skel .big{width:56px;height:32px}.sum.skel .lbl{width:110px;height:13px}
+.pod2.skel{animation:skPulse 1.4s ease-in-out infinite}
+.pod2.skel .skav{width:68px;height:68px;border-radius:50%;background:rgba(234,208,138,.12)}
+.pod2.skel b,.pod2.skel .lbl{display:block;width:90px;border-radius:6px;background:rgba(234,208,138,.1)}
+.pod2.skel .lbl{width:70px}
+.pod2.skel .step{animation:none;opacity:.35}
+.hload{padding:24px 0;text-align:center}
+
+/* Historique : adversaires (.hopp et non .opp, déjà pris par la table de jeu dans game.css) */
+.hrow2 .hopp{display:flex;align-items:center;gap:10px;min-width:0}.hrow2 .hopp .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* téléphone : adversaires puis score sous le titre ; la pastille d'XP reste visible (maquette) */
+@media (max-width:720px){.hrow2 .hopp,.hrow2 .hend{grid-column:2/4}.hrow2 .hend{justify-content:flex-start}.hend .xpchip{display:inline-block}.hend svg{margin-left:auto}}
+
+/* Classement : le nom du joueur est un en-tête de ligne */
+.lbtab tbody th{padding:10px 12px;text-align:left;font-weight:400;font-size:15px;color:inherit;border-bottom:1px solid rgba(234,208,138,.08);white-space:nowrap}
+@media (max-width:720px){.lbtab tbody th{padding:8px 6px}}
+
+/* Salon : bloc du code (l'ancienne classe .code héritait de l'espacement global des lettres) */
+.invite2 .codebox{display:flex;flex-direction:column;gap:4px}
+/* les places ne s'animent qu'à leur arrivée */
+.seatc{animation:none}
+.seatc.new{animation:inS .35s ease-out both}
+.kick.confirm{width:auto;padding:0 14px;border-radius:999px;border-color:#f0a08b;color:#f0a08b;font:800 14px var(--f-body)}
+@media (prefers-reduced-motion:reduce){.seatc.new,.skel{animation:none}}

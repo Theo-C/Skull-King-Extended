@@ -9,6 +9,8 @@ export interface Commit {
   secret?: E.State; hands?: { user_id: string; seat: number; data: any }[]; events?: any[]; seats?: SeatRow[];
 }
 export interface Store {
+  /** Adresse du projet Supabase (https://<ref>.supabase.co) : seule origine acceptée pour les photos de profil. */
+  readonly origin: string;
   pseudo(uid: string): Promise<string>;
   insertGame(row: { code: string; host: string; options: any }): Promise<GameRow | null>; // null si le code existe déjà
   gameById(id: string): Promise<GameRow | null>;
@@ -16,7 +18,7 @@ export interface Store {
   seats(gameId: string): Promise<SeatRow[]>;
   secret(gameId: string): Promise<E.State | null>;
   commit(gameId: string, expectedVersion: number, c: Commit): Promise<number | null>; // null : conflit de version
-  /** Appel d'une fonction SQL réservée au serveur (settle_inputs, game_settle, history_list, history_get, profile_update). */
+  /** Appel d'une fonction SQL réservée au serveur (settle_inputs, game_settle, history_page, history_get, profile_update, unsettled_games, rematch_claim). */
   rpc(name: string, args: Record<string, unknown>): Promise<any>;
 }
 export class HttpError extends Error { constructor(public status: number, msg: string) { super(msg); } }
@@ -52,7 +54,8 @@ async function withRetry<T>(fn: () => Promise<T | 'conflict'>): Promise<T> {
   for (let i = 0; i < 4; i++) { const r = await fn(); if (r !== 'conflict') return r; }
   throw new HttpError(409, 'La partie a changé pendant votre action, réessayez.');
 }
-async function mustGame(store: Store, id: any) { const g = typeof id === 'string' ? await store.gameById(id) : null; if (!g) throw new HttpError(404, 'Partie introuvable.'); return g; }
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+async function mustGame(store: Store, id: any) { const g = typeof id === 'string' && UUID.test(id) ? await store.gameById(id) : null; if (!g) throw new HttpError(404, 'Partie introuvable.'); return g; }
 
 async function create(store: Store, uid: string, body: any) {
   const types = sanitizeSeatTypes(body.seats ?? [{ bot: false }, { bot: true }, { bot: true }, { bot: true }]);
@@ -105,6 +108,12 @@ async function lobby(store: Store, uid: string, body: any) {
   const old = await store.seats(g.id);
   const options = body.options ? E.normalizeOpts(body.options) : g.options;
   let seats = old;
+  if (body.kick != null) {
+    // l'hôte retire un joueur du salon : sa place redevient libre
+    const k = old.find(x => x.user_id != null && x.user_id === body.kick && x.user_id !== g.host);
+    if (!k) throw bad("Ce joueur n'est pas dans le salon.");
+    k.user_id = null; k.name = '';
+  }
   if (body.seats) {
     const types = sanitizeSeatTypes(body.seats); types[0] = false;
     const users = old.filter(s => s.user_id).sort((a, b) => a.seat - b.seat);
@@ -189,21 +198,26 @@ async function profileUpdate(store: Store, uid: string, body: any) {
     p.pseudo = ps;
   }
   if (body.color != null) { if (!PALETTE.includes(body.color)) throw bad('Couleur inconnue.'); p.color = body.color; }
+  if (body.avatar_kind == null && body.avatar_art != null) throw bad("Précisez le type d'image.");
   if (body.avatar_kind != null) {
     if (!['initial', 'art', 'photo'].includes(body.avatar_kind)) throw bad("Type d'image inconnu.");
     p.avatar_kind = body.avatar_kind;
     if (body.avatar_kind === 'art') {
-      const a = Number(body.avatar_art); if (!Number.isInteger(a) || a < 0 || a > 7) throw bad('Pirate illustré inconnu.');
+      const a = body.avatar_art; if (typeof a !== 'number' || !Number.isInteger(a) || a < 0 || a > 7) throw bad('Pirate illustré inconnu.');
       p.avatar_art = a;
     }
     if (body.avatar_kind === 'photo') {
       // la photo doit être celle de l'utilisateur, dans le stockage du projet : avatars/<uid>/avatar.webp
-      const u = String(body.avatar_url || '');
-      if (!/^https:\/\/[^/]+\/storage\/v1\/object\/public\/avatars\//.test(u) || !u.includes(`/avatars/${uid}/avatar.webp`)) throw bad('Photo invalide.');
+      // origine exacte du projet, fichier du joueur (WebP, ou JPEG quand le navigateur n'encode pas le WebP), éventuel ?v=horodatage
+      const u = String(body.avatar_url || ''), base = `${store.origin.replace(/\/$/, '')}/storage/v1/object/public/avatars/${uid}/avatar.`;
+      if (!u.startsWith(base) || !/^(webp|jpg)(\?v=\d{1,15})?$/.test(u.slice(base.length))) throw bad('Photo invalide.');
       p.avatar_url = u;
     }
   }
-  for (const k of ['public_rank', 'notify_turn', 'sounds']) if (body[k] != null) p[k] = !!body[k];
+  for (const k of ['public_rank', 'notify_turn', 'sounds']) if (body[k] != null) {
+    if (typeof body[k] !== 'boolean') throw bad('Réglage invalide.');
+    p[k] = body[k];
+  }
   if (!Object.keys(p).length) throw bad('Rien à enregistrer.');
   await store.rpc('profile_update', { p_user: uid, p });
   return { ok: true };
@@ -214,11 +228,18 @@ const PAGE = 20;
 async function historyList(store: Store, uid: string, body: any) {
   const filter = ['all', 'wins', 'ext', 'base'].includes(body.filter) ? body.filter : 'all';
   const before = typeof body.before === 'string' && !isNaN(Date.parse(body.before)) ? body.before : null;
-  const items = (await store.rpc('history_list', { p_user: uid, p_before: before, p_filter: filter, p_limit: PAGE })) as any[] ?? [];
-  return { items, next: items.length === PAGE ? items[items.length - 1].finished_at : null };
+  const beforeId = typeof body.before_id === 'string' && UUID.test(body.before_id) ? body.before_id : null;
+  // une partie dont le règlement a échoué n'a pas de résultat, donc pas de ligne : on le refait avant de lister
+  if (!before) for (const id of ((await store.rpc('unsettled_games', { p_user: uid })) as string[] ?? [])) {
+    try { const S = await store.secret(id); if (S) await settleFinished(store, id, S, await store.seats(id)); }
+    catch (e) { console.error('règlement en retard', id, e); }
+  }
+  const items = (await store.rpc('history_page', { p_user: uid, p_before: before, p_before_id: beforeId, p_filter: filter, p_limit: PAGE })) as any[] ?? [];
+  const last = items[items.length - 1];
+  return { items, next: items.length === PAGE ? last.finished_at : null, next_id: items.length === PAGE ? last.id : null };
 }
 async function historyGet(store: Store, uid: string, body: any) {
-  if (typeof body.id !== 'string') throw bad('Partie inconnue.');
+  if (typeof body.id !== 'string' || !UUID.test(body.id)) throw new HttpError(404, 'Partie introuvable.');
   let d = await store.rpc('history_get', { p_user: uid, p_game: body.id });
   if (!d) throw new HttpError(403, "Vous n'avez pas joué cette partie.");
   // partie terminée mais pas encore réglée (règlement interrompu) : on le refait ici
@@ -235,8 +256,17 @@ async function rematch(store: Store, uid: string, body: any) {
   const old = (await store.seats(g.id)).sort((a, b) => a.seat - b.seat);
   if (!old.some(s => s.user_id === uid)) throw new HttpError(403, "Vous n'avez pas joué cette partie.");
   if (g.status !== 'finished') throw bad("La partie n'est pas terminée.");
-  let n: GameRow | null = null;
-  for (let i = 0; i < 8 && !n; i++) n = await store.insertGame({ code: newCode(), host: uid, options: g.options });
+  // deux joueurs qui cliquent en même temps doivent arriver dans le même salon : le premier réserve le code, les autres le retrouvent
+  const mine = newCode();
+  const code = (await store.rpc('rematch_claim', { p_game: g.id, p_code: mine })) as string;
+  if (code !== mine) {
+    for (let i = 0; i < 10; i++) {
+      const ex = await store.gameByCode(code); if (ex) return { id: ex.id, code: ex.code };
+      await new Promise(r => setTimeout(r, 150));
+    }
+    throw new HttpError(409, 'La revanche est en cours de préparation, réessayez.');
+  }
+  const n = await store.insertGame({ code, host: uid, options: g.options });
   if (!n) throw new HttpError(500, 'Impossible de créer un code de partie.');
   // celui qui demande la revanche devient l'hôte (siège 0) ; les autres gardent leur ordre
   const humans = [uid, ...old.filter(s => s.user_id && s.user_id !== uid).map(s => s.user_id!)];

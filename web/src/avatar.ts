@@ -33,7 +33,8 @@ export function avatarHTML(a: AvatarData, size: number, ring?: string) {
   let inner: string;
   if (a.kind === 'photo' && a.url) inner = `<img src="${esc(a.url)}" alt="" loading="lazy" decoding="async">`;
   else if (a.kind === 'art' && a.art != null && a.art >= 0) inner = artSVG(Number(a.art));
-  else inner = `<span style="font-size:${Math.round(size * .45)}px">${letter}</span>`;
+  // initiale relative au médaillon (cqw) : suit sa taille réelle même si le CSS la change ; px en repli
+  else inner = `<span style="font-size:${Math.round(size * .45)}px;font-size:45cqw">${letter}</span>`;
   return `<span class="avatar" style="width:${size}px;height:${size}px;background:${esc(color)};box-shadow:${ring || '0 0 0 2px #1b140e'}">${inner}</span>`;
 }
 /** Données d'avatar à partir d'une ligne de la table profiles. */

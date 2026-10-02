@@ -323,6 +323,7 @@ body.at-table .tablepage{max-width:none;margin:0;padding:0;height:100dvh;display
 .gdots i.now{background:#ead08a;box-shadow:0 0 0 3px rgba(234,208,138,.3)}
 .gsp{flex:1}
 .gtools{display:flex;gap:8px;align-items:center}
+@media (max-width:899px){.gtools .lbl{display:none}}
 .tb{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;min-width:38px;padding:0 13px;border-radius:9px;border:1px solid rgba(234,208,138,.28);
   background:transparent;color:var(--text);font:700 14px var(--f-body);cursor:pointer;white-space:nowrap}
 .tb svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -341,11 +342,13 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 @media (max-width:1100px){
   body.at-table .tablepage{height:auto;min-height:100dvh}
   .tmain{grid-template-columns:minmax(0,1fr)}
+  /* la hauteur fixe de #table (62vh) laissait un grand vide sous le plateau : la proportion décide */
   .board{flex:none;aspect-ratio:1040/548}
+  #table.board{height:auto}
 }
 
 /* Plaque de joueur (236 × 78), centrée sur sa position */
-.pod{position:absolute;width:256px;height:78px;transform:translate(-50%,-50%);display:flex;align-items:center;gap:10px;padding:10px 12px 10px 10px;
+.pod{position:absolute;width:236px;height:78px;transform:translate(-50%,-50%);display:flex;align-items:center;gap:12px;padding:10px 12px 10px 10px;
   border-radius:40px 14px 14px 40px;background:linear-gradient(180deg,#2c221a,#1a130e);border:1px solid rgba(234,208,138,.3);
   box-shadow:0 8px 18px rgba(0,0,0,.55);z-index:5;transition:box-shadow .3s,left .3s,top .3s}
 .pod.me{border-color:rgba(234,208,138,.5)}
@@ -360,12 +363,12 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .pod .pinfo{flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:3px}
 .pod .pn{display:flex;align-items:center;gap:6px;min-width:0}
 .pod .nm{flex:0 1 auto;min-width:2.4em;font-weight:800;font-size:16px;color:var(--parch);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pod .entame{flex:none;padding:1px 4px;border-radius:4px;background:#c9a14a;color:#2b2117;font-size:9px;font-weight:800;letter-spacing:.04em}
+.pod .entame{flex:none;padding:2px 6px;border-radius:5px;background:#c9a14a;color:#2b2117;font-size:10px;font-weight:800;letter-spacing:.06em}
 .pod .ps{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pod .ps.gold{color:var(--brass2)}
 /* Jauge plis / mise : l'information principale */
-.gauge{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 8px;border-radius:10px;color:#ead08a;background:rgba(234,208,138,.1);border:1px solid rgba(234,208,138,.35)}
-.gauge small{font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.gauge{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 10px;border-radius:10px;color:#ead08a;background:rgba(234,208,138,.1);border:1px solid rgba(234,208,138,.35)}
+.gauge small{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
 .gauge b{font-weight:800;font-size:22px;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
 .gauge.ok{color:#9bd69f;background:rgba(134,201,138,.14);border-color:rgba(134,201,138,.5)}
 .gauge.over{color:#f0a08b;background:rgba(232,131,107,.14);border-color:rgba(232,131,107,.5)}
@@ -420,7 +423,7 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 @keyframes nudge{0%{transform:scale(.97)}50%{transform:scale(1.025)}100%{transform:none}}
 .btn{transition:transform .12s,filter .12s,background .12s}
 .btn:active{transform:translateY(1px) scale(.98)}
-.btn.coin{width:50px;height:50px;font-size:19px}
+.btn.coin{width:46px;height:46px;font-size:19px}
 .btn.coin:hover{transform:translateY(-3px) scale(1.06)}
 
 /* Main : taille --hs et recouvrement --hv calculés selon la largeur disponible */
@@ -449,7 +452,7 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .lasttrick figure.w figcaption{color:#7a5410}
 .lasttrick figure.w figcaption::before{content:"★ "}
 
-@media (max-width:640px){
+@media (max-width:719px){
   .gbar{gap:10px;padding:0 12px}
   .gdots,.gtools .lbl{display:none}
   .float{font-size:16px}
@@ -564,37 +567,39 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
   animation:sheetIn calc(.4s * var(--spd,1)) ease-out both}
 @keyframes sheetIn{from{transform:translateY(24px) scale(.97);opacity:0}to{transform:none;opacity:1}}
 .rhead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
-.rsub{font-size:14px;font-weight:700;color:var(--ink2)}
-.rhead h2{margin:2px 0 0;font:400 32px/1.1 var(--f-disp)}
+.rsub{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#8a5e0e}
+.rhead h2{margin:4px 0 0;font:400 36px/1.05 var(--f-disp)}
 .rready{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:13px;font-weight:800;color:var(--ink2);font-variant-numeric:tabular-nums}
 .rbar{width:220px;height:6px;border-radius:3px;background:rgba(43,33,23,.15);overflow:hidden}
 .rbar i{display:block;height:6px;border-radius:3px;background:#8a5e0e;animation:bar linear forwards}
 @keyframes bar{from{width:100%}to{width:0%}}
-.rcols,.rrow{display:grid;grid-template-columns:40px minmax(0,1.4fr) 130px 70px minmax(0,1.6fr) 80px 70px;column-gap:12px;align-items:center}
-.rcols{padding:0 12px;font:400 15px var(--f-disp);color:var(--ink2)}
+.rcols,.rrow{display:grid;grid-template-columns:40px minmax(0,1.4fr) 130px 80px minmax(0,1.6fr) 90px 110px;column-gap:12px;align-items:center}
+.rcols{padding:0 12px;font:800 12px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:#8a7556}
 .rcols .r,.rrow .rt,.rrow .rs{text-align:right}
 .rrows{display:flex;flex-direction:column;gap:8px}
 .rrow{padding:12px;border-radius:10px;background:rgba(255,250,240,.55);border:1px solid rgba(201,169,106,.55);animation:rowIn calc(.45s * var(--spd,1)) cubic-bezier(.2,.8,.3,1) both}
 .rrow.first{background:rgba(201,161,74,.18)}
 @keyframes rowIn{from{transform:translateX(-24px);opacity:0}to{transform:none;opacity:1}}
-.rrow .rk{display:flex;align-items:center;gap:4px;font-weight:800;font-size:18px}
-.rrow .rk i{font-style:normal;font-size:12px}.rrow .rk .up{color:#2b6a33}.rrow .rk .down{color:#a03123}
+/* rang en Pirata One, flèche de progression dessous */
+.rrow .rk{display:flex;flex-direction:column;align-items:center;line-height:1}
+.rrow .rk b{font:400 24px/1 'Pirata One',var(--f-disp)}
+.rrow .rk i{font-style:normal;font-size:11px;font-weight:800}.rrow .rk .up{color:#2b6a33}.rrow .rk .down{color:#a03123}
 .rrow .rp{display:flex;align-items:center;gap:10px;min-width:0}
 .rrow .rp .av{width:32px;height:32px;flex:none;border-radius:50%;display:grid;place-items:center;font:400 16px var(--f-disp);color:#1b140e;background:var(--pc);box-shadow:0 0 0 2px #1b140e}
-.rrow .rp b{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow .rp b{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rrow .rb{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
-.rrow .rb b{font-size:16px}
+.rrow .rb b{font-size:17px}
 .rrow .rb .ok{padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800;background:rgba(47,122,69,.16);color:#2b6a33}
 .rrow .rb .ok.ko{background:rgba(160,49,35,.14);color:#a03123}
 .rrow .rn,.rrow .rt{font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
 .rrow .pos{color:#2b6a33}.rrow .neg{color:#a03123}
-.rrow .rx{display:flex;flex-wrap:wrap;gap:4px}
-.bchip{padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(201,161,74,.25);color:#5d3f0a}
-.bchip.neg{background:rgba(160,49,35,.14);color:#a03123}
+.rrow .rx{display:flex;flex-wrap:wrap;gap:6px}
+.bchip{padding:3px 9px;border-radius:6px;border:1px solid rgba(138,94,14,.35);font-size:12.5px;font-weight:700;background:rgba(201,161,74,.22);color:#5a3e0a}
+.bchip.neg{background:rgba(160,49,35,.14);border-color:rgba(160,49,35,.35);color:#a03123}
 .rrow .rx .none{color:var(--ink2)}
-.rrow .rt{font-size:19px;animation:rise calc(.6s * var(--spd,1)) ease-out both}
+.rrow .rt{font-size:20px;animation:rise calc(.6s * var(--spd,1)) ease-out both}
 @keyframes rise{0%{transform:translateY(8px) scale(.8);opacity:0}60%{transform:translateY(-3px) scale(1.12);opacity:1}100%{transform:none;opacity:1}}
-.rrow .rs{font-weight:800;font-size:19px;font-variant-numeric:tabular-nums}
+.rrow .rs{font:400 28px/1 'Pirata One',var(--f-disp);font-variant-numeric:tabular-nums}
 .coup{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:10px;background:#2b2117;color:var(--parch)}
 .coup svg{width:26px;height:26px;flex:none;fill:none;stroke:#ead08a;stroke-width:1.8;stroke-linejoin:round}
 .coup div{display:flex;flex-direction:column;gap:2px}
@@ -651,8 +656,8 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 #bMenu,.opps,.qemo,.drawerbar,.meav,.megauge{display:none}
 .tslot .who[hidden]{display:none}
 
-/* ===== Téléphone (< 640 px) : maquette Mobile.dc.html ===== */
-@media (max-width:639px){
+/* ===== Téléphone (< 720 px) : maquette Mobile.dc.html ===== */
+@media (max-width:719px){
   body.at-table .tablepage{height:100dvh;min-height:0}
   .gbar{height:52px;padding:0 12px 0 16px;gap:8px}
   .gtitle b{font-size:19px}.gtitle span{font-size:13px}
@@ -711,7 +716,7 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
   .megauge.ok{background:rgba(47,122,69,.16);color:#2b6a33}
   .megauge.over{background:rgba(160,49,35,.14);color:#a03123}
   /* main en éventail serré sur le rail, réactions rapides en bas */
-  .rail{width:calc(100% + 24px);margin:0 -12px;flex:1;min-height:150px;border-radius:0;border-width:1px 0 0;padding:6px 12px calc(8px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column}
+  .rail{width:calc(100% + 24px);margin:0 -12px;flex:1;border-radius:0;border-width:1px 0 0;padding:6px 12px calc(8px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column}
   .handhead{display:none}
   #hand{flex:1;padding-top:22px;min-height:0;align-items:center}
   .qemo{display:flex;justify-content:center;gap:8px;padding-top:6px}
@@ -767,7 +772,7 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 /* carte imposée posée sur la table */
 .imptag{position:absolute;left:50%;top:-11px;transform:translateX(-50%);z-index:4;padding:2px 8px;border-radius:999px;background:#ead08a;color:#2b2117;
   font-size:10.5px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.45);pointer-events:none}
-@media (max-width:639px){
+@media (max-width:719px){
   .lisebox.mob{inset:8px;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:30px;overflow:auto;padding:26px 6px 26px;border-radius:16px;background:rgba(10,8,6,.86)}
   .lisebox.mob .lfan{position:relative;left:auto;top:auto;transform:none;flex:none}
 }
@@ -785,10 +790,30 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .fulllog .lbonus b{color:var(--ink)}.fulllog .lbonus small{color:var(--ink2)}
 
 /* Main proportionnelle au bloc (prompt 1) : le bloc a sa hauteur, les cartes la remplissent */
-.rail{position:relative;height:clamp(150px,24dvh,240px);padding:0 16px;display:flex;flex-direction:column}
-.handhead{position:absolute;top:8px;left:14px;right:14px;z-index:35;pointer-events:none;align-items:flex-start}
+.rail{position:relative;height:clamp(150px,24dvh,240px);padding:0 16px 0 20px;display:flex;flex-direction:row;gap:12px}
+/* maquette Main : titre, nombre de cartes et mise · plis en colonne à gauche de l'éventail, jamais par-dessus les cartes */
+.handhead{flex:none;width:118px;display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start;gap:8px;padding-top:12px;flex-wrap:nowrap}
+.handhead .tags{flex-direction:column;gap:6px;flex-wrap:nowrap}
+.handhead .tags span{background:none;border:0;border-radius:0;padding:0;font-weight:400;font-size:13px;color:#d9c7a4}
+.handhead .tags b{font:800 13px var(--f-body);color:#f2e7cd}
+.handhead .tags span.ok b{color:var(--good)}.handhead .tags span.ko b{color:var(--bad)}
+#hand{min-width:0}
 #hand{flex:1;min-height:0;padding:0;overflow:visible;display:flex;justify-content:center;align-items:center}
 #hand .card + .card{margin-left:var(--hm,-20px)}
 #hand .card.playable:hover,#hand .card.playable:focus-visible,#hand .card.sel{transform:translateY(calc(var(--y,0px) - var(--lift,24px))) rotate(var(--r,0deg))}
 .zoom .card{--s:1.1905}
-@media (max-width:639px){.rail{height:auto;flex:1}.handhead{display:none}.zoom .card{--s:1.1905}}
+/* téléphone : pas de hauteur minimale, réactions sous la main, marge basse de la zone sûre (encoche, barre de gestes) */
+@media (max-width:719px){.rail{height:auto;flex:1;flex-direction:column;gap:0;padding:6px 12px calc(8px + env(safe-area-inset-bottom,0px))}.handhead{display:none}.zoom .card{--s:1.1905}}
+
+/* Lise Fil-de-Soie au centre de la table (maquettes Lise, LiseAutres, LiseCible) */
+.lisemid{width:320px;box-sizing:border-box;padding:12px 16px 14px;border-radius:14px;background:rgba(10,8,6,.9);box-shadow:0 0 0 1px rgba(234,208,138,.25),0 10px 24px rgba(0,0,0,.45);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;animation:pop calc(.4s * var(--spd,1)) ease-out both}
+.lisemid .lport{width:64px;height:64px;border-radius:50%;border:3px double #c9a24a;background:#5c2c4a;overflow:hidden;box-sizing:border-box}
+.lisemid .lport svg{display:block;width:100%;height:100%}
+.lisemid b{font:400 22px/1.15 var(--f-disp);color:var(--brass2);text-shadow:0 2px 4px rgba(0,0,0,.6)}
+.lisemid span{font-size:14px;line-height:1.4;color:#d9cdb6}
+#action .btns .rndlbl{align-self:center;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a7556}
+.handhead .tags span.note{font-size:12px;line-height:1.35;color:#d9c7a4}
+/* pastille sous la carte agrandie : verdict pendant votre tour */
+.zoom{display:flex;flex-direction:column;align-items:center;gap:8px}
+.zoom .znote{padding:4px 12px;border-radius:999px;background:rgba(10,8,6,.85);font-size:13px;font-weight:800;white-space:nowrap}
+@media (max-width:719px){.lisemid{width:260px}.lisemid .lport{width:48px;height:48px}.lisemid b{font-size:18px}.lisemid span{font-size:13px}}

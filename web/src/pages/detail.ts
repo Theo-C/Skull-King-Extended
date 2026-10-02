@@ -3,16 +3,26 @@
 import { callGame } from '../api';
 import { $, esc, toast, signed, copyText } from '../util';
 import { avatarHTML, fromProfile, PALETTE } from '../avatar';
-import { xpLine, fmt, xpReason } from '../xp';
+import { xpLine, fmt, xpReason, levelFor } from '../xp';
 import { myProfile } from '../account';
-import { modeLabel } from './history';
+import { modeLabel, de, HIST_BACK } from './history';
 import { go } from '../main';
 
+/** Durée d'une partie : « 52 min », « 1 h 05 ». */
+function duration(a?: string, b?: string) {
+  const m = a && b ? Math.round((Date.parse(b) - Date.parse(a)) / 60000) : NaN;
+  if (!(m > 0) || m > 24 * 60) return '';
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`;
+}
+
 export async function detailPage(root: HTMLElement, id: string, uid: string) {
+  // retour vers l'historique avec ses filtres (mémorisés par la page Historique)
+  let back = '#/historique';
+  try { const h = sessionStorage.getItem(HIST_BACK); if (h && h.startsWith('#/historique')) back = h; } catch { /* stockage indisponible */ }
   root.innerHTML = '<section class="apage"><p class="empty">Chargement de la partie…</p></section>';
   let d: any;
   try { d = await callGame('history.get', { id }); }
-  catch (e: any) { root.innerHTML = `<section class="apage"><div class="apanel"><h2>Partie inaccessible</h2><p class="empty">${esc(e.message)}</p><a class="more" href="#/historique">Retour au journal de bord</a></div></section>`; return; }
+  catch (e: any) { root.innerHTML = `<section class="apage"><div class="apanel"><h2>Partie inaccessible</h2><p class="empty">${esc(e.message)}</p><a class="more" href="${esc(back)}">Retour au journal de bord</a></div></section>`; return; }
   const st = d.state || {}, ps: any[] = st.players || [];
   const seats: any[] = (d.seats || []).slice().sort((a: any, b: any) => a.seat - b.seat);
   const color = (i: number) => seats[i]?.color || PALETTE[i % PALETTE.length];
@@ -23,7 +33,7 @@ export async function detailPage(root: HTMLElement, id: string, uid: string) {
   const fin = d.finished_at ? new Date(d.finished_at) : null;
   const dateTxt = fin ? fin.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^\w/, c => c.toUpperCase()).replace(/ 1 /, ' 1er ') + ' · ' + fin.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ') : '';
   const rounds = ps[0]?.hist?.length ?? 0;
-  const title = d.host === uid ? 'Votre table' : hostName ? `Table de ${hostName}` : `Partie ${d.code}`;
+  const title = hostName ? `Table ${de(hostName)}` : `Partie ${d.code}`;
 
   // podium : du 1er au dernier, ordre visuel 2-1-3-4
   const order = ps.map((p, i) => ({ p, i })).sort((a, b) => b.p.score - a.p.score);
@@ -38,8 +48,8 @@ export async function detailPage(root: HTMLElement, id: string, uid: string) {
   }).join('');
 
   root.innerHTML = `<section class="apage detail">
-    <a class="back" href="#/historique">‹ Journal de bord</a>
-    <div class="dhead"><div><h1>${esc(title)}</h1><div class="dsub">${esc([dateTxt, `${ps.length} joueurs`, `${rounds} manches`, modeLabel(d.options).toLowerCase()].filter(Boolean).join(' · '))}</div></div>
+    <a class="back" href="${esc(back)}">‹ Journal de bord</a>
+    <div class="dhead"><div><h1>${esc(title)}</h1><div class="dsub">${esc([dateTxt, `${ps.length} joueurs`, `${rounds} manches`, modeLabel(d.options).toLowerCase(), duration(d.created_at, d.finished_at)].filter(Boolean).join(' · '))}</div></div>
       <div class="dacts"><button class="abtn ghost" id="share">Partager le résultat</button><button class="abtn gold" id="rematch">Revanche avec la même table</button></div></div>
     <section class="podium">${podium}</section>
     <div class="agrid">
@@ -61,10 +71,14 @@ export async function detailPage(root: HTMLElement, id: string, uid: string) {
     const lines = cum.map((c, i) => hidden.has(i) ? '' : `<path d="M${c.map((v, r) => `${X(r).toFixed(1)} ${Y(v).toFixed(1)}`).join(' L')}" fill="none" stroke="${color(i)}" stroke-width="${i === meSeat ? 4 : 2.5}" stroke-linejoin="round" stroke-linecap="round"/>
       <circle cx="${X(rounds).toFixed(1)}" cy="${Y(c[c.length - 1]).toFixed(1)}" r="${i === meSeat ? 5 : 4}" fill="${color(i)}" stroke="#1f1813" stroke-width="1.5"><title>${esc(nameOf(i))} : ${c[c.length - 1]}</title></circle>`).join('');
     $('#chart', root).innerHTML = `<svg class="schart" viewBox="0 0 760 300" role="img" aria-label="Score cumulé de chaque joueur, manche par manche">${g}${lines}</svg>`;
-    $('#legend', root).innerHTML = ps.map((p, i) => `<button class="lg ${hidden.has(i) ? 'off' : ''}" data-i="${i}" aria-pressed="${!hidden.has(i)}"><span style="background:${color(i)}"></span>${esc(nameOf(i))}</button>`).join('');
-    root.querySelectorAll<HTMLElement>('.lg').forEach(b => b.onclick = () => { const i = Number(b.dataset.i); if (hidden.has(i)) hidden.delete(i); else hidden.add(i); drawChart(); });
   };
   drawChart();
+  // légende : on bascule seulement la classe et aria-pressed (le bouton garde le focus), puis on redessine la courbe
+  $('#legend', root).innerHTML = ps.map((p, i) => `<button class="lg" data-i="${i}" aria-pressed="true"><span style="background:${color(i)}"></span>${esc(nameOf(i))}</button>`).join('');
+  root.querySelectorAll<HTMLElement>('.lg').forEach(b => b.onclick = () => {
+    const i = Number(b.dataset.i), off = !hidden.has(i); if (off) hidden.add(i); else hidden.delete(i);
+    b.classList.toggle('off', off); b.setAttribute('aria-pressed', String(!off)); drawChart();
+  });
   // légende de la courbe : la manche qui a le plus compté pour vous
   if (meSeat >= 0 && ps[meSeat]?.hist?.length) {
     const h = ps[meSeat].hist.reduce((a: any, b: any) => Math.abs(b.tot) > Math.abs(a.tot) ? b : a);
@@ -73,16 +87,20 @@ export async function detailPage(root: HTMLElement, id: string, uid: string) {
 
   // XP gagnée et barre de niveau
   const lines = (d.xp || []) as { reason: string; amount: number }[], total = lines.reduce((a, x) => a + x.amount, 0);
-  const me = await myProfile(uid), lv = xpLine(me?.xp ?? 0), gained = Math.min(total, lv.inLevel);
+  // barre : XP avant / après cette partie (state.settled), à défaut l'XP actuelle du profil
+  const set = st.settled?.[uid];
+  const after = set?.xpAfter != null ? Number(set.xpAfter) : (await myProfile(uid))?.xp ?? 0;
+  const lv = xpLine(after), gained = Math.max(0, Math.min(set?.xpBefore != null ? after - Number(set.xpBefore) : total, lv.inLevel));
+  const up = set?.xpBefore != null && levelFor(Number(set.xpBefore)).level < lv.level;
   $('#xp', root).innerHTML = lines.length ? `${lines.map(x => `<div class="xl"><span>${esc(xpReason(x.reason, x.amount))}</span><b>+${fmt(x.amount)}</b></div>`).join('')}
     <div class="xtot"><b>Total</b><b class="big">+${fmt(total)} XP</b></div>
     <div class="xpbar2"><span style="width:${Math.round(100 * (lv.inLevel - gained) / lv.need)}%"></span><span class="gain" style="width:${Math.round(100 * gained / lv.need)}%"></span></div>
-    <span class="lbl">Niveau ${lv.level} · ${lv.text} XP</span>` : '<p class="empty">Pas d\'XP pour cette partie (vous n\'y étiez pas, ou elle n\'est pas encore réglée).</p>';
+    <span class="lbl">Niveau ${lv.level} · ${lv.text} XP${up ? ' · niveau gagné avec cette partie' : ''}</span>` : '<p class="empty">Pas d\'XP pour cette partie (vous n\'y étiez pas, ou elle n\'est pas encore réglée).</p>';
 
   // temps forts : les plus gros bonus de la partie, et les mises de 0 tenues avec beaucoup de cartes
   const moments: { r: number; t: string; d: string; v: number }[] = [];
   ps.forEach((p, i) => (p.hist || []).forEach((h: any) => {
-    for (const [pts, label] of h.items || []) if (Math.abs(pts) >= 20) moments.push({ r: h.r, t: `${label}`, d: `${nameOf(i)} · bonus ${signed(pts)}`, v: Math.abs(pts) });
+    for (const [pts, label] of h.items || []) if (Math.abs(pts) >= 20) moments.push({ r: h.r, t: `${label}`, d: `${nameOf(i)} · ${pts < 0 ? 'malus' : 'bonus'} ${signed(pts)}`, v: Math.abs(pts) });
     if (h.bid === 0 && h.won === 0 && h.cards >= 5) moments.push({ r: h.r, t: `Mise de 0 tenue par ${nameOf(i)}`, d: `${h.cards} cartes en main · ${signed(h.base)}`, v: h.base });
   }));
   moments.sort((a, b) => b.v - a.v || b.r - a.r);
