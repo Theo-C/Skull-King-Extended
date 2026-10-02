@@ -1,7 +1,7 @@
 // Vue de la table, partagée par le mode en ligne et l'entraînement hors ligne.
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
-import { cname, leadSuitOf, wildRule, SUIT, WILD_SUITS, PIRATES, type Action, type PublicView, type PrivateView, type LogSeg } from '@engine';
-import { cardHTML, backFace } from './cards';
+import { cname, leadSuitOf, resolve, wildRule, SUIT, WILD_SUITS, PIRATES, type Action, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
+import { cardHTML } from './cards';
 import { $, esc, modal, sleep, toast } from './util';
 import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
@@ -13,11 +13,60 @@ const htmlCache = new WeakMap<Element, string>();
 function setHTML(el: Element, html: string) { if (htmlCache.get(el) !== html) { el.innerHTML = html; htmlCache.set(el, html); } }
 function elFrom(html: string) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild as HTMLElement; }
 const center = (r: DOMRect) => [r.left + r.width / 2, r.top + r.height / 2];
+/** Écran tactile sans survol : premier appui = aperçu, second appui = jouer. */
+const TOUCH = () => matchMedia('(hover: none)').matches;
+/** « du Doublon », « de la Carte marine » ; « d'Ysolde », « de Corentin ». */
+const du = (s: string) => /^Carte/.test(s) ? 'de la ' + s : 'du ' + s;
+const de = (s: string) => s === 'vous' ? 'à vous' : /^[aeiouyhéèêàâîôûAEIOUYHÉÈÊÀÂÎÔÛ]/.test(s) ? "d'" + s : 'de ' + s;
 
-export interface TableBackend { send(move: Action): Promise<void> }
+export interface TableBackend { send(move: Action): Promise<void>; emote?(text: string): void; ready?(round: number): void }
+/** Réactions proposées (les seules acceptées, y compris depuis le réseau). */
+export const EMOTES = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
 const PCOL = ['#d9b25a', '#c8644b', '#5c9db6', '#7ab874', '#a982c4', '#e0954a', '#cfc6b0', '#6f8fd0', '#d47fa6'];
 // Pauses entre deux événements rejoués (ms, multipliées par la vitesse choisie) : assez longues pour suivre ce que font les bots.
 const DELAY: Record<string, number> = { play: 1250, trick: 2400, trickEnd: 700, bids: 2000, deal: 700, round: 600, end: 0 };
+const ICON = {
+  last: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4a6 6 0 1 1-6 6M4 4v4h4"/></svg>',
+  scores: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3h12v14H4zM7 7h6M7 10h6M7 13h4"/></svg>',
+  rules: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 4c3-1 5-1 7 1 2-2 4-2 7-1v12c-3-1-5-1-7 1-2-2-4-2-7-1zM10 5v12"/></svg>',
+  soundOn: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8h3l4-3v10l-4-3H3zM13 7.5a3.5 3.5 0 0 1 0 5M15.5 5a7 7 0 0 1 0 10"/></svg>',
+  menu: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h12"/></svg>',
+  soundOff: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8h3l4-3v10l-4-3H3zM13 8l4 4M17 8l-4 4"/></svg>',
+};
+const SEAL = '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 4l3 13 13 3-13 3-3 13-3-13-13-3 13-3z" fill="#c9a14a"/></svg>';
+/** Plateau dessiné en 1040 × 520 (comme la maquette) puis mis à l'échelle. */
+const BW = 1040, BH = 520;
+/** Plateau du téléphone (table rectangulaire de la maquette Mobile). */
+const MW = 366, MH = 330;
+/** Durée affichée du tour (visuelle : le serveur n'impose aucun temps). */
+const TURN_S = 30;
+/** Délai de la fenêtre de fin de manche avant la manche suivante. */
+const READY_S = 8;
+interface Spot { px: number; py: number; sx: number; sy: number; r: number }
+/** Positions des plaques (px, py) et des cartes du pli (sx, sy, inclinaison r), indexées par place relative (0 = vous, en bas). */
+function geometry(n: number): Spot[] {
+  if (n === 4) return [
+    { px: 520, py: 488, sx: 520, sy: 348, r: -2 }, { px: 136, py: 260, sx: 396, sy: 260, r: -7 },
+    { px: 520, py: 28, sx: 520, sy: 168, r: 2 }, { px: 904, py: 260, sx: 644, sy: 260, r: 7 }];
+  if (n === 3) return [
+    { px: 520, py: 488, sx: 520, sy: 348, r: -2 }, { px: 250, py: 40, sx: 440, sy: 196, r: -6 }, { px: 790, py: 40, sx: 600, sy: 196, r: 6 }];
+  // au-delà : ellipse (plaques au bord, cartes sur une ellipse intérieure)
+  return Array.from({ length: n }, (_, rel) => {
+    const a = (90 + rel * 360 / n) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+    return { px: 520 + 400 * c, py: 262 + 230 * s, sx: 520 + 215 * c, sy: 258 + 108 * s, r: Math.round(7 * c + (s < 0 ? 2 : -2) * (1 - Math.abs(c))) };
+  });
+}
+/** Téléphone : cartes du pli en croix sur la table rectangulaire (les adversaires sont dans le bandeau du haut). */
+function mobileGeometry(n: number): Spot[] {
+  const at = (sx: number, sy: number, r: number): Spot => ({ px: sx, py: sy, sx, sy, r });
+  if (n === 4) return [at(183, 254, -2), at(87, 164, -7), at(183, 102, 2), at(279, 164, 7)];
+  const k = n - 1, out = [at(183, 254, -2)], wide = k > 4;
+  for (let j = 0; j < k; j++) {
+    const a = (k === 1 ? 270 : 200 + j * 140 / (k - 1)) * Math.PI / 180;
+    out.push(at(183 + (wide ? 128 : 100) * Math.cos(a), (wide ? 168 : 172) + (wide ? 92 : 78) * Math.sin(a), Math.round(7 * Math.cos(a))));
+  }
+  return out;
+}
 const PENDING_LABEL: Record<string, string> = {
   plank: 'choisit le pirate qui marche sur la planche', rosie: 'choisit qui entame le prochain pli', bahij: 'pioche et défausse deux cartes',
   rascal: 'choisit sa mise', juanita: 'consulte la pioche', harry: 'décide de modifier son pari', mary: 'choisit une main où tirer une carte',
@@ -29,7 +78,6 @@ export class TableView {
   private queue: any[] = []; private running = false; private busy = false;
   private banner: string | null = null; private bannerShown: string | null = null;
   private logLines: { s: LogSeg[]; cls?: string }[] = [];
-  private seenEntries = 0; private seenTrick = -1;
   private pick: { k: number; sel: Set<number> } | null = null;
   private choice: { id: number; need: string[]; move: any } | null = null;
   private shownRound = 0; private shownEnd = false;
@@ -38,48 +86,84 @@ export class TableView {
   private tcards = new Map<string, HTMLElement>(); private collectTo: number | null = null;
   private handEls = new Map<number, HTMLElement>(); private handRound = -1;
   private flyFrom: { id: number; rect: DOMRect } | null = null; private sendingId: number | null = null;
-  private prevScores: (number | undefined)[] = []; private revealRound = -1;
+  private prevScores: (number | undefined)[] = [];
   private wasMyTurn = false; private baseTitle = document.title; private resizeRaf = 0;
+  private k = 1; private evk: string | null = null;
+  private roundGate: Promise<void> | null = null; private roundOpen: { round: number; ready: Set<number>; update: () => void; close: () => void } | null = null;
+  private earlyReady: Record<number, number[]> = {};
+  private prevWon: (number | undefined)[] = [];
+  private oppEls: HTMLElement[] = [];
+  private playedMine = new Set<number>(); private playedRound = -1;
+  private histCache: any[][] = []; private lastEmote: Record<number, number> = {};
+  private turnStart = Date.now(); private previewId: number | null = null; private ticker: any = 0;
   speed = 1;
 
   constructor(private root: HTMLElement, private mySeat: number | null, private backend: TableBackend, private onExit: () => void) {
     try { this.speed = Number(localStorage.getItem('pli-speed')) || 1; } catch { /* stockage indisponible */ }
     const allowed = [1.7, 1, 0.45]; const sel = allowed.includes(this.speed) ? this.speed : 1;
     root.innerHTML = `
-    <div class="main">
-      <div class="stage">
-        <div class="gamebar">
-          <div id="pRound" class="track" aria-label="Progression des manches"></div>
-          <div class="tools">
-            <select id="speed" class="tbtn" aria-label="Vitesse des animations"><option value="1.7">Lente</option><option value="1">Normale</option><option value="0.45">Rapide</option></select>
-            <button class="tbtn" id="bSound" aria-pressed="${soundOn()}" title="Activer / couper le son">${soundOn() ? '🔊' : '🔇'}<span> Son</span></button>
-            <button class="tbtn" id="bLast">Dernier pli</button><button class="tbtn" id="bScores">Scores</button><button class="tbtn" id="bRules">Règles</button><button class="tbtn" id="bExit">Quitter</button>
-          </div>
-        </div>
-        <section id="table" aria-label="Table de jeu"><div class="rim"></div><div class="mat">${roseSVG()}</div><div id="layer"></div></section>
-        <div id="action" aria-live="polite"><div class="prompt">Chargement de la partie…</div></div>
-        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span></div><div id="hand"></div></section>
+    <header class="gbar">
+      <svg class="glogo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="none" stroke="#c9a14a" stroke-width="1.5"/><path d="M20 3l3.2 13.8L37 20l-13.8 3.2L20 37l-3.2-13.8L3 20l13.8-3.2z" fill="#c9a14a"/><circle cx="20" cy="20" r="2.4" fill="#ead08a"/></svg>
+      <div class="gtitle"><b id="gRound">Manche</b><span id="gSub"></span></div>
+      <div class="gdots" id="gDots" aria-label="Progression des manches"></div>
+      <div class="gsp"></div>
+      <div class="gtools">
+        <select id="speed" class="tb" aria-label="Vitesse des animations"><option value="1.7">Lente</option><option value="1">Normale</option><option value="0.45">Rapide</option></select>
+        <button class="tb" id="bLast">${ICON.last}<span class="lbl">Dernier pli</span></button>
+        <button class="tb" id="bScores">${ICON.scores}<span class="lbl">Scores</span></button>
+        <button class="tb" id="bRules">${ICON.rules}<span class="lbl">Règles</span></button>
+        <button class="tb ico" id="bSound"></button>
+        <button class="tb" id="bExit">Quitter</button>
+        <button class="tb ico" id="bMenu" aria-label="Menu">${ICON.menu}</button>
       </div>
-      <aside class="side">
-        <div class="panel"><h3>Équipage <small id="miniSub"></small></h3><table class="mini" id="mini"></table></div>
-        <div class="panel"><h3>Journal de bord</h3><div id="log"></div></div>
+    </header>
+    <div class="tmain">
+      <div class="tstage">
+        <div class="opps" id="opps" aria-label="Adversaires"></div>
+        <section class="board" id="table" aria-label="Table de jeu"><div class="bstage" id="bstage"><div class="rim"></div><div class="mat">${roseSVG()}</div><div id="layer"></div></div></section>
+        <div id="action" aria-live="polite"><div class="prompt">Chargement de la partie…</div></div>
+        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span></div><div id="hand"></div><div class="qemo">${EMOTES.slice(0, 3).map(e => `<button data-emo="${esc(e)}">${esc(e)}</button>`).join('')}</div></section>
+      </div>
+      <aside class="side" id="side">
+        <div class="drawerbar"><button class="tb" id="dSheet">Feuille de scores</button><button class="tb" id="dClose">Fermer</button></div>
+        <section class="panel"><h3>Classement <small>plis / mise · total</small></h3><div class="ladder" id="mini"></div></section>
+        <section class="panel" id="stakesP" hidden><h3>Ce que vaut votre mise</h3><div id="stakes" class="stakes"></div><p class="fine">Les bonus (14, captures, Pacte de Butin) ne comptent que si la mise est exacte.</p></section>
+        <section class="panel"><h3>Réactions</h3><div class="emotes">${EMOTES.map(e => `<button class="emo" data-emo="${esc(e)}">${esc(e)}</button>`).join('')}</div></section>
+        <section class="panel"><h3>Journal <a href="#" id="allLog" class="more">Tout voir</a></h3><div id="log"></div></section>
       </aside>
     </div>`;
     const sp = $('#speed', root) as HTMLSelectElement; sp.value = String(sel);
-    sp.onchange = () => { this.speed = Number(sp.value); try { localStorage.setItem('pli-speed', sp.value); } catch { /* ignoré */ } };
-    $('#bScores', root).onclick = () => this.scoreSheet();
+    sp.onchange = () => { this.speed = Number(sp.value); this.root.style.setProperty('--spd', String(this.animMs || 1)); try { localStorage.setItem('pli-speed', sp.value); } catch { /* ignoré */ } };
+    this.root.style.setProperty('--spd', String(this.animMs || 1));
+    // sur téléphone, « Scores » ouvre un tiroir avec le classement et le journal
+    $('#bScores', root).onclick = () => { if (this.mob) this.root.classList.toggle('drawer'); else this.scoreSheet(); };
+    $('#dClose', root).onclick = () => this.root.classList.remove('drawer');
+    $('#dSheet', root).onclick = () => this.scoreSheet();
+    $('#bMenu', root).onclick = () => this.menu();
     $('#bLast', root).onclick = () => this.lastTrickModal();
-    const bs = $('#bSound', root); bs.onclick = () => { setSound(!soundOn()); bs.setAttribute('aria-pressed', String(soundOn())); bs.innerHTML = `${soundOn() ? '🔊' : '🔇'}<span> Son</span>`; if (soundOn()) sfx.coin(); };
+    const coinN = (ev: Event) => { const b = (ev.target as HTMLElement).closest?.('[data-n]') as HTMLElement | null; return b ? Number(b.dataset.n) : null; };
+    $('#action', root).addEventListener('mouseover', ev => { const n = coinN(ev); if (n != null) this.renderStakes(n); });
+    $('#action', root).addEventListener('focusin', ev => { const n = coinN(ev); if (n != null) this.renderStakes(n); });
+    $('#allLog', root).onclick = ev => { ev.preventDefault(); this.fullLog(); };
+    root.addEventListener('click', ev => { const b = (ev.target as HTMLElement).closest('[data-emo]') as HTMLElement | null; if (b) this.sendEmote(b.dataset.emo!); });
+    const bs = $('#bSound', root);
+    const paintSound = () => { bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff; bs.setAttribute('aria-label', soundOn() ? 'Couper le son' : 'Activer le son'); bs.title = bs.getAttribute('aria-label')!; };
+    paintSound(); bs.onclick = () => { setSound(!soundOn()); paintSound(); if (soundOn()) sfx.coin(); };
     installCardZoom();
     $('#bRules', root).onclick = () => modal(rulesHTML());
     $('#bExit', root).onclick = () => this.onExit();
     $('#hand', root).addEventListener('click', ev => { const el = (ev.target as HTMLElement).closest('.card') as HTMLElement | null; if (el) this.handClick(Number(el.dataset.id)); });
+    const hid = (ev: Event) => { const el = (ev.target as HTMLElement).closest?.('.card') as HTMLElement | null; return el ? Number(el.dataset.id) : null; };
+    $('#hand', root).addEventListener('mouseover', ev => { if (!TOUCH()) this.showHint(hid(ev)); });
+    $('#hand', root).addEventListener('focusin', ev => this.showHint(hid(ev)));
+    $('#hand', root).addEventListener('mouseleave', () => { if (!TOUCH()) this.showHint(null); });
+    this.ticker = setInterval(() => this.tick(), 1000);
     $('#hand', root).addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { const el = (ev.target as HTMLElement).closest('.card') as HTMLElement | null; if (el) { ev.preventDefault(); this.handClick(Number(el.dataset.id)); } } });
     addEventListener('resize', this.onResize); document.addEventListener('visibilitychange', this.onVis);
   }
   private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
   private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
-  destroy() { removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
+  destroy() { clearInterval(this.ticker); this.roundOpen?.close(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {
@@ -90,21 +174,23 @@ export class TableView {
 
   private applyLatest() {
     if (!this.latest) return;
-    this.pub = this.latest.pub; this.priv = this.latest.priv; this.logLines = this.pub.log.slice();
+    this.pub = this.latest.pub; this.priv = this.latest.priv; this.evk = null; this.logLines = this.pub.log.slice();
     this.banner = null; this.render();
-    this.maybeRoundSummary(this.pub); this.maybeFinal();
+    this.roundGate = this.roundEnd(this.pub).then(() => this.maybeFinal()); this.maybeFinal();
   }
   private async run() {
     if (this.running) return; this.running = true;
     try {
       while (this.queue.length) {
+        if (this.roundGate) await this.roundGate;
         const ev = this.queue.shift();
-        this.pub = ev.snap; const last = ev.snap.log?.at(-1);
+        this.pub = ev.snap; this.evk = ev.k; const last = ev.snap.log?.at(-1);
         if (last && JSON.stringify(this.logLines.at(-1)) !== JSON.stringify(last)) this.logLines.push(last);
-        if (ev.k === 'bids' || ev.k === 'trick') this.banner = ev.msg; else if (ev.k !== 'play') this.banner = null;
+        if (ev.k === 'trick') this.banner = ev.msg; else if (ev.k !== 'play') this.banner = null;
         this.render();
-        if (ev.k === 'trick') sfx.win(); else if (ev.k === 'bids') sfx.coin();
-        if (ev.k === 'round') this.maybeRoundSummary(ev.snap);
+        if (ev.k === 'trick') { sfx.win(); this.trickFx(ev.snap.trick?.res?.mode ?? null); } else if (ev.k === 'bids') sfx.coin();
+        // fin de manche : la suite attend que la fenêtre soit fermée (tout le monde prêt, ou délai écoulé)
+        if (ev.k === 'round') { this.roundGate = this.roundEnd(ev.snap); await this.roundGate; }
         let ms = (DELAY[ev.k] ?? 300) * this.speed * (this.queue.length > 40 ? .2 : 1);
         // dernier événement et c'est à nous : on laisse juste la carte arriver, inutile de faire attendre le joueur
         if (!this.queue.length && ev.k === 'play' && this.mySeat != null && ev.snap.current === this.mySeat) ms = Math.min(ms, 550);
@@ -118,23 +204,41 @@ export class TableView {
 
   /* ---------- Rendu ---------- */
   private bottom() { return this.mySeat ?? 0; }
-  private seatPos(i: number, n: number, rx: number, ry: number) { const rel = (i - this.bottom() + n) % n; const a = (90 + rel * 360 / n) * Math.PI / 180; return [50 + rx * Math.cos(a), 50 + ry * Math.sin(a)]; }
-  render() { if (!this.pub) return; this.renderBar(); this.renderTable(); this.renderHand(); this.renderMini(); this.renderLog(); this.renderAction(); this.turnCue(); }
+  render() { if (!this.pub) return; this.renderBar(); this.renderTable(); this.renderHand(); this.renderMini(); this.renderStakes(); this.renderLog(); this.renderAction(); this.turnCue(); }
   /** Signale le début de son tour : son, barre d'action qui s'illumine, titre de l'onglet. */
   private turnCue() {
     const pb = this.pub!, pv = this.priv;
     const mine = this.live && !this.busy && this.mySeat != null && !!pv && pb.phase !== 'end' &&
       ((pb.phase === 'bid' && pv.bid == null) || (pb.pending ? pb.pending.seat === this.mySeat : pb.current === this.mySeat));
     $('#action', this.root).classList.toggle('mine', mine);
-    if (mine && !this.wasMyTurn) { sfx.turn(); const a = $('#action', this.root); a.classList.remove('nudge'); void a.offsetWidth; a.classList.add('nudge'); }
+    if (mine && !this.wasMyTurn) { this.turnStart = Date.now(); this.previewId = null; sfx.turn(); const a = $('#action', this.root); a.classList.remove('nudge'); void a.offsetWidth; a.classList.add('nudge'); }
     this.wasMyTurn = mine;
     document.title = mine && document.hidden ? '⚓ À vous de jouer ! · ' + this.baseTitle : this.baseTitle;
   }
   private get animMs() { return reduceMotion() ? 0 : Math.max(.5, Math.min(this.speed, 1.4)); }
   private renderBar() {
-    let h = '<span class="lbl">Manche</span>';
-    for (let r = 1; r <= 10; r++) h += `<i class="${r < this.pub!.round ? 'done' : r === this.pub!.round ? 'now' : ''}">${r}</i>`;
-    $('#pRound', this.root).innerHTML = h;
+    const pb = this.pub!;
+    setHTML($('#gRound', this.root), pb.round ? `Manche ${pb.round}` : 'Partie');
+    // téléphone : « Manche 7 · pli 2/7 » ; ordinateur : « sur 10 · 7 cartes · pli 2 sur 7 »
+    if (this.mob) { setHTML($('#gSub', this.root), pb.phase === 'play' && pb.trickNo ? `· pli ${pb.trickNo}/${pb.cards}` : pb.phase === 'bid' ? '· mises' : ''); }
+    const parts = ['sur 10']; if (pb.cards) parts.push(`${pb.cards} carte${pb.cards > 1 ? 's' : ''}`);
+    if (pb.phase === 'bid') parts.push('mises'); else if (pb.phase === 'play' && pb.trickNo) parts.push(`pli ${pb.trickNo} sur ${pb.cards}`);
+    else if (pb.phase === 'end') parts.splice(0, parts.length, 'partie terminée');
+    if (!this.mob) setHTML($('#gSub', this.root), parts.join(' · '));
+    let h = ''; for (let r = 1; r <= 10; r++) h += `<i class="${r < pb.round || pb.phase === 'end' ? 'done' : r === pb.round ? 'now' : ''}" title="Manche ${r}"></i>`;
+    setHTML($('#gDots', this.root), h);
+  }
+  /** Met le plateau (1040 × 520) à l'échelle de la place disponible ; l'action et la main prennent la même largeur. */
+  private get mob() { return innerWidth < 640; }
+  private fitBoard() {
+    const mob = this.mob; this.root.classList.toggle('mob', mob);
+    if (!mob) this.root.classList.remove('drawer');
+    const st = $('#bstage', this.root); st.style.width = (mob ? MW : BW) + 'px'; st.style.height = (mob ? MH : BH) + 'px';
+    const board = $('#table', this.root), w = board.clientWidth, h = board.clientHeight;
+    if (!w || !h) return;
+    const k = mob ? w / MW : Math.max(.3, Math.min(w / BW, h / (BH + 28)));
+    $('#bstage', this.root).style.setProperty('--k', k.toFixed(4)); this.k = k;
+    $('.tstage', this.root).style.setProperty('--bw', Math.round(BW * k) + 'px');
   }
   private bidOf(i: number) {
     const p = this.pub!.players[i];
@@ -142,69 +246,140 @@ export class TableView {
     if (i === this.mySeat && this.priv?.bid != null) return { txt: String(this.priv.bid), wait: false };
     return { txt: p.hasBid ? '✓' : '…', wait: true };
   }
-  private pips(i: number) {
-    const p = this.pub!.players[i]; if (!this.pub!.bidsRevealed || p.bid == null) return '';
-    if (p.bid === 0) return `<span class="zero ${p.won === 0 ? 'ok' : 'ko'}">${p.won === 0 ? 'Pari 0 tenu' : p.won + ' pli' + (p.won > 1 ? 's' : '') + ' de trop'}</span>`;
-    let h = ''; for (let k = 0; k < Math.max(p.bid, p.won); k++) h += `<i class="${k < p.won ? (k < p.bid ? 'on' : 'over') : ''}"></i>`; return h;
+  /** Repère d'un joueur pour les animations : sa plaque (ordinateur), sa case du bandeau ou votre ligne (téléphone). */
+  private anchor(i: number): HTMLElement | null {
+    if (!this.mob) return this.seatEls[i] ?? null;
+    return i === this.mySeat ? this.root.querySelector('#meav') as HTMLElement | null : this.oppEls[i] ?? null;
   }
-  private turnSeats(): number[] { const pb = this.pub!; if (pb.phase === 'bid') return pb.players.map((p, i) => p.hasBid ? -1 : i).filter(i => i >= 0); return pb.current == null ? [] : [pb.current]; }
+  /** Bandeau des adversaires (téléphone) : avatar, nom, jauge plis / mise ou état de la mise, score. */
+  private renderOpps() {
+    const box = $('#opps', this.root), pb = this.pub!; box.hidden = !this.mob; if (!this.mob) return;
+    const n = pb.players.length, b = this.bottom();
+    for (let rel = 1; rel < n; rel++) {
+      const i = (b + rel) % n, p = pb.players[i];
+      let el = this.oppEls[i]; if (!el || !el.isConnected) { el = document.createElement('div'); el.className = 'opp'; box.append(el); this.oppEls[i] = el; }
+      el.style.setProperty('--pc', PCOL[i % 9]); el.classList.toggle('active', this.isActive(i));
+      let st: string;
+      if (pb.bidsRevealed && p.bid != null) st = `<b class="og ${p.won > p.bid ? 'over' : p.won === p.bid ? 'ok' : ''}">${p.won}/${p.bid}</b>`;
+      else st = `<span class="ost">${p.hasBid ? 'a misé' : 'réfléchit…'}</span>`;
+      setHTML(el, `<div class="oh"><span class="oav">${esc((p.name.trim()[0] || '?').toUpperCase())}</span><span class="onm">${esc(p.name)}</span>${pb.phase === 'play' && pb.leader === i ? '<span class="oent" title="Entame">E</span>' : ''}</div>
+        <div class="ob">${st}<span>${p.score} pts</span></div>`);
+    }
+  }
+  /** Morceaux de la ligne « vous » du téléphone : avatar avec anneau de tour, puis jauge plis / mise. */
+  private meRow(part: 'pre' | 'post') {
+    const pb = this.pub, me = this.mySeat; if (!this.mob || !pb || me == null) return '';
+    const p = pb.players[me];
+    if (part === 'pre') {
+      const ring = this.isActive(me) ? '<svg class="ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="none" stroke="rgba(43,33,23,.15)" stroke-width="3"/><circle class="run" cx="20" cy="20" r="18" fill="none" stroke="#8a5e0e" stroke-width="3" stroke-linecap="round" transform="rotate(-90 20 20)"/></svg>' : '';
+      return `<div class="meav" id="meav" style="--pc:${PCOL[me % 9]}">${ring}<b>${esc((p.name.trim()[0] || '?').toUpperCase())}</b></div>`;
+    }
+    if (!(pb.bidsRevealed && p.bid != null)) return '';
+    return `<div class="megauge ${p.won > p.bid ? 'over' : p.won === p.bid ? 'ok' : ''}"><small>PLIS/MISE</small><b>${p.won}/${p.bid}</b></div>`;
+  }
+  /** Menu du téléphone : les boutons de la barre qui n'y tiennent pas. */
+  private async menu() {
+    const v = await modal('<h2>Menu</h2><p class="sub">Partie en cours.</p>', [
+      { label: 'Dernier pli', value: 'last', cls: 'alt' }, { label: 'Règles', value: 'rules', cls: 'alt' },
+      { label: soundOn() ? 'Couper le son' : 'Activer le son', value: 'sound', cls: 'alt' },
+      { label: `Vitesse : ${this.speed === 1 ? 'normale' : this.speed > 1 ? 'lente' : 'rapide'}`, value: 'speed', cls: 'alt' },
+      { label: 'Quitter la table', value: 'exit', cls: 'alt' }, { label: 'Fermer', value: null }]);
+    if (v === 'last') this.lastTrickModal(); else if (v === 'rules') modal(rulesHTML()); else if (v === 'exit') this.onExit();
+    else if (v === 'sound') { ($('#bSound', this.root) as HTMLButtonElement).click(); }
+    else if (v === 'speed') { const sp = $('#speed', this.root) as HTMLSelectElement; const o = ['1', '0.45', '1.7']; sp.value = o[(o.indexOf(sp.value) + 1) % 3]; sp.dispatchEvent(new Event('change')); toast('Vitesse : ' + sp.selectedOptions[0].text.toLowerCase()); }
+  }
+  /** Joueur dont on attend l'action : celui qui joue (ou choisit), ou vous tant que vous n'avez pas misé. */
+  private isActive(i: number) {
+    const pb = this.pub!;
+    if (pb.phase === 'play') return (pb.pending ? pb.pending.seat : pb.current) === i;
+    return pb.phase === 'bid' && i === this.mySeat && this.priv?.bid == null;
+  }
+  private podHTML(i: number, active: boolean) {
+    const pb = this.pub!, p = pb.players[i], me = i === this.mySeat;
+    const ring = active ? `<svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="27" fill="none" stroke="rgba(234,208,138,.18)" stroke-width="3"/><circle class="run" cx="30" cy="30" r="27" fill="none" stroke="#ead08a" stroke-width="3" stroke-linecap="round" transform="rotate(-90 30 30)"/></svg>` : '';
+    const lead = pb.phase === 'play' && pb.leader === i ? '<span class="entame">ENTAME</span>' : '';
+    let status = `${p.score} pts · ${p.handCount} carte${p.handCount > 1 ? 's' : ''}`, gold = false, right: string;
+    const revealing = this.evk === 'bids' && pb.bidsRevealed && p.bid != null;
+    if (revealing) {
+      // révélation simultanée : toutes les pièces se retournent, avec un léger décalage d'un joueur à l'autre
+      const rel = (i - this.bottom() + pb.players.length) % pb.players.length;
+      right = `<div class="bidst"><div class="open flip" style="animation-delay:calc(${rel * 90}ms * var(--spd,1))">${p.bid}</div></div>`;
+      status = `mise ${p.bid} pli${p.bid! > 1 ? 's' : ''}`; gold = true;
+    } else if (pb.bidsRevealed && p.bid != null) {
+      const cls = p.won > p.bid ? 'over' : p.won === p.bid ? 'ok' : '';
+      right = `<div class="gauge ${cls}" title="Plis remportés / mise"><small>plis / mise</small><b>${p.won} / ${p.bid}</b></div>`;
+    } else if (me && this.priv) {
+      if (this.priv.bid == null) { right = '<div class="bidst"><div class="unknown">?</div></div>'; status = 'à vous de miser'; gold = true; }
+      else { right = `<div class="bidst"><div class="sealed">${SEAL}</div></div>`; status = `mise scellée : ${this.priv.bid}`; }
+    } else if (p.hasBid) { right = `<div class="bidst"><div class="sealed">${SEAL}</div></div>`; status = 'a misé'; }
+    else { right = '<div class="bidst"><div class="think"><i></i><i></i><i></i></div></div>'; status = 'réfléchit…'; }
+    return `<div class="av">${ring}<b>${esc((p.name.trim()[0] || '?').toUpperCase())}</b></div>
+      <div class="pinfo"><div class="pn"><span class="nm">${esc(p.name)}</span>${lead}</div><div class="ps ${gold ? 'gold' : ''}">${status}</div></div>${right}`;
+  }
   renderTable() {
     const pb = this.pub; if (!pb) return;
+    this.fitBoard();
     const tbl = $('#table', this.root), layer = $('#layer', this.root);
-    const n = pb.players.length, W = tbl.clientWidth, H = tbl.clientHeight, mob = W < 600, b = this.bottom();
-    // taille des cartes du pli : proportionnelle au plateau, réduite quand la table est pleine
-    const ts = mob ? Math.min(.26, Math.max(.19, H * .17 / 352)) * (n >= 6 ? .85 : 1) : Math.min(.44, Math.max(.2, H * .25 / 352)) * (n >= 8 ? .82 : n >= 6 ? .9 : 1);
+    const n = pb.players.length, mob = this.mob, b = this.bottom(), geo = mob ? mobileGeometry(n) : geometry(n);
+    // taille des cartes du pli, en px du plateau (92 px de large à 3-4 joueurs ; 74 px sur téléphone)
+    const ts = (mob ? (n <= 5 ? 74 : n <= 7 ? 62 : 54) : (n <= 4 ? 92 : n <= 6 ? 84 : 76)) / 252;
     tbl.style.setProperty('--ts', ts.toFixed(3));
-    const turn = new Set(this.turnSeats());
     if (this.seatEls.length && !this.seatEls[0].isConnected) { this.seatEls = []; this.centerEl = null; this.tcards.clear(); }
 
+    this.renderOpps();
     pb.players.forEach((p, i) => {
+      const g = geo[(i - b + n) % n];
       let el = this.seatEls[i];
-      if (!el) { el = document.createElement('div'); el.className = 'seat'; el.innerHTML = '<div class="fan"></div><div class="plate"></div><div class="pips"></div><div class="think"></div>'; layer.append(el); this.seatEls[i] = el; }
-      const [x, y] = this.seatPos(i, n, mob ? 37 : 40, mob ? 41 : 42); const bid = this.bidOf(i);
-      el.style.left = x + '%'; el.style.top = y + '%'; el.style.setProperty('--pc', PCOL[i % 9]);
-      el.classList.toggle('turn', turn.has(i) && pb.phase !== 'end'); el.classList.toggle('me', i === this.mySeat);
-      const k = i === b ? 0 : Math.min(p.handCount, 10); let fan = '';
-      for (let j = 0; j < k; j++) fan += `<div class="bk" style="transform:rotate(${(j - (k - 1) / 2) * 7}deg)">${backFace()}</div>`;
-      setHTML(el.children[0], fan);
-      const reveal = pb.bidsRevealed && this.revealRound !== pb.round;
-      setHTML(el.children[1], `${pb.leader === i && pb.phase === 'play' ? '<span class="leadtag">ENTAME</span>' : ''}
-        <div class="medal">${esc((p.name.trim()[0] || '?').toUpperCase())}</div>
-        <div class="pi"><div class="nm">${esc(p.name)}${i === this.mySeat && p.name !== 'Vous' ? ' <span class="you">vous</span>' : ''}</div><div class="sub"><b>${p.score}</b> pts<span class="bt">${p.bot ? ' · bot' : ''}</span></div></div>
-        <div class="coin ${bid.wait ? 'wait' : ''} ${reveal ? 'reveal' : ''}" title="Pari">${bid.txt}</div>`);
-      setHTML(el.children[2], this.pips(i));
-      // l'adversaire attendu « réfléchit » : on voit qui va jouer avant que sa carte arrive
-      setHTML(el.children[3], turn.has(i) && i !== this.mySeat && pb.phase !== 'end' ? `<span>${pb.phase === 'bid' ? 'parie' : pb.pending ? 'choisit' : 'réfléchit'}</span><div class="thinking"><i></i><i></i><i></i></div>` : '');
-      // variation de score : petite bulle +/- au-dessus du siège
+      if (!el) { el = document.createElement('div'); el.className = 'pod'; layer.append(el); this.seatEls[i] = el; }
+      el.style.left = g.px + 'px'; el.style.top = g.py + 'px'; el.style.setProperty('--pc', PCOL[i % 9]);
+      const active = this.isActive(i);
+      el.classList.toggle('active', active); el.classList.toggle('me', i === this.mySeat); el.classList.toggle('cpt', n >= 6);
+      setHTML(el, this.podHTML(i, active));
+      // pli remporté : la jauge grossit et « +1 pli » s'élève au-dessus de la plaque
+      const pw = this.prevWon[i];
+      if (pw != null && p.won > pw && pb.bidsRevealed && this.animMs) {
+        const gg = el.querySelector('.gauge') as HTMLElement | null; if (gg) this.animate(gg, 'bump', {}, 550);
+        const plus = document.createElement('div'); plus.className = 'plus1'; plus.textContent = '+1 pli';
+        if (mob) { plus.classList.add('anch'); this.anchor(i)?.append(plus); } else { plus.style.left = (g.px + 70) + 'px'; plus.style.top = (g.py - 46) + 'px'; layer.append(plus); } this.animate(plus, 'go', {}, 1800, () => plus.remove());
+      }
+      this.prevWon[i] = p.won;
+      // variation de score : bulle +/- au-dessus de la plaque (posée sur le plateau pour survivre aux mises à jour de la plaque)
       const prev = this.prevScores[i];
       if (prev != null && prev !== p.score && !reduceMotion()) {
         const d = p.score - prev, f = document.createElement('div');
-        f.className = 'float ' + (d < 0 ? 'neg' : ''); f.textContent = (d > 0 ? '+' : '') + d; el.append(f); setTimeout(() => f.remove(), 2000);
+        f.className = 'float ' + (d < 0 ? 'neg' : ''); f.textContent = (d > 0 ? '+' : '') + d;
+        if (mob) this.anchor(i)?.append(f); else { f.style.left = g.px + 'px'; f.style.top = (g.py - 46) + 'px'; layer.append(f); }
+        setTimeout(() => f.remove(), 2000);
       }
       this.prevScores[i] = p.score;
     });
-    if (pb.bidsRevealed) this.revealRound = pb.round;
-
-    // pli en cours : une carte = un élément conservé, qui arrive en volant et repart vers le gagnant
-    const t = pb.trick, want = new Set<string>();
+    // pli en cours, en croix : chaque carte devant son joueur (élément conservé, qui arrive en volant et repart vers le gagnant)
+    if (this.playedRound !== pb.round) { this.playedRound = pb.round; this.playedMine.clear(); }
+    const t = pb.trick, want = new Set<string>(), cw = 252 * ts, ch = 352 * ts;
+    const slotOf = (seat: number) => geo[(seat - b + n) % n];
+    const lead = { at: null as [number, number] | null };
     if (t) {
       const base = `${pb.round}-${pb.trickNo}`, cnt: Record<number, number> = {}, seen: Record<number, number> = {};
       t.entries.forEach(e => { cnt[e.p] = (cnt[e.p] || 0) + 1; });
+      const li = this.leadIndex();
       t.entries.forEach((e, idx) => {
-        const key = `${base}-${idx}`; want.add(key);
-        const j = seen[e.p] = (seen[e.p] ?? -1) + 1;
-        const [x, y] = this.seatPos(e.p, n, mob ? 19 : 21, mob ? 19 : 20);
+        const key = `${base}-${idx}`; want.add(key); if (e.p === this.mySeat) this.playedMine.add(e.card.id);
+        const j = seen[e.p] = (seen[e.p] ?? -1) + 1, g = slotOf(e.p);
+        const x = g.sx + (j - (cnt[e.p] - 1) / 2) * cw * .55, y = g.sy;
         let w = this.tcards.get(key); const fresh = !w;
         if (!w) {
-          w = elFrom(`<div class="tslot">${cardHTML(e.card, e)}<span class="who" style="--pc:${PCOL[e.p % 9]}">${esc(pb.players[e.p].name)}</span></div>`);
-          (w.firstElementChild as HTMLElement).style.rotate = `${((idx * 37 + pb.trickNo * 11) % 9) - 4}deg`;
+          w = elFrom(`<div class="tslot">${cardHTML(e.card, e)}<span class="who" style="--pc:${PCOL[e.p % 9]}"></span></div>`);
+          (w.firstElementChild as HTMLElement).style.rotate = `${g.r}deg`;
           layer.append(w); this.tcards.set(key, w);
         }
-        w.style.left = x + '%'; w.style.top = y + '%'; w.style.zIndex = String(10 + idx);
-        w.style.setProperty('--off', String(j - (cnt[e.p] - 1) / 2));
+        w.style.left = x + 'px'; w.style.top = y + 'px'; w.style.zIndex = String(10 + idx);
         const c = w.firstElementChild as HTMLElement, res = t.res;
         c.classList.toggle('win', !!res && res.winner === idx);
         c.classList.toggle('gone', res ? (!!res.removed?.includes(idx) || !!res.discarded) : !!t.removals?.includes(idx));
+        if (li === idx) lead.at = [x, y + ch / 2 + 16];
+        const who = w.querySelector('.who') as HTMLElement;
+        who.textContent = pb.players[e.p].name + (mob && li === idx ? ' · en tête' : ''); who.classList.toggle('lead', mob && li === idx);
+        who.hidden = !(mob || n > 4);
         if (fresh) this.flyIn(c, e.p, e.card.id);
       });
       this.collectTo = t.res ? (t.res.winner != null ? t.entries[t.res.winner].p : -1) : null;
@@ -213,40 +388,156 @@ export class TableView {
     for (const [key, w] of this.tcards) if (!want.has(key)) { this.tcards.delete(key); this.flyOut(w, this.collectTo, out++); }
     if (!t) this.collectTo = null;
 
+    // « En tête » : une seule étiquette, qui glisse d'une carte à l'autre
+    const tag = this.piece('leadEl', 'leadtag2', 'En tête');
+    tag.hidden = !lead.at || mob; if (lead.at) { tag.style.left = lead.at[0] + 'px'; tag.style.top = lead.at[1] + 'px'; }
+    // couleur demandée, au-dessus de la croix
+    const chip = this.piece('chipEl', 'askchip', '');
+    const topY = Math.min(...geo.map(g => g.sy)) - ch / 2 - 18;
+    chip.style.left = (mob ? MW : BW) / 2 + 'px'; chip.style.top = Math.max(14, topY) + 'px';
+    const ls = t && t.entries.length ? leadSuitOf(t.entries) : null;
+    chip.hidden = !(pb.phase === 'play' && t && t.entries.length);
+    setHTML(chip, ls ? `<i class="s-${ls}"></i>${SUIT[ls].n} demandé` : 'Aucune couleur demandée');
+    chip.classList.toggle('none', !ls);
+    // emplacement vide « Votre carte » quand c'est à vous
+    const empty = this.piece('emptyEl', 'yourslot', 'Votre carte');
+    const mine = this.mySeat != null && pb.phase === 'play' && !pb.pending && pb.current === this.mySeat && !this.sendingId;
+    empty.hidden = !mine;
+    if (mine) { const g = slotOf(this.mySeat!); empty.style.left = g.sx + 'px'; empty.style.top = g.sy + 'px'; empty.style.width = cw + 'px'; empty.style.height = ch + 'px'; empty.style.rotate = g.r + 'deg'; }
+
     let mid = '';
-    if (this.banner) { mid = `<div class="banner ${this.bannerShown !== this.banner ? 'fresh' : ''}">${esc(this.banner)}</div>`; this.bannerShown = this.banner; }
-    else if (pb.phase === 'play' && t) {
-      const ls = leadSuitOf(t.entries);
-      mid = `<div class="rd">Pli ${pb.trickNo} / ${pb.cards}</div>` + (ls ? `<span class="chip s-${ls}"><i></i>${SUIT[ls].n}<span class="long"> demandé</span></span>` : (t.entries.length ? '<span class="chip none"><span class="long">Aucune couleur demandée</span><span class="short">Sans couleur</span></span>' : ''));
-    } else if (pb.phase === 'bid') mid = `<div class="rd big">Manche ${pb.round}</div><div class="rd">Les pirates parient…</div>`;
-    else if (pb.round) mid = `<div class="rd">Manche ${pb.round}</div>`;
+    if (this.banner) {
+      const res = pb.trick?.res, we = res && res.winner != null ? pb.trick!.entries[res.winner] : null;
+      const sub = we ? `<small>avec ${esc(cname(we.card, we))}</small>` : '';
+      mid = `<div class="banner ${this.bannerShown !== this.banner ? 'fresh' : ''}">${esc(vous(this.banner))}${sub}</div>`; this.bannerShown = this.banner; }
+    else if (pb.phase === 'bid' || this.evk === 'bids') {
+      const n2 = pb.players.length, sealed = pb.players.filter(p => p.hasBid).length;
+      let line = `Mises secrètes · ${sealed} joueur${sealed > 1 ? 's' : ''} sur ${n2} ${sealed > 1 ? 'ont' : 'a'} misé`, note = '';
+      if (this.evk === 'bids' && pb.bidsRevealed) {
+        const tot = pb.players.reduce((a, p) => a + (p.bid ?? 0), 0), d = pb.cards - tot;
+        line = `Total misé : ${tot} pour ${pb.cards} pli${pb.cards > 1 ? 's' : ''}`;
+        note = d > 0 ? `<div class="bidnote ok">${d} pli${d > 1 ? 's' : ''} que personne n'a réclamé${d > 1 ? 's' : ''}</div>`
+          : d === 0 ? '<div class="bidnote gold">Autant de mises que de plis : chaque pli compte</div>'
+          : '<div class="bidnote ko">Plus de mises que de plis : la bataille sera rude</div>';
+      }
+      mid = `<div class="bidcenter"><div class="bt">Manche ${pb.round}</div><div class="bs">${pb.cards} carte${pb.cards > 1 ? 's' : ''} · ${pb.cards} pli${pb.cards > 1 ? 's' : ''} à prendre</div><div class="bp ${this.evk === 'bids' ? 'pop' : ''}">${line}</div>${note}</div>`;
+    }
     if (!this.centerEl) { this.centerEl = document.createElement('div'); this.centerEl.className = 'center'; layer.append(this.centerEl); }
     setHTML(this.centerEl, mid); this.centerEl.classList.toggle('front', !!this.banner);
   }
-  /** Carte qui arrive sur le pli : depuis la main (si c'est la nôtre) ou depuis le siège de l'adversaire. */
-  private flyIn(c: HTMLElement, seat: number, id: number) {
-    sfx.card(); const k = this.animMs; if (!k) return;
-    const to = c.getBoundingClientRect(); let from: DOMRect | null = null, s0 = .45, op = .2;
-    if (this.flyFrom && this.flyFrom.id === id) { from = this.flyFrom.rect; s0 = from.width / Math.max(1, to.width); op = 1; this.flyFrom = null; }
-    else { const pl = this.seatEls[seat]?.querySelector('.plate'); if (pl) from = pl.getBoundingClientRect(); }
-    if (!from) { c.animate([{ opacity: 0, scale: '.8' }, { opacity: 1, scale: '1' }], { duration: 220 * k, easing: 'ease-out' }); return; }
-    const [fx, fy] = center(from), [tx, ty] = center(to);
-    c.animate([
-      { translate: `${fx - tx}px ${fy - ty}px`, scale: String(s0), opacity: op, offset: 0 },
-      { translate: '0 0', scale: '1.07', opacity: 1, offset: .82 },
-      { translate: '0 0', scale: '1', opacity: 1 },
-    ], { duration: 420 * k, easing: 'cubic-bezier(.2,.8,.25,1)' });
+  /** Élément unique posé sur le plateau (créé à la demande). */
+  private pieces: Record<string, HTMLElement> = {};
+  private piece(key: string, cls: string, text: string) {
+    let el = this.pieces[key];
+    if (!el || !el.isConnected) { el = document.createElement('div'); el.className = cls; el.textContent = text; el.hidden = true; $('#layer', this.root).append(el); this.pieces[key] = el; }
+    return el;
   }
-  /** Fin du pli : les cartes glissent vers le gagnant (ou coulent si le pli est défaussé). */
+  private tick() {
+    const el = this.root.querySelector('#tLeft'); if (!el) return;
+    el.textContent = Math.ceil(Math.max(0, TURN_S - (Date.now() - this.turnStart) / 1000)) + ' s';
+  }
+  /** Ce qui se passerait si l'on jouait cette carte maintenant : texte et ton (vert = prend le pli, brun = perd, rouge = bloquée). */
+  private preview(id: number): { text: string; tone: 'win' | 'lose' | 'no' } | null {
+    const pb = this.pub, pv = this.priv, me = this.mySeat;
+    if (!pb?.trick || !pv || me == null) return null;
+    const c = pv.hand.find(x => x.id === id); if (!c) return null;
+    const t = pb.trick;
+    if (!pv.legal.includes(id)) {
+      if (pv.forced != null) return { text: `Bloquée : ${PIRATES.mary.n} vous impose une autre carte`, tone: 'no' };
+      const ls = leadSuitOf(t.entries);
+      return { text: ls ? `Bloquée : vous devez fournir ${du(SUIT[ls].n)}` : 'Bloquée pour ce pli', tone: 'no' };
+    }
+    // cartes à choix : on essaie chaque possibilité et on annonce le meilleur cas
+    const variants: Partial<Entry>[] = [];
+    if (c.kind === 'tigress') variants.push({ as: 'pirate' }, { as: 'escape' });
+    else if (c.zf) variants.push({ val: 14 }, { val: 0 });
+    else if (c.wild) { const r = wildRule(t.entries); if (r.choose) WILD_SUITS.forEach(s => variants.push({ ws: s })); else variants.push({ ws: r.auto ?? null }); }
+    else variants.push({});
+    const removals = (t.removals || []).map(i => t.entries[i]);
+    const outs = variants.flatMap(v => {
+      const e = { p: me, card: c, ...v } as Entry;
+      try { const R = resolve([...t.entries, e], removals); return [{ e, R, win: R.winner === e }]; } catch { return []; }
+    });
+    if (!outs.length) return null;
+    const best = outs.find(o => o.win) ?? outs[0];
+    const choice = outs.some(o => o.win) && outs.some(o => !o.win);
+    const name = choice || variants.length > 1 ? cname(c) : cname(c, best.e), tail = choice ? ', selon votre choix' : '';
+    const owner = (p: number) => p === me ? 'vous' : pb.players[p].name;
+    if (best.R.discarded) return { text: `${name} : le pli serait défaussé`, tone: 'lose' };
+    if (best.win) {
+      if (!t.entries.length) return { text: `Vous entamez avec ${name}${c.kind === 'num' && !c.wild ? ' : la couleur demandée sera ' + SUIT[c.suit as string].n : ''}`, tone: 'win' };
+      const li = this.leadIndex(), cur = li != null ? t.entries[li] : null;
+      if (!cur || cur.p === me) return { text: `${name} prend le pli${tail}`, tone: 'win' };
+      const curName = cur.card.kind === 'num' && !cur.card.wild ? `le ${cur.val ?? cur.card.rank}` : cname(cur.card, cur);
+      return { text: `${name} bat ${curName} ${de(owner(cur.p))} : vous prenez le pli${tail}`, tone: 'win' };
+    }
+    const w = best.R.winner;
+    return { text: `${name} est trop faible : ${!w ? 'personne ne prend le pli' : w.p === me ? 'vous gardez le pli' : `${owner(w.p)} garde le pli`}`, tone: 'lose' };
+  }
+  /** Met à jour la deuxième ligne du bandeau pendant votre tour (survol, focus, premier appui sur téléphone). */
+  private showHint(id: number | null) {
+    const el = this.root.querySelector('#hint') as HTMLElement | null; if (!el) return;
+    const p = id == null ? null : this.preview(id);
+    el.className = 'hint ' + (p ? p.tone : '');
+    el.textContent = p ? p.text : TOUCH() ? 'Touchez une carte pour voir si elle prend le pli, touchez-la encore pour la jouer' : 'Survolez une carte pour voir si elle prend le pli';
+  }
+  /** Carte qui gagne le pli pour l'instant (calculée avec les règles du moteur), ou le gagnant une fois le pli résolu. */
+  private leadIndex(): number | null {
+    const t = this.pub?.trick; if (!t || !t.entries.length) return null;
+    if (t.res) return t.res.winner ?? null;
+    try {
+      const R = resolve(t.entries, (t.removals || []).map(i => t.entries[i]));
+      return R.winner ? t.entries.indexOf(R.winner) : null;
+    } catch { return null; }
+  }
+  /** Joue une animation CSS (classe + variables) puis nettoie ; la durée de secours couvre `prefers-reduced-motion` (aucun animationend). */
+  private animate(el: HTMLElement, cls: string, vars: Record<string, string>, ms: number, done?: () => void) {
+    for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v);
+    const cl = cls.split(' '); el.classList.remove(...cl); void el.offsetWidth; el.classList.add(...cl);
+    let over = false; const end = () => { if (over) return; over = true; el.classList.remove(...cl); done?.(); };
+    el.addEventListener('animationend', ev => { if (ev.target === el) end(); }, { once: true });
+    setTimeout(end, (reduceMotion() ? 0 : ms * this.animMs) + 120);
+  }
+  /** Carte qui arrive sur le pli : depuis la main en se redressant (550 ms) ou depuis la plaque de l'adversaire (450 ms). */
+  private flyIn(c: HTMLElement, seat: number, id: number) {
+    sfx.card(); if (!this.animMs) return;
+    const to = c.getBoundingClientRect(); let from: DOMRect | null = null, mine = false;
+    if (this.flyFrom && this.flyFrom.id === id) { from = this.flyFrom.rect; mine = true; this.flyFrom = null; }
+    else { const pl = this.anchor(seat); if (pl) from = pl.getBoundingClientRect(); }
+    const r0 = c.style.rotate || '0deg';
+    if (!from) { this.animate(c, 'fly', { '--fx': '0px', '--fy': '-20px', '--fs': '.8', '--fr': r0, '--r0': r0, '--fo': '0' }, 450); return; }
+    const [fx, fy] = center(from), [tx, ty] = center(to);
+    this.animate(c, mine ? 'fly flyme' : 'fly', {
+      '--fx': (fx - tx) / this.k + 'px', '--fy': (fy - ty) / this.k + 'px', '--fs': mine ? (from.width / Math.max(1, to.width)).toFixed(3) : '.45',
+      '--fr': mine ? '-16deg' : r0, '--r0': r0, '--fo': mine ? '1' : '.2',
+    }, mine ? 550 : 450);
+  }
+  /** Fin du pli : les cartes filent vers la plaque du gagnant en rétrécissant (600 ms), ou coulent vers le centre (Kraken, pli défaussé). */
   private flyOut(w: HTMLElement, seat: number | null, i: number) {
-    const k = this.animMs, c = w.firstElementChild as HTMLElement;
-    if (!k) { w.remove(); return; }
-    w.classList.add('leaving'); let kf: Keyframe[];
-    const pl = seat != null && seat >= 0 ? this.seatEls[seat]?.querySelector('.plate') : null;
-    if (pl) { const [fx, fy] = center(c.getBoundingClientRect()), [tx, ty] = center(pl.getBoundingClientRect()); kf = [{ translate: '0 0', scale: '1' }, { translate: `${tx - fx}px ${ty - fy}px`, scale: '.3', opacity: .1 }]; }
-    else kf = [{ translate: '0 0', scale: '1', opacity: 1 }, { translate: '0 40px', scale: '.7', opacity: 0 }];
-    const a = c.animate(kf, { duration: 480 * k, delay: i * 40 * k, easing: 'cubic-bezier(.55,0,.7,.4)', fill: 'forwards' });
-    a.onfinish = () => w.remove(); a.oncancel = () => w.remove();
+    const c = w.firstElementChild as HTMLElement;
+    if (!this.animMs) { w.remove(); return; }
+    w.classList.add('leaving'); w.style.zIndex = String(30 + i);
+    const pl = seat != null && seat >= 0 ? this.anchor(seat) : null;
+    const [fx, fy] = center(c.getBoundingClientRect());
+    if (pl) {
+      const [tx, ty] = center(pl.getBoundingClientRect());
+      this.animate(c, 'collect', { '--dx': (tx - fx) / this.k + 'px', '--dy': (ty - fy) / this.k + 'px' }, 600, () => w.remove());
+      if (i === 0) sfx.deal(1);
+    } else {
+      const [tx, ty] = center($('#bstage', this.root).getBoundingClientRect());
+      this.animate(c, 'sink', { '--dx': (tx - fx) / this.k + 'px', '--dy': (ty - fy) / this.k + 'px' }, 700, () => w.remove());
+    }
+  }
+  /** Effet sur tout le plateau quand le pli se résout : le Kraken fait trembler la table, Baleine et Raie lancent une onde. */
+  private trickFx(mode: string | null) {
+    if (!this.animMs || !mode) return;
+    const st = $('#bstage', this.root);
+    if (mode === 'kraken') this.animate(st, 'shake', {}, 700);
+    if (mode === 'whale' || mode === 'stingray') {
+      const wv = document.createElement('div'); wv.className = 'wave';
+      wv.style.left = (this.mob ? MW : BW) / 2 + 'px'; wv.style.top = (this.mob ? MH : BH) / 2 + 'px'; $('#layer', this.root).append(wv);
+      this.animate(wv, 'go', {}, 800, () => wv.remove());
+    }
   }
   private myTurnToPlay() {
     const pb = this.pub!; return this.live && !this.busy && this.mySeat != null && pb.phase === 'play' && !pb.pending && pb.current === this.mySeat;
@@ -256,7 +547,8 @@ export class TableView {
     const clear = (msg: string) => { this.handEls.clear(); el.innerHTML = `<span class="hidden-hand">${msg}</span>`; };
     if (this.mySeat == null || !this.priv) { $('#handTitle', this.root).innerHTML = '<b>Spectateur</b>'; $('#handMeta', this.root).innerHTML = ''; clear('Vous regardez la partie.'); return; }
     const pv = this.priv, pb = this.pub!;
-    const played = new Set((pb.trick?.entries || []).filter(e => e.p === this.mySeat).map(e => e.card.id));
+    // pendant la relecture, la main connue date d'avant nos coups : on retire toutes les cartes déjà posées dans la manche
+    const played = new Set([...this.playedMine, ...(pb.trick?.entries || []).filter(e => e.p === this.mySeat).map(e => e.card.id)]);
     const hand = this.live ? pv.hand : pv.hand.filter(c => !played.has(c.id));
     $('#handTitle', this.root).innerHTML = '<b>Votre main</b>';
     const tags: string[] = []; const bid = this.bidOf(this.mySeat); if (!bid.wait) tags.push(`Pari ${bid.txt}`);
@@ -271,7 +563,7 @@ export class TableView {
     const before = new Map<number, number>(); for (const [id, c] of this.handEls) before.set(id, c.getBoundingClientRect().left);
     // taille : la plus grande qui tient dans la largeur, en resserrant l'éventail si besoin
     const len = hand.length, mob = innerWidth < 640, Wd = Math.max(220, el.clientWidth - 20);
-    const sMax = Math.min(mob ? .4 : .56, (innerHeight * (mob ? .19 : .2)) / 352), sMin = mob ? .27 : .34;
+    const sMax = Math.min(mob ? 92 / 252 : 120 / 252, (innerHeight * (mob ? .19 : .2)) / 352), sMin = mob ? .27 : .34;
     let v = .78, s = Math.min(sMax, Wd / (252 * (1 + (len - 1) * v)));
     if (s < sMin) { s = sMin; if (len > 1) v = Math.max(.28, (Wd / (252 * s) - 1) / (len - 1)); }
     el.style.setProperty('--hs', s.toFixed(3)); el.style.setProperty('--hv', v.toFixed(3));
@@ -290,67 +582,120 @@ export class TableView {
       const pick = !!this.pick, ok = playing && legal.has(c.id), act = pick || ok;
       ce.classList.toggle('playable', act);
       ce.classList.toggle('dim', playing && !legal.has(c.id) && !pick);
-      ce.classList.toggle('sel', (pick && this.pick!.sel.has(c.id)) || this.choice?.id === c.id);
+      ce.classList.toggle('sel', (pick && this.pick!.sel.has(c.id)) || this.choice?.id === c.id || (playing && this.previewId === c.id));
       ce.classList.toggle('forced', pv.forced === c.id);
       ce.classList.toggle('sending', this.sendingId === c.id);
-      if (act) { ce.tabIndex = 0; ce.setAttribute('role', 'button'); } else { ce.removeAttribute('tabindex'); ce.removeAttribute('role'); }
+      // pendant votre tour, toutes les cartes se survolent et se focalisent (l'aperçu explique pourquoi une carte est bloquée)
+      if (act || playing) { ce.tabIndex = 0; ce.setAttribute('role', 'button'); } else { ce.removeAttribute('tabindex'); ce.removeAttribute('role'); }
+      if (playing && !legal.has(c.id) && !pick) ce.setAttribute('aria-disabled', 'true'); else ce.removeAttribute('aria-disabled');
+      ce.setAttribute('aria-label', (playing && !pick ? (legal.has(c.id) ? 'Jouer ' : 'Bloquée : ') : '') + cname(c));
       const d = j - m; ce.style.setProperty('--r', (d * step).toFixed(2) + 'deg'); ce.style.setProperty('--y', (d * d * .6).toFixed(1) + 'px'); ce.style.zIndex = String(j + 1);
     });
-    const k = this.animMs; if (!k) return;
+    if (!this.animMs) return;
     // nouvelle donne : les cartes partent du centre de la table, une à une
     const dealing = added.length > 1 && this.handRound !== pb.round; this.handRound = pb.round;
     if (dealing) {
       const [cx, cy] = center($('#table', this.root).getBoundingClientRect());
+      // distribution : les cartes arrivent une à une depuis le centre de la table (60 ms d'écart)
       added.forEach((ce, i) => {
         const [x, y] = center(ce.getBoundingClientRect());
-        ce.animate([{ translate: `${cx - x}px ${cy - y}px`, scale: '.35', rotate: '-160deg', opacity: 0 }, { translate: '0 0', scale: '1', rotate: '0deg', opacity: 1 }],
-          { duration: 420 * k, delay: i * 75 * k, easing: 'cubic-bezier(.2,.75,.3,1)', fill: 'backwards' });
+        ce.style.animationDelay = `calc(${i * 60}ms * var(--spd,1))`;
+        this.animate(ce, 'deal', { '--dx': `${cx - x}px`, '--dy': `${cy - y}px` }, 420 + i * 60, () => { ce.style.animationDelay = ''; });
       });
       sfx.deal(added.length); return;
     }
     // le reste de la main se resserre en douceur
+    // (on part de l'ancienne position, puis la transition CSS ramène chaque carte à sa place)
+    const moved: HTMLElement[] = [];
     for (const [id, x0] of before) {
       const ce = this.handEls.get(id); if (!ce) continue;
       const dx = x0 - ce.getBoundingClientRect().left;
-      if (Math.abs(dx) > 1) ce.animate([{ translate: `${dx}px 0` }, { translate: '0 0' }], { duration: 300 * k, easing: 'cubic-bezier(.25,.8,.3,1)' });
+      if (Math.abs(dx) > 1) { ce.classList.add('noanim'); ce.style.translate = `${dx}px 0`; moved.push(ce); }
     }
-    added.forEach(ce => ce.animate([{ opacity: 0, translate: '0 -30px' }, { opacity: 1, translate: '0 0' }], { duration: 280 * k, easing: 'ease-out' }));
+    if (moved.length) { void el.offsetWidth; moved.forEach(ce => { ce.classList.remove('noanim'); ce.style.translate = ''; }); }
+    added.forEach(ce => this.animate(ce, 'drawn', {}, 280));
   }
+  /** Classement : rang, score, variation de la dernière manche, et pastilles de mise (vides = plis manquants, vertes = pris, rouges = en trop). */
   private renderMini() {
-    const pb = this.pub!; const rows = pb.players.map((p, i) => ({ p, i })).sort((a, b) => b.p.score - a.p.score);
-    $('#miniSub', this.root).textContent = pb.round ? `Manche ${pb.round}` : '';
-    $('#mini', this.root).innerHTML = rows.map(({ p, i }, k) => {
-      let bw = '', cl = ''; if (pb.bidsRevealed && p.bid != null) { bw = `${p.won} / ${p.bid}`; cl = p.won === p.bid ? 'ok' : (p.won > p.bid ? 'ko' : ''); }
-      return `<tr><td class="rk">${k + 1}</td><td><span class="dot" style="background:${PCOL[i % 9]}"></span>${esc(p.name)}</td><td class="bw ${cl}" title="Plis / pari">${bw}</td><td class="tt">${p.score}</td></tr>`;
-    }).join('');
+    const pb = this.pub!;
+    if (pb.players[0]?.hist) this.histCache = pb.players.map(p => p.hist || []);
+    const rows = pb.players.map((p, i) => ({ p, i })).sort((a, b) => b.p.score - a.p.score);
+    setHTML($('#mini', this.root), rows.map(({ p, i }, k) => {
+      let pips = '', st = '', stc = '';
+      if (pb.bidsRevealed && p.bid != null) {
+        for (let j = 0; j < Math.max(p.bid, p.won); j++) pips += `<i class="${j >= p.bid ? 'over' : j < p.won ? 'on' : ''}"></i>`;
+        if (p.won > p.bid) { st = `${p.won - p.bid} de trop`; stc = 'ko'; }
+        else if (p.won === p.bid) { st = p.bid === 0 ? 'mise 0 tenue' : 'mise tenue'; stc = 'ok'; }
+        else { st = `il manque ${p.bid - p.won}`; stc = 'gold'; }
+      } else if (pb.phase === 'bid') { const mine = i === this.mySeat && this.priv; st = mine ? (this.priv!.bid == null ? 'à vous de miser' : `mise scellée : ${this.priv!.bid}`) : p.hasBid ? 'a misé' : 'réfléchit…'; if (mine && this.priv!.bid == null) stc = 'gold'; }
+      const h = this.histCache[i]?.at(-1);
+      const delta = h ? `<small class="${h.tot > 0 ? 'ok' : h.tot < 0 ? 'ko' : ''}">${h.tot > 0 ? '+' : ''}${h.tot} manche ${h.r}</small>` : '';
+      return `<div class="lrow${i === this.mySeat ? ' me' : ''}"><span class="rk">${k + 1}</span><span class="dot" style="background:${PCOL[i % 9]}"></span>
+        <div class="who"><b>${esc(p.name)}</b><div class="lp">${pips}<span class="${stc}">${st}</span></div></div>
+        <div class="sc"><b>${p.score}</b>${delta}</div></div>`;
+    }).join(''));
   }
+  /** Encadré « Ce que vaut votre mise » pendant la phase de mise : suit la pièce survolée (sinon votre mise, sinon 1). */
+  private renderStakes(hover?: number) {
+    const pb = this.pub!, box = $('#stakesP', this.root);
+    const show = pb.phase === 'bid' && this.mySeat != null; box.hidden = !show; if (!show) return;
+    const b = hover ?? this.priv?.bid ?? Math.min(1, pb.cards);
+    setHTML($('#stakes', this.root), stakeLines(b, pb.cards, pb.opts?.score === 'rascal').map(([k, v]) =>
+      `<div><span>${k}</span><b class="${v > 0 ? 'ok' : v < 0 ? 'ko' : ''}">${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}</b></div>`).join(''));
+  }
+  /** Journal réduit aux 5 dernières lignes ; « Tout voir » ouvre le journal complet. */
   private renderLog() {
-    const el = $('#log', this.root), lines = this.logLines.slice(-150);
-    const key = lines.length + '|' + JSON.stringify(lines.at(-1) ?? null);
-    if (htmlCache.get(el) === key) return; htmlCache.set(el, key);
-    el.innerHTML = lines.map(l => `<div class="${l.cls || ''}">${l.s.map(seg => typeof seg === 'string' ? esc(seg) : lc(seg.c, seg.e)).join('')}</div>`).join('');
-    el.scrollTop = el.scrollHeight;
+    const el = $('#log', this.root), lines = this.logLines.slice(-5);
+    setHTML(el, lines.map(l => logLine(l)).join(''));
+  }
+  private fullLog() {
+    modal(`<h2>Journal de bord</h2><p class="sub">${this.logLines.length} événements, du plus ancien au plus récent.</p><div class="fulllog">${this.logLines.map(l => logLine(l)).join('')}</div>`);
+    const fl = document.querySelector('.fulllog'); if (fl) fl.scrollTop = fl.scrollHeight;
+  }
+  /** Réaction : bulle à côté de la plaque de l'expéditeur, 2,2 s ; au plus une toutes les 2 s par joueur. */
+  showEmote(seat: number, text: string) {
+    if (!EMOTES.includes(text) || !this.pub || !this.pub.players[seat]) return;
+    const now = Date.now(); if (now - (this.lastEmote[seat] ?? 0) < 1900) return; this.lastEmote[seat] = now;
+    if (this.mob) {
+      const a = this.anchor(seat); if (!a) return;
+      const el = document.createElement('div'); el.className = 'bubble anch'; el.textContent = text; a.append(el); sfx.coin(); setTimeout(() => el.remove(), 2200); return;
+    }
+    const n = this.pub.players.length, g = geometry(n)[(seat - this.bottom() + n) % n];
+    const el = document.createElement('div'); el.className = 'bubble' + (g.py < 140 ? ' below' : ''); el.textContent = text;
+    el.style.left = g.px + 'px'; el.style.top = (g.py < 140 ? g.py + 52 : g.py - 52) + 'px';
+    $('#layer', this.root).append(el); sfx.coin(); setTimeout(() => el.remove(), 2200);
+  }
+  private sendEmote(text: string) {
+    if (this.mySeat == null || Date.now() - (this.lastEmote[this.mySeat] ?? 0) < 2000) return;
+    this.showEmote(this.mySeat, text);
+    this.backend.emote?.(text);
+    const btns = this.root.querySelectorAll<HTMLButtonElement>('[data-emo]'); btns.forEach(x => x.disabled = true);
+    setTimeout(() => btns.forEach(x => x.disabled = false), 2000);
   }
 
   /* ---------- Actions ---------- */
-  private setAction(text: string, btns: { label: string; on: () => void; cls?: string; disabled?: boolean }[] = []) {
-    const a = $('#action', this.root); a.innerHTML = `<div class="prompt">${text}</div>`;
-    if (btns.length) { const w = document.createElement('div'); w.className = 'btns'; btns.forEach(b => { const el = document.createElement('button'); el.className = 'btn ' + (b.cls || ''); el.textContent = b.label; el.disabled = !!b.disabled || this.busy; el.onclick = b.on; w.append(el); }); a.append(w); }
+  private setAction(text: string, btns: { label: string; on: () => void; cls?: string; disabled?: boolean; n?: number }[] = [], timer = false) {
+    const a = $('#action', this.root); a.innerHTML = `${this.meRow('pre')}<div class="prompt">${text}</div>${this.meRow('post')}`;
+    if (timer && !this.mob) {
+      const left = Math.max(0, TURN_S - (Date.now() - this.turnStart) / 1000);
+      a.insertAdjacentHTML('beforeend', `<div class="ttimer" aria-hidden="true"><span id="tLeft">${Math.ceil(left)} s</span><div><i style="animation-duration:${TURN_S}s;animation-delay:-${(TURN_S - left).toFixed(1)}s"></i></div></div>`);
+    }
+    if (btns.length) { const w = document.createElement('div'); w.className = 'btns'; btns.forEach(b => { const el = document.createElement('button'); el.className = 'btn ' + (b.cls || ''); el.textContent = b.label; if (b.n != null) { el.dataset.n = String(b.n); el.setAttribute('aria-label', 'Miser ' + b.n); } el.disabled = !!b.disabled || this.busy; el.onclick = b.on; w.append(el); }); a.append(w); }
   }
   private renderAction() {
     const pb = this.pub!, me = this.mySeat, pv = this.priv;
     const name = (i: number) => esc(pb.players[i]?.name ?? '?');
-    if (!this.live) { this.setAction(this.banner ? esc(this.banner) : pb.current == null ? (pb.phase === 'play' ? 'Le pli se décide…' : '…') : pb.current === me ? 'À vous dans un instant…' : `${name(pb.current)} ${pb.pending ? 'fait un choix' : 'joue'}…`); return; }
+    if (!this.live && this.evk === 'bids') { this.setAction(`Les mises sont révélées<small>${pb.leader == null ? '' : pb.leader === me ? 'Vous entamez le premier pli' : `${name(pb.leader)} entame le premier pli`}</small>`); return; }
+    if (!this.live) { this.setAction(this.banner ? esc(vous(this.banner)) : this.evk === 'trickEnd' ? 'Pli ramassé' : this.evk === 'round' ? 'Fin de la manche' : pb.current == null ? (pb.phase === 'play' ? 'Le pli se décide…' : '…') : pb.current === me ? 'À vous dans un instant…' : `${name(pb.current)} ${pb.pending ? 'fait un choix' : 'joue'}…`); return; }
     if (pb.phase === 'end') { this.setAction('Partie terminée.', [{ label: 'Classement final', cls: 'gold', on: () => this.finalModal() }, { label: "Retour à l'accueil", cls: 'alt', on: () => this.onExit() }]); return; }
     if (me == null || !pv) { this.setAction(pb.phase === 'bid' ? 'Les joueurs parient…' : (pb.current != null ? `Au tour de ${name(pb.current)}` : '…')); return; }
     if (this.busy) { this.setAction('Envoi…'); return; }
     if (pb.phase === 'bid') {
-      if (pv.bid == null) {
-        const opts: { label: string; cls: string; on: () => void }[] = []; for (let b = 0; b <= pb.cards; b++) opts.push({ label: String(b), cls: 'coin', on: () => this.send({ t: 'bid', n: b }) });
-        this.setAction(`Combien de plis allez-vous remporter ?<small>Manche ${pb.round} · ${pb.cards} carte${pb.cards > 1 ? 's' : ''} en main</small>`, opts);
-      } else {
+      const coins = (pick: number | null) => Array.from({ length: pb.cards + 1 }, (_, b) => ({ label: String(b), n: b, cls: 'coin' + (pick === b ? ' sel' : pick != null ? ' off' : ''), disabled: pick != null, on: () => this.send({ t: 'bid', n: b }) }));
+      if (pv.bid == null) this.setAction("Combien de plis allez-vous remporter ?<small>Les autres ne verront votre mise qu'une fois tout le monde décidé</small>", coins(null));
+      else {
         const w = pb.players.map((p, i) => p.hasBid ? null : name(i)).filter(Boolean);
-        this.setAction(`Pari enregistré : ${pv.bid}.<small>En attente de ${w.join(', ')}</small>`);
+        this.setAction(`Mise scellée : ${pv.bid}<small>${w.length ? `En attente de ${w.join(', ')}…` : 'Révélation des mises…'}</small>`, coins(pv.bid));
       }
       return;
     }
@@ -376,14 +721,18 @@ export class TableView {
     }
     if (pb.current === me) {
       if (this.choice) return this.askChoice();
-      this.setAction(pv.forced != null ? `${PIRATES.mary.n} vous impose cette carte` : (pb.trick && pb.trick.stage === 'volley' ? 'Dernière Bordée : jouez votre carte supplémentaire' : 'À vous de jouer !<small>Cliquez sur une carte en surbrillance · survol prolongé ou appui long pour la lire en grand</small>'));
+      this.setAction(pv.forced != null ? `${PIRATES.mary.n} vous impose cette carte` : (pb.trick && pb.trick.stage === 'volley' ? 'Dernière Bordée : jouez votre carte supplémentaire' : 'À vous de jouer<small id="hint" class="hint"></small>'), [], true);
+      this.showHint(this.previewId);
       return;
     }
     this.setAction(pb.current != null ? `Au tour de ${name(pb.current)}` : '…');
   }
   private handClick(id: number) {
     if (this.pick) { const s = this.pick.sel; if (s.has(id)) s.delete(id); else if (s.size < this.pick.k) s.add(id); this.renderHand(); this.renderAction(); return; }
-    if (!this.myTurnToPlay() || !this.priv!.legal.includes(id)) return;
+    if (!this.myTurnToPlay()) return;
+    if (TOUCH() && this.previewId !== id) { this.previewId = id; this.showHint(id); this.renderHand(); return; }
+    if (!this.priv!.legal.includes(id)) { this.showHint(id); return; }
+    this.previewId = null;
     const c = this.priv!.hand.find(x => x.id === id)!; const need: string[] = [];
     if (c.kind === 'tigress') need.push('as'); if (c.zf) need.push('val');
     if (c.wild && wildRule(this.pub!.trick!.entries).choose) need.push('ws');
@@ -423,16 +772,64 @@ export class TableView {
   }
 
   /* ---------- Récapitulatifs ---------- */
-  private maybeRoundSummary(snap: PublicView) {
-    const p0 = snap.players[0]; const h = p0?.hist; if (!h || !h.length) return;
-    const r = h.at(-1).r; if (r <= this.shownRound) return; this.shownRound = r;
-    if (snap.phase === 'end' && r === 10) return; // la fenêtre finale prend le relais
-    const rows = snap.players.map(p => {
-      const x = p.hist!.at(-1); const bx = x.items.length ? x.items.map((it: any) => `${it[0] > 0 ? '+' : ''}${it[0]} ${esc(it[1])}`).join('<br>') : '—';
-      return `<tr><td class="l">${esc(p.name)}</td><td>${x.bid}</td><td>${x.won}</td><td>${sgn(x.base)}</td><td class="bx">${bx}</td><td>${sgn(x.tot)}</td><td><b>${p.score}</b></td></tr>`;
+  /** Fin de manche : fenêtre parchemin. L'affichage attend que tout le monde soit prêt (ou READY_S secondes) ; le serveur, lui, n'attend pas. */
+  private roundEnd(snap: PublicView): Promise<void> {
+    const h = snap.players[0]?.hist; if (!h || !h.length) return Promise.resolve();
+    const r = h.at(-1).r; if (r <= this.shownRound) return Promise.resolve(); this.shownRound = r;
+    if (snap.phase === 'end' && r === 10) return Promise.resolve(); // la fenêtre finale prend le relais
+    const ps = snap.players, cards = h.at(-1).cards;
+    const rankOf = (scores: number[]) => scores.map(s => 1 + scores.filter(o => o > s).length);
+    const now = rankOf(ps.map(p => p.score)), before = rankOf(ps.map(p => p.score - (p.hist!.at(-1).tot)));
+    const order = ps.map((_, i) => i).sort((a, b) => ps[b].score - ps[a].score);
+    const sg = (v: number) => `<span class="${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}</span>`;
+    const rows = order.map((i, k) => {
+      const p = ps[i], x = p.hist!.at(-1), ok = x.bid === x.won;
+      const mv = before[i] > now[i] ? '<i class="up" title="Gagne des places">▲</i>' : before[i] < now[i] ? '<i class="down" title="Perd des places">▼</i>' : '';
+      const chip = ok ? 'tenue' : x.won > x.bid ? `+${x.won - x.bid}` : `−${x.bid - x.won}`;
+      const bonus = x.items.length ? x.items.map((it: any) => `<span class="bchip ${it[0] < 0 ? 'neg' : ''}">${it[0] > 0 ? '+' : '−'}${Math.abs(it[0])} ${esc(it[1])}</span>`).join('') : '<span class="none">—</span>';
+      return `<div class="rrow${now[i] === 1 ? ' first' : ''}" style="animation-delay:calc(${120 + k * 120}ms * var(--spd,1))">
+        <div class="rk"><b>${now[i]}</b>${mv}</div>
+        <div class="rp"><span class="av" style="--pc:${PCOL[i % 9]}">${esc((p.name.trim()[0] || '?').toUpperCase())}</span><b>${esc(p.name)}</b></div>
+        <div class="rb"><b>${x.bid} → ${x.won}</b><span class="ok ${ok ? '' : 'ko'}">${chip}</span></div>
+        <div class="rn">${sg(x.base)}</div><div class="rx">${bonus}</div>
+        <div class="rt" style="animation-delay:calc(${600 + k * 120}ms * var(--spd,1))">${sg(x.tot)}</div><div class="rs">${p.score}</div></div>`;
     }).join('');
-    modal(`<h2>Fin de la manche ${r}</h2><p class="sub">${h.at(-1).cards} carte${h.at(-1).cards > 1 ? 's' : ''} par joueur.</p>
-      <div class="scroll"><table class="st"><tr><th class="l">Pirate</th><th>Pari</th><th>Plis</th><th>Points</th><th class="l">Bonus</th><th>Manche</th><th>Total</th></tr>${rows}</table></div>`, [{ label: 'Continuer', value: 1 }]);
+    const coup = coupDeLaManche(ps);
+    const ov = document.createElement('div'); ov.className = 'roverlay';
+    ov.innerHTML = `<div class="rsheet" role="dialog" aria-modal="true" aria-labelledby="rTitle">
+      <div class="rhead"><div><div class="rsub">Manche ${r} sur 10 · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">Fin de la manche</h2></div>
+        <div class="rready"><span id="rCount"></span><div class="rbar"><i style="animation-duration:${READY_S}s"></i></div></div></div>
+      <div class="rcols"><span>#</span><span>Pirate</span><span>Mise → plis</span><span>Points</span><span>Bonus</span><span class="r">Manche</span><span class="r">Total</span></div>
+      <div class="rrows">${rows}</div>
+      ${coup ? `<div class="coup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg><div><b>Coup de la manche</b><span>${esc(coup)}</span></div></div>` : ''}
+      <div class="rfoot"><button class="btn alt" id="rSheet">Feuille de scores</button>${this.mySeat != null ? '<button class="btn gold big" id="rReady">Je suis prêt</button>' : ''}</div></div>`;
+    document.body.append(ov);
+    // les bots sont toujours prêts ; les « prêt » reçus avant l'ouverture de la fenêtre sont repris
+    const ready = new Set<number>([...ps.map((p, i) => p.bot ? i : -1).filter(i => i >= 0), ...(this.earlyReady[r] || [])]);
+    const t0 = Date.now(), btn = ov.querySelector('#rReady') as HTMLButtonElement | null;
+    return new Promise(res => {
+      let done = false;
+      const update = () => {
+        const left = Math.max(0, Math.ceil(READY_S - (Date.now() - t0) / 1000));
+        (ov.querySelector('#rCount') as HTMLElement).textContent = `Manche ${r + 1} dans ${left} s · ${ready.size} prêt${ready.size > 1 ? 's' : ''} sur ${ps.length}`;
+        if (btn && this.mySeat != null && ready.has(this.mySeat)) { btn.disabled = true; btn.textContent = 'Prêt'; }
+        if (ready.size >= ps.length) close();
+      };
+      const close = () => {
+        if (done) return; done = true; clearInterval(iv); this.roundGate = null; this.roundOpen = null;
+        ov.classList.add('out'); setTimeout(() => ov.remove(), 260); res();
+      };
+      const iv = setInterval(() => { if (Date.now() - t0 >= READY_S * 1000) close(); else update(); }, 250);
+      this.roundOpen = { round: r, ready, update, close };
+      btn?.addEventListener('click', () => { ready.add(this.mySeat!); this.backend.ready?.(r); update(); });
+      (ov.querySelector('#rSheet') as HTMLElement).onclick = () => this.scoreSheet();
+      update(); btn?.focus();
+    });
+  }
+  /** « Je suis prêt » reçu d'un autre joueur (Realtime) pour la manche r. */
+  markReady(seat: number, r: number) {
+    if (this.roundOpen && this.roundOpen.round === r) { this.roundOpen.ready.add(seat); this.roundOpen.update(); }
+    else (this.earlyReady[r] = this.earlyReady[r] || []).push(seat);
   }
   private maybeFinal() { if (this.pub?.phase === 'end' && !this.shownEnd) { this.shownEnd = true; this.finalModal(); } }
   private finalModal() {
@@ -452,6 +849,29 @@ export class TableView {
   }
 }
 const sgn = (v: number) => `<span class="${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${v}</span>`;
+/** Points de base d'une mise selon le barème du moteur (même calcul que endRound dans engine.ts : classique ou Rascal). */
+/** « Coup de la manche » : le plus beau cas simple (mise 0 tenue avec beaucoup de cartes, plus gros bonus, plus grosse mise tenue). */
+function coupDeLaManche(ps: PublicView['players']): string | null {
+  let best: { pts: number; text: string } | null = null;
+  const consider = (pts: number, text: string) => { if (pts > 0 && (!best || pts > best.pts)) best = { pts, text }; };
+  for (const p of ps) {
+    const x = p.hist?.at(-1); if (!x) continue; const ok = x.bid === x.won;
+    if (ok && x.bid === 0 && x.cards >= 3) consider(x.base + 1, `${p.name} tient une mise de 0 avec ${x.cards} cartes en main : +${x.base}`);
+    if (ok && x.bid >= 2) consider(x.base, `${p.name} tient sa mise de ${x.bid} : +${x.base}`);
+    for (const it of x.items) if (it[0] >= 20) consider(it[0] + .5, `${p.name} : ${it[1]} (+${it[0]})`);
+  }
+  return best ? (best as { text: string }).text : null;
+}
+function stakeLines(b: number, cards: number, rascal: boolean): [string, number][] {
+  const tenue = `Mise ${b} tenue`;
+  if (rascal) return [[tenue, 10 * cards], ["Un pli d'écart", 5 * cards], ["Deux plis d'écart ou plus", 0]];
+  if (b === 0) return [['Mise 0 tenue', 10 * cards], ['Au moins un pli pris', -10 * cards]];
+  return [[tenue, 20 * b], ["Un pli d'écart", -10], ["Deux plis d'écart", -20]];
+}
+const VERBS: Record<string, string> = { joue: 'jouez', remporte: 'remportez', entame: 'entamez', mise: 'misez', fait: 'faites', choisit: 'choisissez', pioche: 'piochez', consulte: 'consultez', décide: 'décidez', garde: 'gardez', prend: 'prenez' };
+/** « Vous remporte le pli » (texte du moteur) → « Vous remportez le pli ». */
+const vous = (t: string) => t.replace(/\bVous (\p{L}+)/gu, (m, v) => VERBS[v] ? 'Vous ' + VERBS[v] : m);
+function logLine(l: { s: LogSeg[]; cls?: string }) { return `<div class="${l.cls || ''}">${l.s.map(seg => typeof seg === 'string' ? esc(vous(seg)) : lc(seg.c, seg.e)).join('')}</div>`; }
 function lc(c: any, e: any) { const cl = c.kind === 'num' && !c.wild ? ' s-' + c.suit : ''; return `<span class="lc${cl}">${esc(cname(c, e))}</span>`; }
 function roseSVG(): string {
   const cx=500,cy=300;let s: string=`<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g stroke="#ead08a" fill="none">`;

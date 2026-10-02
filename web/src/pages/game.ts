@@ -42,8 +42,12 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
     const { data: last } = await sb.from('game_events').select('id').eq('game_id', id).order('id', { ascending: false }).limit(1);
     lastEventId = last?.[0]?.id ?? 0; // on ne rejoue pas l'historique en arrivant
     root.innerHTML = '<div class="tablepage"></div>';
+    // réactions et « Je suis prêt » : messages Realtime éphémères sur le canal de la partie (rien n'est enregistré en base)
+    const cast = (event: string, payload: Record<string, unknown>) => { if (mine) channel?.send({ type: 'broadcast', event, payload: { seat: mine.seat, ...payload } }); };
     table = new TableView(root.firstElementChild as HTMLElement, mine ? mine.seat : null, {
       send: async move => { await callGame('act', { id, move }); await sync(); },
+      emote: text => cast('emote', { text }),
+      ready: round => cast('ready', { round }),
     }, () => go('#/'));
   };
 
@@ -86,7 +90,10 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
   };
 
   let debounce: any = null; const ping = () => { clearTimeout(debounce); debounce = setTimeout(sync, 120); };
-  channel = sb.channel('partie-' + id)
+  const seatOk = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 9;
+  channel = sb.channel('partie-' + id, { config: { broadcast: { self: false } } })
+    .on('broadcast', { event: 'emote' }, ({ payload }) => { if (seatOk(payload?.seat) && typeof payload.text === 'string') table?.showEmote(payload.seat, payload.text); })
+    .on('broadcast', { event: 'ready' }, ({ payload }) => { if (seatOk(payload?.seat) && Number.isInteger(payload?.round)) table?.markReady(payload.seat, payload.round); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${id}` }, ping)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${id}` }, ping)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_events', filter: `game_id=eq.${id}` }, ping)
