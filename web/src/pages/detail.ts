@@ -3,23 +3,10 @@
 import { callGame } from '../api';
 import { $, esc, toast, signed, copyText } from '../util';
 import { avatarHTML, fromProfile, PALETTE } from '../avatar';
-import { xpLine, fmt } from '../xp';
+import { xpLine, fmt, xpReason } from '../xp';
 import { myProfile } from '../account';
 import { modeLabel } from './history';
 import { go } from '../main';
-
-const ACH_NAMES: Record<string, string> = {
-  first_game: 'Premier abordage', perfect: 'Sans fausse note', kraken_bet: 'Pari du Kraken', siren_hunter: 'Chasseur de sirènes', grand_quinze: 'Grand Quinze',
-  silk_thread: 'Fil-de-Soie', captain: 'Capitaine des mers', abyss: 'Fosse insondable', mermaid_king: 'La Sirène et le Roi', velvet: 'Main de velours',
-};
-/** Libellé d'une ligne d'XP (game, bids, win, ach:<code>). */
-export function xpReason(reason: string, amount: number) {
-  if (reason === 'game') return 'Partie terminée';
-  if (reason === 'bids') return `${amount / 10} mise${amount > 10 ? 's' : ''} tenue${amount > 10 ? 's' : ''} × 10`;
-  if (reason === 'win') return 'Victoire';
-  if (reason.startsWith('ach:')) return 'Haut fait : ' + (ACH_NAMES[reason.slice(4)] ?? reason.slice(4));
-  return reason;
-}
 
 export async function detailPage(root: HTMLElement, id: string, uid: string) {
   root.innerHTML = '<section class="apage"><p class="empty">Chargement de la partie…</p></section>';

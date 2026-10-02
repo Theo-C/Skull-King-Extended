@@ -2,11 +2,13 @@
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
 import { cname, leadSuitOf, resolve, wildRule, SUIT, WILD_SUITS, PIRATES, type Action, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
 import { cardHTML, backFace } from './cards';
-import { $, esc, modal, sleep, toast } from './util';
+import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
 import { installCardZoom } from './zoom';
 import { avatarHTML, type AvatarData } from './avatar';
+import { levelFor, xpToReach, LEVEL_TITLES, fmt, xpReason as xpLabel } from './xp';
+
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 /** Remplace le contenu d'un élément seulement s'il a changé : évite de recréer le DOM (et de casser animations et survol). */
@@ -20,7 +22,11 @@ const TOUCH = () => matchMedia('(hover: none)').matches;
 const du = (s: string) => /^Carte/.test(s) ? 'de la ' + s : 'du ' + s;
 const de = (s: string) => s === 'vous' ? 'à vous' : /^[aeiouyhéèêàâîôûAEIOUYHÉÈÊÀÂÎÔÛ]/.test(s) ? "d'" + s : 'de ' + s;
 
-export interface TableBackend { send(move: Action): Promise<void>; emote?(text: string): void; ready?(round: number): void }
+export interface TableBackend {
+  send(move: Action): Promise<void>; emote?(text: string): void; ready?(round: number): void;
+  /** Partie en ligne : identifiant, utilisateur courant, utilisateur de chaque siège, et revanche (renvoie l'identifiant du nouveau salon). */
+  gameId?: string; uid?: string; seatUids?: (string | null)[]; rematch?(): Promise<string>;
+}
 /** Réactions proposées (les seules acceptées, y compris depuis le réseau). */
 export const EMOTES = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
 const PCOL = ['#d9b25a', '#c8644b', '#5c9db6', '#7ab874', '#a982c4', '#e0954a', '#cfc6b0', '#6f8fd0', '#d47fa6'];
@@ -171,7 +177,7 @@ export class TableView {
   }
   private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
   private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
-  destroy() { this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
+  destroy() { this.finEl?.remove(); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {
@@ -181,6 +187,7 @@ export class TableView {
       this.shownRound = Math.max(this.shownRound, done - queued);
     }
     this.latest = { pub, priv };
+    if (this.finEl) this.fillSettled();
     if (!this.running && !this.queue.length) this.applyLatest();
   }
   push(events: any[]) { if (!events.length) return; this.queue.push(...events); this.run(); }
@@ -787,7 +794,7 @@ export class TableView {
     }
     if (!this.live && this.evk === 'bids') { this.setAction(`Les mises sont révélées<small>${pb.leader == null ? '' : pb.leader === me ? 'Vous entamez le premier pli' : `${name(pb.leader)} entame le premier pli`}</small>`); return; }
     if (!this.live) { this.setAction(this.banner ? esc(vous(this.banner)) : this.evk === 'trickEnd' ? 'Pli ramassé' : this.evk === 'round' ? 'Fin de la manche' : pb.current == null ? (pb.phase === 'play' ? 'Le pli se décide…' : '…') : pb.current === me ? 'À vous dans un instant…' : `${name(pb.current)} ${pb.pending ? 'fait un choix' : 'joue'}…`); return; }
-    if (pb.phase === 'end') { this.setAction('Partie terminée.', [{ label: 'Classement final', cls: 'gold', on: () => this.finalModal() }, { label: "Retour à l'accueil", cls: 'alt', on: () => this.onExit() }]); return; }
+    if (pb.phase === 'end') { this.setAction('Partie terminée.', [{ label: 'Classement final', cls: 'gold', on: () => this.finalOverlay() }, { label: "Retour à l'accueil", cls: 'alt', on: () => this.onExit() }]); return; }
     if (me == null || !pv) { this.setAction(pb.phase === 'bid' ? 'Les joueurs parient…' : (pb.current != null ? `Au tour de ${name(pb.current)}` : '…')); return; }
     if (this.busy) { this.setAction('Envoi…'); return; }
     if (pb.phase === 'bid') {
@@ -932,15 +939,71 @@ export class TableView {
     if (this.roundOpen && this.roundOpen.round === r) { this.roundOpen.ready.add(seat); this.roundOpen.update(); }
     else (this.earlyReady[r] = this.earlyReady[r] || []).push(seat);
   }
-  private maybeFinal() { if (this.pub?.phase === 'end' && !this.shownEnd) { this.shownEnd = true; this.finalModal(); } }
-  private finalModal() {
-    const pb = this.pub!; const rk = pb.players.slice().sort((a, b) => b.score - a.score); const best = rk[0].score;
-    const winners = rk.filter(p => p.score === best).map(p => esc(p.name)).join(' et ');
-    let rank = 0, prev: number | null = null;
-    modal(`<h2>${winners} remporte${rk.filter(p => p.score === best).length > 1 ? 'nt' : ''} la partie</h2><p class="sub">Capitaine des Sept Mers.</p>
-      <div class="scroll"><table class="st"><tr><th>#</th><th class="l">Pirate</th><th>Score</th></tr>${rk.map((p, k) => { if (p.score !== prev) { rank = k + 1; prev = p.score; } return `<tr><td>${rank}</td><td class="l">${esc(p.name)}</td><td><b>${p.score}</b></td></tr>`; }).join('')}</table></div>`,
-      [{ label: 'Feuille de scores', value: 's', cls: 'alt' }, { label: 'Fermer', value: null }]).then(v => { if (v === 's') this.scoreSheet(); });
+  /* ---------- Fin de partie (maquette FinPartie) ---------- */
+  private finEl: HTMLElement | null = null;
+  /** Superposition de fin : podium, XP (lignes puis barre), Élo, haut fait. Se complète quand le règlement du serveur arrive. */
+  private finalOverlay() {
+    const pb = this.latest?.pub ?? this.pub; if (!pb) return;
+    this.finEl?.remove();
+    const ps = pb.players, order = ps.map((p, i) => ({ p, i })).sort((a, b) => b.p.score - a.p.score);
+    const rank = (i: number) => 1 + ps.filter(p => p.score > ps[i].score).length;
+    const me = this.mySeat, myRank = me != null ? rank(me) : 0;
+    const TITLE = ['Victoire, capitaine !', 'Deuxième place, belle traversée', 'Troisième place', 'Fin de la traversée'];
+    const H = [120, 92, 70, 52], ORD = [2, 1, 3, 4], DL = [1.05, .75, .6, .45], ORDN = ['1er', '2e', '3e'];
+    const ov = document.createElement('div'); ov.className = 'finov';
+    const pod = order.slice(0, 4).map(({ p, i }, k) => `<div class="fpod" style="order:${ORD[k]}">${this.avatar(i, p.name, k ? 52 : 68)}<b>${esc(i === me ? 'Vous' : p.name)}</b>
+      <div class="col c${Math.min(rank(i), 4)}" style="height:${H[k]}px;animation-delay:calc(${DL[k]}s * var(--spd,1))"><span class="t">${p.score}</span><span class="r" data-elo="${i}">${rank(i) <= 3 ? ORDN[rank(i) - 1] : rank(i) + 'e'}</span></div></div>`).join('');
+    ov.innerHTML = `<div class="sparks" aria-hidden="true">${Array.from({ length: 8 }, (_, k) => `<span style="left:${18 + k * 9}%;top:${240 + (k % 3) * 30}px;animation-delay:${(k * .37).toFixed(2)}s"></span>`).join('')}</div>
+      <div class="fcard" role="dialog" aria-modal="true" aria-labelledby="fp-t">
+        <div class="fhead"><div class="ftag">Fin de la partie · ${pb.round} manche${pb.round > 1 ? 's' : ''}</div><h2 id="fp-t">${me == null ? 'Partie terminée' : TITLE[Math.min(myRank, 4) - 1]}</h2></div>
+        <div class="fpodium">${pod}</div>
+        <div class="fgrid" id="fgrid"><p class="fwait">${this.backend.gameId ? 'Calcul de l\'XP et de l\'Élo…' : 'Partie d\'entraînement : elle ne rapporte ni XP ni Élo.'}</p></div>
+        <div class="fbtns"><button class="abtn ghost" id="fHome">Retour au port</button>
+          ${this.backend.gameId ? '<button class="abtn ghost" id="fDetail">Détail de la partie</button><button class="abtn gold" id="fRematch">Revanche avec la même table</button>'
+            : '<button class="abtn ghost" id="fSheet">Feuille de scores</button><button class="abtn gold" id="fAgain">Nouvelle partie</button>'}</div>
+      </div>`;
+    document.body.append(ov); this.finEl = ov;
+    const q = (s: string) => ov.querySelector(s) as HTMLElement | null;
+    q('#fHome')!.onclick = () => { ov.remove(); this.onExit(); };
+    if (q('#fDetail')) q('#fDetail')!.onclick = () => { ov.remove(); location.hash = '#/partie/' + this.backend.gameId; location.reload(); };
+    if (q('#fSheet')) q('#fSheet')!.onclick = () => this.scoreSheet();
+    if (q('#fAgain')) q('#fAgain')!.onclick = () => { ov.remove(); location.hash = '#/entrainement'; location.reload(); };
+    if (q('#fRematch')) q('#fRematch')!.onclick = async () => {
+      const b = q('#fRematch') as HTMLButtonElement; b.disabled = true; b.textContent = 'Préparation du salon…';
+      try { const id = await this.backend.rematch!(); ov.remove(); location.hash = '#/partie/' + id; }
+      catch (e: any) { toast(e.message || 'Revanche impossible.', 'err'); b.disabled = false; b.textContent = 'Revanche avec la même table'; }
+    };
+    this.fillSettled();
   }
+  /** Partie du règlement propre au joueur (XP, Élo, haut fait), dès qu'elle est disponible dans l'état de la partie. */
+  private fillSettled() {
+    const ov = this.finEl, uid = this.backend.uid; if (!ov || !uid) return;
+    const s = (this.latest?.pub as any)?.settled?.[uid]; const grid = ov.querySelector('#fgrid') as HTMLElement;
+    if (!s || grid.dataset.done) return; grid.dataset.done = '1';
+    const before = levelFor(s.xpBefore), after = levelFor(s.xpAfter), up = s.levelAfter > s.levelBefore;
+    const from = Math.round(100 * before.inLevel / before.need), to = up ? 100 : Math.round(100 * after.inLevel / after.need);
+    const xpRows = (s.xp as any[]).map((x, k) => `<div class="fxl" style="animation-delay:calc(${(1.3 + k * .2).toFixed(1)}s * var(--spd,1))"><span>${esc(xpLabel(x.reason, x.amount))}</span><b>+${x.amount}</b></div>`).join('');
+    const nextT = LEVEL_TITLES.find(([l]) => l > after.level);
+    const elo = s.elo;
+    const ach = (s.achievements as any[])[0];
+    grid.innerHTML = `<div class="fbox">${xpRows}
+        <div class="fxt"><b>Niveau ${before.level} · ${esc(before.title)}</b><b class="big">+${s.xpTotal} XP</b></div>
+        <div class="fbar"><span style="--from:${from}%;--to:${to}%"></span></div>
+        <span class="lbl">${up ? '' : `${fmt(after.inLevel)} / ${fmt(after.need)} XP${nextT ? ` · encore ${fmt(xpToReach(nextT[0]) - s.xpAfter)} avant ${esc(nextT[1])}` : ''}`}</span>
+        ${up ? `<span class="lvup">Niveau ${after.level} · ${esc(after.title)} !</span>` : ''}</div>
+      ${elo ? `<div class="fbox fxl" style="animation-delay:calc(2.3s * var(--spd,1))"><span class="ftag">Élo</span>
+        <span class="felo"><span class="o">${Math.round(elo.before)}</span><span class="o">→</span><span class="n">${Math.round(elo.after)}</span><b class="${elo.delta >= 0 ? 'pos' : 'neg'}">${signedOne(elo.delta)}</b></span>
+        ${(elo.vs as any[]).map(v => `<div class="fvs"><span>${v.delta >= 0 ? 'Devant' : 'Derrière'} ${esc(v.name)}</span><b class="${v.delta >= 0 ? 'pos' : 'neg'}">${signedOne(v.delta)}</b></div>`).join('')}</div>`
+        : '<div class="fbox"><span class="ftag">Élo</span><span class="lbl">Partie non classée : il faut au moins deux joueurs humains.</span></div>'}
+      ${ach ? `<div class="fach"><span class="medal2">${ACH_STAR}</span><span><span class="ftag dark">Haut fait débloqué</span><b>${esc(ach.name)}</b><span>${esc(ach.description)}${s.achievements.length > 1 ? ` · et ${s.achievements.length - 1} autre${s.achievements.length > 2 ? 's' : ''}` : ''}</span></span></div>` : ''}`;
+    // place et Élo de chacun sous le podium
+    const res = (this.latest?.pub as any)?.settled || {};
+    ov.querySelectorAll<HTMLElement>('[data-elo]').forEach(el => {
+      const i = Number(el.dataset.elo), u = this.backend.seatUids?.[i]; const e = u ? res[u]?.elo : null;
+      if (e) el.textContent += ` · Élo ${signed(Math.round(e.delta))}`;
+    });
+  }
+  private maybeFinal() { if (this.pub?.phase === 'end' && !this.shownEnd) { this.shownEnd = true; this.finalOverlay(); } }
   scoreSheet() {
     const ps = this.latest?.pub.players || this.pub?.players || []; if (!ps.length) return;
     let h = `<h2>Feuille de scores</h2><p class="sub">Pari / plis remportés, puis points de la manche.</p><div class="scroll"><table class="st"><tr><th>Manche</th>${ps.map(p => `<th>${esc(p.name)}</th>`).join('')}</tr>`;
@@ -989,6 +1052,9 @@ function notifyTurn() {
     new Notification('À vous de jouer', { body: 'Le Pli des Pirates : la table vous attend.', icon: './icon.svg', tag: 'pli-tour' });
   } catch { /* notifications indisponibles */ }
 }
+const ACH_STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z"/></svg>';
+/** « +9,7 » avec une décimale et un vrai signe moins. */
+const signedOne = (v: number) => signed(Math.round(v * 10) / 10, Math.abs(v) < 100 ? 1 : 0);
 function stakeLines(b: number, cards: number, rascal: boolean): [string, number][] {
   const tenue = `Mise ${b} tenue`;
   if (rascal) return [[tenue, 10 * cards], ["Un pli d'écart", 5 * cards], ["Deux plis d'écart ou plus", 0]];

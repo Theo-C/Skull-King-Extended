@@ -400,3 +400,46 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 .qrbox{display:flex;justify-content:center;padding:10px}
 .qrbox svg{border-radius:8px;max-width:100%;height:auto}
 @media (max-width:720px){.invite2{padding:18px}.invite2 .cv{font-size:42px}.lrow2 .abtn{min-width:0}}
+
+/* Fin de partie (superposition) */
+.finov{position:fixed;inset:0;z-index:48;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;background:rgba(10,7,5,.72);animation:fadein .3s ease-out both}
+.finov .sparks span{position:absolute;width:6px;height:6px;border-radius:50%;background:#ead08a;animation:spark 2.4s ease-out infinite;pointer-events:none}
+@keyframes spark{0%{opacity:0;transform:translateY(0) scale(.6)}20%{opacity:1}100%{opacity:0;transform:translateY(-120px) scale(1)}}
+.fcard{position:relative;width:min(880px,100%);margin:auto;display:flex;flex-direction:column;gap:20px;padding:28px 32px;border-radius:18px;
+  background:linear-gradient(180deg,#2a2019,#1a130e);border:1px solid rgba(234,208,138,.45);box-shadow:0 30px 80px rgba(0,0,0,.7);animation:fcard calc(.5s * var(--spd,1)) cubic-bezier(.2,.8,.3,1.1) both}
+@keyframes fcard{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
+.fhead{text-align:center}
+.ftag{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.ftag.dark{color:#7a6132}
+.fhead h2{margin:4px 0 0;font:400 46px/1.05 var(--f-disp);color:var(--brass2)}
+.fpodium{display:flex;justify-content:center;align-items:flex-end;gap:12px}
+.fpod{width:150px;display:flex;flex-direction:column;align-items:center;gap:6px}.fpod b{color:var(--parch)}
+.fpod .col{width:100%;border-radius:9px 9px 0 0;display:flex;flex-direction:column;align-items:center;padding-top:8px;box-shadow:inset 0 2px 0 rgba(255,255,255,.35);
+  background:linear-gradient(180deg,#6b5a45,#3d3226);transform-origin:bottom;animation:rise2 calc(.6s * var(--spd,1)) cubic-bezier(.2,.8,.3,1.1) both}
+.fpod .col.c1{background:linear-gradient(180deg,#f6e3a8,#b78c33)}.fpod .col.c2{background:linear-gradient(180deg,#f1f1ec,#9da3a8)}.fpod .col.c3{background:linear-gradient(180deg,#f0c19b,#a8653a)}
+.fpod .t{font:400 28px/1 'Pirata One',var(--f-disp);color:rgba(30,20,10,.8)}.fpod .r{font-size:12px;font-weight:800;color:rgba(30,20,10,.7);text-align:center}
+.fpod .col.c4 .t,.fpod .col.c4 .r{color:rgba(255,240,215,.8)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px}
+.fwait{grid-column:1/-1;text-align:center;color:var(--muted);margin:0}
+.fbox{display:flex;flex-direction:column;gap:8px;padding:16px 18px;border-radius:12px;background:rgba(0,0,0,.28)}
+.fxl{display:flex;justify-content:space-between;font-size:15px;animation:inL calc(.35s * var(--spd,1)) ease-out both}
+.fbox.fxl{display:flex;flex-direction:column}
+@keyframes inL{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.fxl b{color:var(--brass2)}
+.fxt{display:flex;justify-content:space-between;align-items:baseline;padding-top:8px;border-top:1px solid rgba(234,208,138,.2)}.fxt .big{font-size:26px}
+.fbar{height:12px;border-radius:6px;background:rgba(0,0,0,.4);box-shadow:inset 0 0 0 1px rgba(234,208,138,.3);overflow:hidden}
+.fbar span{display:block;height:12px;width:var(--to);background:linear-gradient(90deg,#b78c33,#ead08a);animation:fill calc(1.2s * var(--spd,1)) calc(2.1s * var(--spd,1)) cubic-bezier(.3,.7,.3,1) both}
+@keyframes fill{from{width:var(--from)}to{width:var(--to)}}
+.lvup{font:400 22px var(--f-disp);color:#ead08a;text-shadow:0 0 12px rgba(234,208,138,.5);animation:inL .4s calc(3.3s * var(--spd,1)) ease-out both}
+.felo{display:flex;align-items:baseline;gap:10px;font:400 24px 'Pirata One',var(--f-disp)}.felo .o{color:var(--muted)}.felo .n{color:var(--brass2);font-size:32px}.felo b{font:800 16px var(--f-body)}
+.fvs{display:flex;justify-content:space-between;font-size:13.5px;color:#d9cdb6}
+.fach{display:flex;align-items:center;gap:16px;padding:16px 18px;border-radius:12px;background:linear-gradient(180deg,#f6ecd4,#eadbb7);color:var(--ink);border-top:2px solid #c9a96a;border-bottom:2px solid #c9a96a}
+.fach>span:last-child{display:flex;flex-direction:column;gap:2px}.fach b{font:400 22px var(--f-disp)}.fach>span:last-child>span:last-child{font-size:13px;color:var(--ink2)}
+.medal2{width:64px;height:64px;flex:none;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,#f6e3a8,#b78c33 70%);box-shadow:inset 0 0 0 3px rgba(60,40,10,.45),0 6px 14px rgba(0,0,0,.3);
+  animation:medal calc(.6s * var(--spd,1)) calc(2.6s * var(--spd,1)) cubic-bezier(.2,.8,.3,1.2) both}
+.medal2 svg{width:30px;height:30px;fill:#3a2a10}
+@keyframes medal{0%{opacity:0;transform:scale(.4) rotate(-20deg)}70%{transform:scale(1.12) rotate(4deg)}100%{opacity:1;transform:none}}
+.fbtns{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}.fbtns .abtn{min-height:50px}
+@media (max-width:720px){.fcard{padding:20px 16px}.fhead h2{font-size:30px}.fpod{width:24%}.fpodium{gap:6px}}
+@media (prefers-reduced-motion:reduce){.finov *,.finov{animation:none!important}}
+.fbox.fxl{justify-content:flex-start}

@@ -53,6 +53,8 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       send: async move => { await callGame('act', { id, move }); await sync(); },
       emote: text => cast('emote', { text }),
       ready: round => cast('ready', { round }),
+      gameId: id, uid, seatUids: seats.map(s => s.user_id ?? null),
+      rematch: async () => (await callGame<{ id: string }>('rematch', { id })).id,
     }, () => go('#/'));
     // avatars et couleurs des joueurs (les bots gardent l'initiale sur la couleur par défaut)
     const ids = seats.filter(s => s.user_id).map(s => s.user_id);
