@@ -1,20 +1,20 @@
 // Accès à Supabase : client, appel de la fonction « game », lien d'invitation.
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const url = import.meta.env.SUPABASE_URL as string | undefined;
+const anon = import.meta.env.SUPABASE_ANON_KEY as string | undefined;
 export const configured = !!(url && anon);
 export const sb = createClient(url || 'http://localhost', anon || 'cle-manquante', {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
 });
 
 /** Adresse publique du site, utilisée dans les liens d'invitation (utile aussi dans l'appli Android). */
-export const SITE_URL = ((import.meta.env.VITE_SITE_URL as string) || location.origin + location.pathname).replace(/\/$/, '').replace(/\/index\.html$/, '');
+export const SITE_URL = ((import.meta.env.SITE_URL as string) || location.origin + location.pathname).replace(/\/$/, '').replace(/\/index\.html$/, '');
 export const inviteLink = (code: string) => `${SITE_URL}/#/rejoindre/${code}`;
 
 /** Dans l'appli Android (Capacitor), le lien magique rouvre l'appli via son schéma d'URL. */
 export const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
-export const APP_SCHEME = (import.meta.env.VITE_APP_SCHEME as string) || 'fr.plidespirates.app';
+export const APP_SCHEME = (import.meta.env.APP_SCHEME as string) || 'fr.plidespirates.app';
 export const AUTH_REDIRECT = isNative ? `${APP_SCHEME}://connexion` : SITE_URL + '/';
 if (isNative) {
   const App = (window as any).Capacitor?.Plugins?.App;

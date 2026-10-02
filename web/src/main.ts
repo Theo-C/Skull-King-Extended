@@ -30,7 +30,7 @@ async function route() {
   const page = parts[0] || '';
   if (!configured && page !== 'entrainement') {
     shell(null, 'practice');
-    view.innerHTML = `<section class="page narrow"><div class="box"><h1>Configuration manquante</h1><p class="lead">Renseignez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY dans le fichier .env (voir le guide de déploiement).</p><a class="btn gold" href="#/entrainement">Jouer hors ligne en attendant</a></div></section>`;
+    view.innerHTML = `<section class="page narrow"><div class="box"><h1>Configuration manquante</h1><p class="lead">Renseignez SUPABASE_URL et SUPABASE_ANON_KEY dans le fichier .env (voir le guide de déploiement).</p><a class="btn gold" href="#/entrainement">Jouer hors ligne en attendant</a></div></section>`;
     return;
   }
   const user = configured ? await currentUser() : null;

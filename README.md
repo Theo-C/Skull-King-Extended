@@ -58,7 +58,7 @@ npm run dev              # http://localhost:5173
 ### 3. Mise en ligne (Vercel)
 
 Importer le dépôt sur vercel.com : `vercel.json` règle déjà la commande de build et le dossier `dist`.
-Ajouter les variables `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` et `VITE_SITE_URL` dans les paramètres du projet Vercel.
+Ajouter les variables `SUPABASE_URL`, `SUPABASE_ANON_KEY` et `SITE_URL` dans les paramètres du projet Vercel.
 
 ### 4. Appli Android (plus tard)
 
@@ -72,11 +72,11 @@ npx cap sync
 npx cap open android     # ouvre Android Studio pour générer l'APK / l'AAB
 ```
 
-- `VITE_SITE_URL` doit pointer vers le site public : c'est lui qui apparaît dans les liens d'invitation.
+- `SITE_URL` doit pointer vers le site public : c'est lui qui apparaît dans les liens d'invitation.
 - Dans `android/app/src/main/AndroidManifest.xml`, ajouter un `intent-filter` pour le schéma `fr.plidespirates.app`
   (retour du lien magique) et, pour ouvrir les invitations directement dans l'appli, un App Link sur le domaine du site.
   Le code qui récupère la session et l'invitation est déjà en place (`web/src/api.ts`).
-- L'identifiant `fr.plidespirates.app` se change dans `capacitor.config.json` et dans `VITE_APP_SCHEME`.
+- L'identifiant `fr.plidespirates.app` se change dans `capacitor.config.json` et dans `APP_SCHEME`.
 
 ## Tests
 
