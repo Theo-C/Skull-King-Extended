@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Table de jeu — mises</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&amp;family=IM+Fell+English+SC&amp;family=Alegreya+Sans:wght@400;500;700;800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#ead08a}a:hover{color:#f6e3a8}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible{outline:2px solid #ead08a;outline-offset:3px}
+.tb{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px;border-radius:9px;border:1px solid rgba(234,208,138,.28);background:transparent;color:#efe6d2;font-size:14px;font-weight:700;cursor:pointer}
+.coinb{width:46px;height:46px;border-radius:50%;border:0;padding:0;cursor:pointer;font-weight:800;font-size:19px;color:#3a2805;background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 35%,#a77b22 100%);box-shadow:inset 0 0 0 2px rgba(90,60,10,.55),inset 0 0 0 4px rgba(255,235,170,.45),0 3px 6px rgba(0,0,0,.35);transition:transform .15s}
+.coinb:hover{transform:translateY(-4px)}
+.coinb.sel{transform:translateY(-8px) scale(1.12);box-shadow:inset 0 0 0 2px rgba(90,60,10,.55),inset 0 0 0 4px rgba(255,235,170,.45),0 0 0 3px #2b2117,0 8px 14px rgba(0,0,0,.4)}
+.coinb.off{opacity:.35;cursor:default;transform:none}
+@keyframes flip{0%{transform:rotateY(90deg) scale(1.2)}60%{transform:rotateY(0) scale(1.2)}100%{transform:rotateY(0) scale(1)}}
+.flip{animation:flip .55s cubic-bezier(.2,.8,.3,1.2) both}
+@keyframes seal{0%{transform:scale(1.5);opacity:0}100%{transform:scale(1);opacity:1}}
+.seal{animation:seal .35s ease-out both}
+@keyframes dots{0%,100%{opacity:.25}50%{opacity:1}}
+.dot{animation:dots 1s infinite}
+.dot.d2{animation-delay:.15s}.dot.d3{animation-delay:.3s}
+@keyframes pop{from{transform:scale(.85);opacity:0}to{transform:none;opacity:1}}
+.pop{animation:pop .3s ease-out both}
+.hc{transition:transform .16s ease}
+.hc:hover{transform:translateY(-14px)}
+.rp{border:0;color:#2b2117;font-weight:800;font-size:14px;padding:9px 14px;border-radius:8px;background:#c9a14a;cursor:pointer}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; background: radial-gradient(ellipse at 38% 40%, #2a1f17 0%, #120e0b 70%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+
+<header style="position: absolute; left: 0; top: 0; width: 1440px; height: 56px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 20px; border-bottom: 1px solid rgba(234,208,138,.16); background: rgba(18,14,11,.85);">
+<svg viewBox="0 0 40 40" style="width: 30px; height: 30px; flex: none;" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="none" stroke="#c9a14a" stroke-width="1.5"></circle><path d="M20 3l3.2 13.8L37 20l-13.8 3.2L20 37l-3.2-13.8L3 20l13.8-3.2z" fill="#c9a14a"></path><circle cx="20" cy="20" r="2.4" fill="#ead08a"></circle></svg>
+<div style="display: flex; align-items: baseline; gap: 10px;"><span style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">Manche 7</span><span style="font-size: 14px; color: #a8987f;">sur 10 · 7 cartes · mises</span></div>
+<div style="flex-grow: 1;"></div>
+<button class="tb">Scores</button>
+<button class="tb">Règles</button>
+<button class="tb">Quitter</button>
+</header>
+
+<div style="position: absolute; left: 24px; top: 72px; width: 1040px; height: 520px; border-radius: 50%; background: linear-gradient(180deg, #8a5833, #5e381d 55%, #4a2b16); box-shadow: 0 26px 50px rgba(0,0,0,.7), 0 6px 0 #2a170b, inset 0 2px 0 rgba(255,220,170,.18);"></div>
+<div style="position: absolute; left: 38px; top: 86px; width: 1012px; height: 492px; box-sizing: border-box; border-radius: 50%; border: 2px solid #b38a3c;"></div>
+<div style="position: absolute; left: 50px; top: 98px; width: 988px; height: 468px; border-radius: 50%; overflow: hidden; background: radial-gradient(ellipse at 50% 46%, #2a6066 0%, #1f4c50 42%, #102c31 100%); box-shadow: inset 0 0 50px rgba(0,0,0,.6);"></div>
+
+<div style="position: absolute; left: 324px; top: 228px; width: 440px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; z-index: 2;">
+<div style="font-family: 'IM Fell English SC', serif; font-size: 44px; line-height: 1; color: #ead08a; text-shadow: 0 2px 4px rgba(0,0,0,.6);">Manche 7</div>
+<div style="font-size: 16px; color: #d9cdb6;">7 cartes · 7 plis à prendre</div>
+<div class="{{sumCls}}" style="margin-top: 10px; padding: 8px 16px; border-radius: 999px; background: rgba(10,20,22,.85); border: 1px solid rgba(234,208,138,.35); font-size: 15px; font-weight: 700; color: #f2e7cd;">{{centerLine}}</div>
+<sc-if value="{{showSumHint}}" hint-placeholder-val="{{false}}">
+<div class="pop" style="font-size: 14px; color: {{sumInk}}; font-weight: 700;">{{sumHint}}</div>
+</sc-if>
+</div>
+
+<sc-for list="{{pods}}" as="p" hint-placeholder-count="4">
+<div style="position: absolute; left: {{p.x}}px; top: {{p.y}}px; width: 236px; height: 78px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 10px; border-radius: 40px 14px 14px 40px; background: linear-gradient(180deg, #2c221a, #1a130e); border: 1px solid rgba(234,208,138,.3); box-shadow: 0 8px 18px rgba(0,0,0,.55); z-index: 5;">
+<div style="width: 56px; height: 56px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'IM Fell English SC', serif; font-size: 24px; color: #1b140e; background: {{p.color}}; box-shadow: 0 0 0 2px #1b140e, 0 0 0 4px {{p.color}};">{{p.init}}</div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+<span style="font-weight: 800; font-size: 16px; color: #f2e7cd;">{{p.name}}</span>
+<span style="font-size: 13px; color: {{p.stInk}}; white-space: nowrap;">{{p.status}}</span>
+</div>
+<div style="width: 46px; height: 46px; flex: none; perspective: 300px;">
+<sc-if value="{{p.thinking}}" hint-placeholder-val="{{false}}">
+<div style="width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; gap: 4px; border: 1.5px dashed rgba(234,208,138,.4);"><span class="dot" style="width: 5px; height: 5px; border-radius: 50%; background: #ead08a;"></span><span class="dot d2" style="width: 5px; height: 5px; border-radius: 50%; background: #ead08a;"></span><span class="dot d3" style="width: 5px; height: 5px; border-radius: 50%; background: #ead08a;"></span></div>
+</sc-if>
+<sc-if value="{{p.sealed}}" hint-placeholder-val="{{false}}">
+<div class="seal" style="width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, #6b5226 0 15%, #3a2c14 70%); box-shadow: inset 0 0 0 2px #c9a14a, 0 3px 6px rgba(0,0,0,.4);"><svg viewBox="0 0 40 40" style="width: 24px; height: 24px;" aria-hidden="true"><path d="M20 4l3 13 13 3-13 3-3 13-3-13-13-3 13-3z" fill="#c9a14a"></path></svg></div>
+</sc-if>
+<sc-if value="{{p.open}}" hint-placeholder-val="{{false}}">
+<div class="flip" style="width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 21px; color: #3a2805; background: radial-gradient(circle at 35% 30%, #fff2c4 0 12%, #e2bd62 35%, #a77b22 100%); box-shadow: inset 0 0 0 2px rgba(90,60,10,.55), inset 0 0 0 4px rgba(255,235,170,.45), 0 3px 6px rgba(0,0,0,.4); animation-delay: {{p.delay}}ms;">{{p.bid}}</div>
+</sc-if>
+<sc-if value="{{p.unknown}}" hint-placeholder-val="{{false}}">
+<div style="width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; color: #a8987f; border: 1.5px dashed rgba(234,208,138,.4);">?</div>
+</sc-if>
+</div>
+</div>
+</sc-for>
+
+<div style="position: absolute; left: 134px; top: 604px; width: 820px; height: 64px; box-sizing: border-box; padding: 0 16px 0 22px; display: flex; align-items: center; gap: 18px; background: linear-gradient(180deg, #f6ecd4, #eadbb7); color: #2b2117; border-top: 2px solid #c9a96a; border-bottom: 2px solid #c9a96a; border-radius: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.45); z-index: 6;">
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
+<div style="font-family: 'IM Fell English SC', serif; font-size: 20px; line-height: 1.1;">{{trayTitle}}</div>
+<div style="font-size: 13.5px; font-weight: 700; color: #5d4c37;">{{traySub}}</div>
+</div>
+<sc-if value="{{showCoins}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; gap: 8px;">
+<sc-for list="{{coins}}" as="c" hint-placeholder-count="8">
+<button class="{{c.cls}}" onClick="{{c.pick}}" aria-label="{{c.label}}">{{c.n}}</button>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{showReplay}}" hint-placeholder-val="{{false}}">
+<button class="rp" onClick="{{replay}}">Rejouer la démo</button>
+</sc-if>
+</div>
+
+<div style="position: absolute; left: 24px; top: 684px; width: 1040px; height: 204px; border-radius: 16px; background: linear-gradient(180deg, #5a3720, #3a2214); box-shadow: inset 0 2px 0 rgba(255,220,170,.15), inset 0 -4px 10px rgba(0,0,0,.4), 0 10px 24px rgba(0,0,0,.5); border: 1px solid #2a170b;"></div>
+<div style="position: absolute; left: 44px; top: 698px; font-family: 'IM Fell English SC', serif; font-size: 17px; color: #f2e7cd;">Votre main</div>
+<div style="position: absolute; left: 44px; top: 724px; width: 150px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #d9c7a4;">
+<span><b style="color: #f2e7cd;">7</b> cartes</span>
+<span>2 atouts · 1 pirate · 1 sirène</span>
+</div>
+<sc-for list="{{hand}}" as="c" hint-placeholder-count="7">
+<div style="position: absolute; left: {{c.x}}px; top: {{c.y}}px; transform: rotate({{c.r}}deg); transform-origin: 50% 130%; z-index: {{c.z}};">
+<div class="hc"><dc-import name="Card" card="{{c.card}}" w="{{116}}" hint-size="116px,162px"></dc-import></div>
+</div>
+</sc-for>
+
+<aside style="position: absolute; left: 1088px; top: 72px; width: 328px; display: flex; flex-direction: column; gap: 14px;">
+<section style="padding: 14px 16px; border-radius: 12px; background: linear-gradient(180deg, #2a2019, #1f1813); border: 1px solid rgba(234,208,138,.18); display: flex; flex-direction: column; gap: 4px;">
+<h2 style="margin: 0; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 18px; color: #ead08a;">Classement</h2>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.06);">
+<span style="width: 16px; font-weight: 800; color: #a8987f; font-size: 14px;">{{r.rank}}</span>
+<span style="width: 10px; height: 10px; border-radius: 50%; background: {{r.color}}; flex: none;"></span>
+<span style="flex-grow: 1; font-weight: 700; font-size: 15px; color: #f2e7cd;">{{r.name}}</span>
+<span style="font-size: 13px; color: #a8987f;">mise {{r.bid}}</span>
+<span style="width: 44px; text-align: right; font-weight: 800; font-size: 19px; color: #f2e7cd; font-variant-numeric: tabular-nums;">{{r.score}}</span>
+</div>
+</sc-for>
+</section>
+<section style="padding: 14px 16px; border-radius: 12px; background: linear-gradient(180deg, #2a2019, #1f1813); border: 1px solid rgba(234,208,138,.18); display: flex; flex-direction: column; gap: 8px;">
+<h2 style="margin: 0; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 18px; color: #ead08a;">Ce que vaut votre mise</h2>
+<sc-for list="{{stakes}}" as="s" hint-placeholder-count="4">
+<div style="display: flex; justify-content: space-between; gap: 10px; font-size: 14px; color: #d9cdb6;"><span>{{s.k}}</span><b style="color: {{s.ink}}; font-variant-numeric: tabular-nums;">{{s.v}}</b></div>
+</sc-for>
+<p style="margin: 4px 0 0; font-size: 12.5px; color: #a8987f; line-height: 1.4;">Les bonus (14, captures, Pacte de Butin) ne comptent que si la mise est exacte.</p>
+</section>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  state = { phase: 'choose', bid: null };
+  componentWillUnmount() { (this.t || []).forEach(clearTimeout); }
+  later(ms, f) { (this.t = this.t || []).push(setTimeout(f, ms)); }
+  pick(n) {
+    if (this.state.phase !== 'choose') return;
+    this.setState({ phase: 'sealed', bid: n });
+    this.later(1100, () => this.setState({ phase: 'allSealed' }));
+    this.later(1700, () => this.setState({ phase: 'reveal' }));
+  }
+  replay() { (this.t || []).forEach(clearTimeout); this.t = []; this.setState({ phase: 'choose', bid: null }); }
+  renderVals() {
+    var st = this.state, ph = st.phase, me = st.bid;
+    var P = [
+      { k: 'top', name: 'Ysolde', init: 'Y', color: '#5c9db6', bid: 2, x: 426, y: 61, score: 40 },
+      { k: 'left', name: 'Maëlle', init: 'M', color: '#7ab874', bid: 1, x: 32, y: 293, score: 65 },
+      { k: 'right', name: 'Corentin', init: 'C', color: '#c8644b', bid: 0, x: 820, y: 293, score: 85 },
+      { k: 'you', name: 'Vous', init: 'V', color: '#d9b25a', bid: me, x: 426, y: 521, score: 110 }
+    ];
+    var reveal = ph === 'reveal';
+    var pods = P.map((p, i) => {
+      var o = { name: p.name, init: p.init, color: p.color, x: p.x, y: p.y, bid: p.bid, delay: i * 90, thinking: false, sealed: false, open: false, unknown: false, status: '', stInk: '#a8987f' };
+      if (reveal) { o.open = true; o.status = 'mise ' + p.bid + ' pli' + (p.bid > 1 ? 's' : ''); o.stInk = '#ead08a'; }
+      else if (p.k === 'you') { if (me == null) { o.unknown = true; o.status = 'à vous de miser'; o.stInk = '#ead08a'; } else { o.sealed = true; o.status = 'mise scellée : ' + me; } }
+      else if (p.k === 'right' && ph !== 'allSealed') { o.thinking = true; o.status = 'réfléchit…'; }
+      else { o.sealed = true; o.status = 'a misé'; }
+      return o;
+    });
+    var sealedCount = pods.filter(p => p.sealed || p.open).length;
+    var total = 2 + 1 + 0 + (me || 0);
+    var sumHint, sumInk;
+    if (total > 7) { sumHint = 'Plus de mises que de plis : la bataille sera rude'; sumInk = '#f0a08b'; }
+    else if (total < 7) { sumHint = (7 - total) + ' pli' + (7 - total > 1 ? 's' : '') + ' que personne n’a réclamé' + (7 - total > 1 ? 's' : ''); sumInk = '#9bd69f'; }
+    else { sumHint = 'Autant de mises que de plis : chaque pli compte'; sumInk = '#ead08a'; }
+    var coins = [];
+    for (var n = 0; n <= 7; n++) {
+      ((n) => coins.push({ n: n, label: 'Miser ' + n, cls: 'coinb' + (me === n ? ' sel' : '') + (ph !== 'choose' && me !== n ? ' off' : ''), pick: () => this.pick(n) }))(n);
+    }
+    var HAND = [
+      { kind: 'pirate', name: 'Anne Boussole' }, { kind: 'mermaid', name: 'Ondine' },
+      { kind: 'num', suit: 'black', rank: 12 }, { kind: 'num', suit: 'black', rank: 5 },
+      { kind: 'num', suit: 'yellow', rank: 13 }, { kind: 'num', suit: 'purple', rank: 6 }, { kind: 'num', suit: 'green', rank: 2 }
+    ];
+    var hand = HAND.map((c, i) => { var d = i - 3; return { card: c, x: Math.round(544 - (6 * 96 + 116) / 2 + i * 96), y: Math.round(712 + d * d * 3), r: (d * 3).toFixed(1), z: i + 1 }; });
+    var rows = [['Vous', '#d9b25a', 110, reveal ? me : '…'], ['Corentin', '#c8644b', 85, reveal ? 0 : '…'], ['Maëlle', '#7ab874', 65, reveal ? 1 : '…'], ['Ysolde', '#5c9db6', 40, reveal ? 2 : '…']]
+      .map((r, i) => ({ rank: i + 1, name: r[0], color: r[1], score: r[2], bid: r[3] }));
+    var b = me == null ? 2 : me;
+    var stakes = b === 0
+      ? [{ k: 'Mise 0 tenue', v: '+70', ink: '#9bd69f' }, { k: 'Au moins un pli pris', v: '−70', ink: '#f0a08b' }]
+      : [{ k: 'Mise ' + b + ' tenue', v: '+' + 20 * b, ink: '#9bd69f' }, { k: 'Un pli d’écart', v: '−10', ink: '#f0a08b' }, { k: 'Deux plis d’écart', v: '−20', ink: '#f0a08b' }];
+    return {
+      pods: pods, coins: coins, hand: hand, rows: rows, stakes: stakes,
+      centerLine: reveal ? 'Total misé : ' + total + ' pour 7 plis' : 'Mises secrètes · ' + sealedCount + ' joueurs sur 4 ont misé',
+      sumCls: reveal ? 'pop' : '', showSumHint: reveal, sumHint: sumHint, sumInk: sumInk,
+      trayTitle: ph === 'choose' ? 'Combien de plis allez-vous remporter ?' : reveal ? 'Les mises sont révélées' : 'Mise scellée : ' + me,
+      traySub: ph === 'choose' ? 'Les autres ne verront votre mise qu’une fois tout le monde décidé' : reveal ? 'Maëlle entame le premier pli' : 'En attente de Corentin…',
+      showCoins: !reveal, showReplay: reveal, replay: () => this.replay()
+    };
+  }
+}
+</script>
+</body>
+</html>

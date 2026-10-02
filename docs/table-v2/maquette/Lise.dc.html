@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Table de jeu — pouvoir de Lise Fil-de-Soie</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible{outline:2px solid #ead08a;outline-offset:3px}
+@keyframes glow{0%,100%{box-shadow:0 0 0 2px #ead08a,0 0 14px rgba(234,208,138,.3)}50%{box-shadow:0 0 0 2px #ead08a,0 0 30px rgba(234,208,138,.7)}}
+.fan{animation:glow 1.6s ease-in-out infinite}
+.fan.done{animation:none;box-shadow:0 0 0 1px rgba(234,208,138,.25)}
+.bk{transition:transform .16s ease,box-shadow .16s,opacity .2s}
+.bk.ok{cursor:pointer}
+.bk.ok:hover,.bk.ok:focus-visible{transform:translateY(-12px);box-shadow:0 0 0 2px #ead08a,0 10px 16px rgba(0,0,0,.6);z-index:3}
+.bk.off{opacity:.35}
+@keyframes chosen{0%{transform:translateY(0) scale(1)}40%{transform:translateY(-22px) scale(1.18)}100%{transform:translateY(-16px) scale(1.12)}}
+.bk.pick{animation:chosen .5s ease-out forwards;box-shadow:0 0 0 3px #ead08a,0 0 26px rgba(234,208,138,.85);z-index:4}
+@keyframes pop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%);opacity:1}}
+.tag{animation:pop .3s .25s ease-out both}
+.hb{display:inline-flex;align-items:center;height:40px;padding:0 13px;border-radius:8px;border:0;background:#2b2117;color:#f2e7cd;font-weight:800;font-size:14px;cursor:pointer}
+.hb:hover{background:#4a3a28}
+.rp{border:0;color:#2b2117;font-weight:800;font-size:14px;padding:9px 14px;border-radius:8px;background:#c9a14a;cursor:pointer}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; background: radial-gradient(ellipse at 38% 40%, #2a1f17 0%, #120e0b 70%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+
+<header style="position: absolute; left: 0; top: 0; width: 1440px; height: 56px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 20px; border-bottom: 1px solid rgba(234,208,138,.16); background: rgba(18,14,11,.85);">
+<svg viewBox="0 0 40 40" style="width: 30px; height: 30px; flex: none;" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="none" stroke="#c9a14a" stroke-width="1.5"></circle><path d="M20 3l3.2 13.8L37 20l-13.8 3.2L20 37l-3.2-13.8L3 20l13.8-3.2z" fill="#c9a14a"></path><circle cx="20" cy="20" r="2.4" fill="#ead08a"></circle></svg>
+<div style="display: flex; align-items: baseline; gap: 10px;"><span style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">Manche 7</span><span style="font-size: 14px; color: #a8987f;">sur 10 · 7 cartes · fin du pli 2</span></div>
+</header>
+
+<div style="position: absolute; left: 24px; top: 72px; width: 1040px; height: 520px; border-radius: 50%; background: linear-gradient(180deg, #8a5833, #5e381d 55%, #4a2b16); box-shadow: 0 26px 50px rgba(0,0,0,.7), 0 6px 0 #2a170b, inset 0 2px 0 rgba(255,220,170,.18);"></div>
+<div style="position: absolute; left: 38px; top: 86px; width: 1012px; height: 492px; box-sizing: border-box; border-radius: 50%; border: 2px solid #b38a3c;"></div>
+<div style="position: absolute; left: 50px; top: 98px; width: 988px; height: 468px; border-radius: 50%; overflow: hidden; background: radial-gradient(ellipse at 50% 46%, #2a6066 0%, #1f4c50 42%, #102c31 100%); box-shadow: inset 0 0 50px rgba(0,0,0,.6);"></div>
+
+<div style="position: absolute; left: 394px; top: 276px; width: 300px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; z-index: 2;">
+<div style="width: 64px; height: 64px; border-radius: 50%; border: 3px double #c9a24a; background: #5c2c4a; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+<svg viewBox="0 0 100 100" style="width: 100%; height: 100%;" aria-hidden="true"><path d="M14 100c3-26 18-36 36-36s33 10 36 36z" fill="#15110E"></path><ellipse cx="50" cy="48" rx="14" ry="17" fill="#15110E"></ellipse><path d="M24 40c8-16 44-16 52 0-9 3-43 3-52 0z" fill="#15110E"></path><path d="M25 40c11 3 39 3 50 0" stroke="#C9A24A" stroke-width="2.5" fill="none"></path></svg>
+</div>
+<div style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">Pouvoir de Lise Fil-de-Soie</div>
+<div style="font-size: 14px; color: #d9cdb6; line-height: 1.4;">{{centerText}}</div>
+</div>
+
+<sc-for list="{{pods}}" as="p" hint-placeholder-count="4">
+<div style="position: absolute; left: {{p.x}}px; top: {{p.y}}px; width: 236px; height: 78px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 10px; border-radius: 40px 14px 14px 40px; background: linear-gradient(180deg, #2c221a, #1a130e); border: 1px solid rgba(234,208,138,.3); box-shadow: 0 8px 18px rgba(0,0,0,.55); z-index: 5;">
+<div style="width: 56px; height: 56px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'IM Fell English SC', serif; font-size: 24px; color: #1b140e; background: {{p.color}}; box-shadow: 0 0 0 2px #1b140e, 0 0 0 4px {{p.color}};">{{p.init}}</div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+<span style="font-weight: 800; font-size: 16px; color: #f2e7cd;">{{p.name}}</span>
+<span style="font-size: 13px; color: #a8987f;">{{p.score}} pts · {{p.cards}} cartes</span>
+</div>
+<div style="flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 10px; border-radius: 10px; background: {{p.gBg}}; border: 1px solid {{p.gBd}};">
+<span style="font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: {{p.gInk}};">plis / mise</span>
+<span style="font-weight: 800; font-size: 22px; line-height: 1; color: {{p.gInk}};">{{p.won}} / {{p.bid}}</span>
+</div>
+</div>
+</sc-for>
+
+<sc-for list="{{fans}}" as="f" hint-placeholder-count="4">
+<div class="{{f.cls}}" role="group" aria-label="{{f.label}}" style="position: absolute; left: {{f.x}}px; top: {{f.y}}px; display: flex; align-items: flex-end; padding: 10px 12px 8px; border-radius: 12px; background: rgba(10,8,6,.78); z-index: 6;">
+<sc-for list="{{f.cards}}" as="c" hint-placeholder-count="5">
+<button class="{{c.cls}}" onClick="{{c.pick}}" aria-label="{{c.label}}" style="position: relative; width: 42px; height: 59px; margin: 0 0 0 {{c.ml}}px; padding: 0; border: 0; border-radius: 5px; background: #12182a; box-shadow: 0 2px 5px rgba(0,0,0,.55);">
+<span style="position: absolute; inset: 3px; border-radius: 3px; border: 1px solid rgba(201,162,74,.8); display: flex; align-items: center; justify-content: center;">
+<svg viewBox="0 0 40 40" style="width: 24px; height: 24px;" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="none" stroke="#C9A24A" stroke-width="1.2"></circle><path d="M20 4l3 13 13 3-13 3-3 13-3-13-13-3 13-3z" fill="#C9A24A"></path><circle cx="20" cy="20" r="3" fill="#12182a" stroke="#C9A24A"></circle></svg>
+</span>
+<sc-if value="{{c.chosen}}" hint-placeholder-val="{{false}}">
+<span class="tag" style="position: absolute; left: 50%; top: -30px; transform: translateX(-50%); white-space: nowrap; padding: 3px 9px; border-radius: 999px; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;">Imposée</span>
+</sc-if>
+</button>
+</sc-for>
+<span style="position: absolute; left: 12px; bottom: -22px; font-size: 12px; font-weight: 700; color: #ead08a; white-space: nowrap;">{{f.caption}}</span>
+</div>
+</sc-for>
+
+<div style="position: absolute; left: 134px; top: 608px; width: 820px; min-height: 58px; box-sizing: border-box; padding: 8px 12px 8px 20px; display: flex; align-items: center; gap: 14px; background: linear-gradient(180deg, #f6ecd4, #eadbb7); color: #2b2117; border-top: 2px solid #c9a96a; border-bottom: 2px solid #c9a96a; border-radius: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.45); z-index: 7;">
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
+<div style="font-family: 'IM Fell English SC', serif; font-size: 20px; line-height: 1.1;">{{promptTitle}}</div>
+<div style="font-size: 13.5px; font-weight: 700; color: #5d4c37;">{{promptSub}}</div>
+</div>
+<sc-if value="{{choosing}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; align-items: center; gap: 6px;">
+<span style="font-size: 12px; font-weight: 800; color: #8a7556; letter-spacing: .06em; text-transform: uppercase;">Au hasard</span>
+<sc-for list="{{randoms}}" as="r" hint-placeholder-count="4"><button class="hb" onClick="{{r.pick}}">{{r.label}}</button></sc-for>
+</div>
+</sc-if>
+<sc-if value="{{done}}" hint-placeholder-val="{{false}}">
+<button class="rp" onClick="{{replay}}">Rejouer la démo</button>
+</sc-if>
+</div>
+
+<div style="position: absolute; left: 24px; top: 684px; width: 1040px; height: 204px; border-radius: 16px; background: linear-gradient(180deg, #5a3720, #3a2214); box-shadow: inset 0 2px 0 rgba(255,220,170,.15), inset 0 -4px 10px rgba(0,0,0,.4); border: 1px solid #2a170b;"></div>
+<div style="position: absolute; left: 44px; top: 698px; font-family: 'IM Fell English SC', serif; font-size: 17px; color: #f2e7cd;">Votre main</div>
+<div style="position: absolute; left: 44px; top: 724px; width: 170px; font-size: 13px; color: #d9c7a4; line-height: 1.4;">Masquée pendant le choix : on tire à l'aveugle, même dans sa propre main.</div>
+<sc-for list="{{hand}}" as="c" hint-placeholder-count="5">
+<div style="position: absolute; left: {{c.x}}px; top: {{c.y}}px; transform: rotate({{c.r}}deg); transform-origin: 50% 130%; z-index: {{c.z}}; filter: grayscale(.85) brightness(.4);">
+<dc-import name="Card" card="{{c.card}}" w="{{116}}" hint-size="116px,162px"></dc-import>
+</div>
+</sc-for>
+
+<aside style="position: absolute; left: 1088px; top: 72px; width: 328px;">
+<section style="padding: 14px 16px; border-radius: 12px; background: linear-gradient(180deg, #2a2019, #1f1813); border: 1px solid rgba(234,208,138,.18); display: flex; flex-direction: column; gap: 6px;">
+<h2 style="margin: 0 0 2px; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 18px; color: #ead08a;">Journal</h2>
+<sc-for list="{{log}}" as="l" hint-placeholder-count="5">
+<sc-if value="{{l.plain}}" hint-placeholder-val="{{true}}">
+<div style="font-size: 13.5px; line-height: 1.4; color: #d9cdb6; padding-left: 9px; border-left: 2px solid {{l.bar}};">{{l.text}}</div>
+</sc-if>
+<sc-if value="{{l.bonus}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; gap: 10px; padding: 7px 10px 7px 8px; border-radius: 8px; background: {{l.bg}}; border-left: 3px solid {{l.edge}};">
+<span style="flex: none; min-width: 38px; text-align: center; padding: 3px 7px; border-radius: 999px; background: {{l.edge}}; color: #1f160c; font-weight: 800; font-size: 14px;">{{l.pts}}</span>
+<div style="display: flex; flex-direction: column; min-width: 0; line-height: 1.25;">
+<span style="font-size: 13.5px; font-weight: 800; color: #f2e7cd;">{{l.who}} · {{l.why}}</span>
+<span style="font-size: 11.5px; color: #a8987f;">compte si sa mise est tenue</span>
+</div>
+</div>
+</sc-if>
+</sc-for>
+</section>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  state = { pick: null };
+  pick(seat, pos) { if (this.state.pick) return; this.setState({ pick: { seat: seat, pos: pos } }); }
+  renderVals() {
+    var pk = this.state.pick;
+    var P = {
+      top: { name: 'Ysolde', init: 'Y', color: '#5c9db6', score: 40, bid: 2, won: 0, cards: 5, x: 426, y: 61, fx: 472, fy: 150 },
+      left: { name: 'Maëlle', init: 'M', color: '#7ab874', score: 65, bid: 1, won: 1, cards: 5, x: 32, y: 293, fx: 78, fy: 386 },
+      right: { name: 'Corentin', init: 'C', color: '#c8644b', score: 85, bid: 0, won: 0, cards: 5, x: 820, y: 293, fx: 866, fy: 386 },
+      you: { name: 'Vous', init: 'V', color: '#d9b25a', score: 110, bid: 2, won: 1, cards: 5, x: 426, y: 521, fx: 472, fy: 432 }
+    };
+    var g = p => p.won > p.bid ? { gBg: 'rgba(232,131,107,.14)', gBd: 'rgba(232,131,107,.5)', gInk: '#f0a08b' } : p.won === p.bid ? { gBg: 'rgba(134,201,138,.14)', gBd: 'rgba(134,201,138,.5)', gInk: '#9bd69f' } : { gBg: 'rgba(234,208,138,.1)', gBd: 'rgba(234,208,138,.35)', gInk: '#ead08a' };
+    var order = ['top', 'left', 'right', 'you'];
+    var pods = order.map(k => Object.assign({ name: P[k].name, init: P[k].init, color: P[k].color, score: P[k].score, bid: P[k].bid, won: P[k].won, cards: P[k].cards, x: P[k].x, y: P[k].y }, g(P[k])));
+    var fans = order.map(k => {
+      var p = P[k], cards = [];
+      for (var j = 0; j < p.cards; j++) {
+        ((j) => {
+          var chosen = !!pk && pk.seat === k && pk.pos === j;
+          cards.push({ cls: 'bk ' + (!pk ? 'ok' : chosen ? 'pick' : 'off'), ml: j === 0 ? 0 : -12, chosen: chosen,
+            label: 'Carte ' + (j + 1) + (k === 'you' ? ' de votre main' : ' de ' + p.name), pick: () => this.pick(k, j) });
+        })(j);
+      }
+      return { cls: 'fan' + (pk ? ' done' : ''), x: p.fx, y: p.fy, cards: cards, label: k === 'you' ? 'Votre main' : 'Main de ' + p.name,
+        caption: pk && pk.seat === k ? (k === 'you' ? 'Vous devrez la jouer' : p.name + ' devra la jouer') : '' };
+    });
+    var who = pk ? (pk.seat === 'you' ? 'vous' : P[pk.seat].name) : '';
+    var HAND = [{ kind: 'num', suit: 'yellow', rank: 2 }, { kind: 'num', suit: 'black', rank: 5 }, { kind: 'num', suit: 'yellow', rank: 13 }, { kind: 'num', suit: 'green', rank: 10 }, { kind: 'mermaid', name: 'Ondine' }];
+    var hand = HAND.map((c, i) => { var d = i - 2; return { card: c, x: Math.round(544 - (4 * 100 + 116) / 2 + i * 100), y: Math.round(712 + d * d * 3), r: (d * 3).toFixed(1), z: i + 1 }; });
+    var log = [
+      { text: 'Vous jouez Lise Fil-de-Soie', bar: 'rgba(201,161,74,.25)' },
+      { text: 'Vous remportez le pli 2 avec Lise Fil-de-Soie', bar: '#ead08a' },
+      { bonus: true, pts: '+20', who: 'Vous', why: 'Sirène capturée par un pirate', bg: 'rgba(201,161,74,.14)', edge: '#ead08a' },
+      { bonus: true, pts: '−5', who: 'Vous', why: '7 Doublon capturé', bg: 'rgba(232,131,107,.12)', edge: '#f0a08b' },
+      { text: 'Pouvoir de Lise Fil-de-Soie : choisissez une carte face cachée', bar: '#ead08a' }
+    ];
+    if (pk) log.push({ text: 'Vous tirez une carte dans ' + (pk.seat === 'you' ? 'votre main' : 'la main de ' + P[pk.seat].name) + ' : elle devra être jouée au pli 3', bar: '#ead08a' });
+    log = log.map(l => Object.assign({ plain: !l.bonus, bonus: !!l.bonus }, l));
+    return {
+      pods: pods, fans: fans, hand: hand, log: log, choosing: !pk, done: !!pk,
+      centerText: pk ? 'Carte imposée. Personne ne sait laquelle, pas même vous.' : 'Choisissez une carte face cachée dans la main d’un joueur, la vôtre comprise.',
+      promptTitle: pk ? (pk.seat === 'you' ? 'Vous devrez jouer cette carte au prochain pli' : who + ' devra jouer cette carte au prochain pli') : 'Cliquez une carte face cachée',
+      promptSub: pk ? 'Elle sera jouée même si elle ne suit pas la couleur demandée' : 'Les cartes sont mélangées : leur place ne dit rien de leur valeur',
+      randoms: order.map(k => ({ label: k === 'you' ? 'Vous' : P[k].name, pick: () => this.pick(k, Math.floor(Math.random() * P[k].cards)) })),
+      replay: () => this.setState({ pick: null })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Table de jeu — téléphone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&amp;family=IM+Fell+English+SC&amp;family=Alegreya+Sans:wght@400;500;700;800&amp;display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+@keyframes ring{from{stroke-dashoffset:0}to{stroke-dashoffset:113}}
+.ring{stroke-dasharray:113;animation:ring 30s linear forwards}
+@keyframes timer{from{width:100%}to{width:0%}}
+.tbar{animation:timer 30s linear forwards}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #2a1f17 0%, #120e0b 75%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+
+<header style="position: absolute; left: 0; top: 0; width: 390px; height: 52px; box-sizing: border-box; padding: 0 12px 0 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(234,208,138,.16);">
+<span style="font-family: 'IM Fell English SC', serif; font-size: 19px; color: #ead08a;">Manche 7</span>
+<span style="font-size: 13px; color: #a8987f;">· pli 2/7</span>
+<span style="flex-grow: 1;"></span>
+<button aria-label="Scores" style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid rgba(234,208,138,.25); background: transparent; color: #efe6d2; display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 20 20" style="width: 18px; height: 18px;" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 3h12v14H4zM7 7h6M7 10h6M7 13h4"></path></svg></button>
+<button aria-label="Menu" style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid rgba(234,208,138,.25); background: transparent; color: #efe6d2; display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 20 20" style="width: 18px; height: 18px;" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h12"></path></svg></button>
+</header>
+
+<div style="position: absolute; left: 12px; top: 62px; width: 366px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+<sc-for list="{{opps}}" as="o" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; border-radius: 12px; background: linear-gradient(180deg, #2c221a, #1a130e); border: 1px solid {{o.bd}};">
+<div style="display: flex; align-items: center; gap: 7px;">
+<span style="width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'IM Fell English SC', serif; font-size: 15px; color: #1b140e; background: {{o.color}};">{{o.init}}</span>
+<span style="font-weight: 800; font-size: 14px; color: #f2e7cd;">{{o.name}}</span>
+</div>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a8987f;">
+<span style="padding: 1px 7px; border-radius: 6px; font-weight: 800; font-size: 14px; background: {{o.gBg}}; color: {{o.gInk}}; font-variant-numeric: tabular-nums;">{{o.won}}/{{o.bid}}</span>
+<span>{{o.score}} pts</span>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 12px; top: 150px; width: 366px; height: 330px; border-radius: 22px; background: linear-gradient(180deg, #8a5833, #4a2b16); padding: 8px; box-sizing: border-box;">
+<div style="width: 100%; height: 100%; border-radius: 16px; background: radial-gradient(ellipse at 50% 46%, #2a6066 0%, #1f4c50 42%, #102c31 100%); box-shadow: inset 0 0 30px rgba(0,0,0,.55);"></div>
+</div>
+<div style="position: absolute; left: 0; top: 164px; width: 390px; display: flex; justify-content: center;">
+<span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 5px; border-radius: 999px; background: rgba(10,20,22,.85); border: 1px solid rgba(234,208,138,.35); font-size: 13px; font-weight: 700; color: #f2e7cd;"><span style="width: 15px; height: 15px; border-radius: 50%; background: #b47d0e;"></span>Doublon demandé</span>
+</div>
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="3">
+<div style="position: absolute; left: {{s.x}}px; top: {{s.y}}px; transform: rotate({{s.r}}deg);">
+<dc-import name="Card" card="{{s.card}}" w="{{74}}" hint-size="74px,104px"></dc-import>
+<div style="position: absolute; left: 50%; bottom: -20px; transform: translateX(-50%); font-size: 11px; font-weight: 800; color: {{s.ink}}; white-space: nowrap;">{{s.who}}</div>
+</div>
+</sc-for>
+<div style="position: absolute; left: 158px; top: 352px; width: 74px; height: 104px; box-sizing: border-box; border-radius: 8px; border: 2px dashed rgba(234,208,138,.5); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: rgba(234,208,138,.8); text-align: center;">Votre carte</div>
+
+<div style="position: absolute; left: 12px; top: 492px; width: 366px; box-sizing: border-box; padding: 10px 12px; border-radius: 4px; display: flex; align-items: center; gap: 12px; background: linear-gradient(180deg, #f6ecd4, #eadbb7); color: #2b2117; border-top: 2px solid #c9a96a; border-bottom: 2px solid #c9a96a;">
+<div style="position: relative; width: 40px; height: 40px; flex: none;">
+<svg viewBox="0 0 40 40" style="position: absolute; inset: 0; width: 40px; height: 40px;" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="none" stroke="rgba(43,33,23,.15)" stroke-width="3"></circle><circle class="ring" cx="20" cy="20" r="18" fill="none" stroke="#8a5e0e" stroke-width="3" stroke-linecap="round" transform="rotate(-90 20 20)"></circle></svg>
+<span style="position: absolute; inset: 5px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'IM Fell English SC', serif; font-size: 15px; color: #1b140e; background: #d9b25a;">V</span>
+</div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;">
+<span style="font-family: 'IM Fell English SC', serif; font-size: 18px; line-height: 1.1;">À vous de jouer</span>
+<span style="font-size: 12.5px; font-weight: 700; color: #2b6a33;">13 Doublon : vous prenez le pli</span>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; padding: 3px 8px; border-radius: 8px; background: rgba(138,94,14,.14);">
+<span style="font-size: 9px; font-weight: 800; letter-spacing: .08em; color: #8a5e0e;">PLIS/MISE</span>
+<span style="font-weight: 800; font-size: 18px; color: #8a5e0e;">0/2</span>
+</div>
+</div>
+
+<div style="position: absolute; left: 0; top: 584px; width: 390px; height: 260px; background: linear-gradient(180deg, #5a3720, #3a2214); border-top: 1px solid #2a170b; box-shadow: inset 0 2px 0 rgba(255,220,170,.15);"></div>
+<sc-for list="{{hand}}" as="c" hint-placeholder-count="6">
+<div style="position: absolute; left: {{c.x}}px; top: {{c.y}}px; transform: rotate({{c.r}}deg); transform-origin: 50% 130%; z-index: {{c.z}}; filter: {{c.filter}};">
+<dc-import name="Card" card="{{c.card}}" w="{{92}}" hint-size="92px,129px"></dc-import>
+</div>
+</sc-for>
+<div style="position: absolute; left: 0; top: 800px; width: 390px; display: flex; justify-content: center; gap: 8px;">
+<button style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(234,208,138,.3); background: rgba(0,0,0,.3); color: #efe6d2; font-weight: 700; font-size: 13px;">Bien joué !</button>
+<button style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(234,208,138,.3); background: rgba(0,0,0,.3); color: #efe6d2; font-weight: 700; font-size: 13px;">Aïe !</button>
+<button style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(234,208,138,.3); background: rgba(0,0,0,.3); color: #efe6d2; font-weight: 700; font-size: 13px;">Bluff ?</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var g = (w, b) => w > b ? { gBg: 'rgba(232,131,107,.18)', gInk: '#f0a08b' } : w === b ? { gBg: 'rgba(134,201,138,.18)', gInk: '#9bd69f' } : { gBg: 'rgba(234,208,138,.14)', gInk: '#ead08a' };
+    var opps = [
+      Object.assign({ name: 'Maëlle', init: 'M', color: '#7ab874', won: 1, bid: 1, score: 65, bd: 'rgba(234,208,138,.25)' }, g(1, 1)),
+      Object.assign({ name: 'Ysolde', init: 'Y', color: '#5c9db6', won: 0, bid: 2, score: 40, bd: 'rgba(234,208,138,.25)' }, g(0, 2)),
+      Object.assign({ name: 'Corentin', init: 'C', color: '#c8644b', won: 0, bid: 0, score: 85, bd: 'rgba(234,208,138,.25)' }, g(0, 0))
+    ];
+    var slots = [
+      { card: { kind: 'num', suit: 'yellow', rank: 4 }, x: 62, y: 262, r: -7, who: 'Maëlle', ink: '#d9cdb6' },
+      { card: { kind: 'num', suit: 'yellow', rank: 11 }, x: 158, y: 200, r: 2, who: 'Ysolde · en tête', ink: '#ead08a' },
+      { card: { kind: 'num', suit: 'yellow', rank: 7 }, x: 254, y: 262, r: 7, who: 'Corentin', ink: '#d9cdb6' }
+    ];
+    var H = [
+      [{ kind: 'pirate', name: 'Anne Boussole' }, 1], [{ kind: 'mermaid', name: 'Ondine' }, 1], [{ kind: 'num', suit: 'black', rank: 5 }, 0],
+      [{ kind: 'num', suit: 'yellow', rank: 2 }, 1], [{ kind: 'num', suit: 'yellow', rank: 13 }, 1], [{ kind: 'num', suit: 'green', rank: 10 }, 0]
+    ];
+    var hand = H.map((h, i) => { var d = i - 2.5; return { card: h[0], x: Math.round(195 - (5 * 54 + 92) / 2 + i * 54), y: Math.round(i === 4 ? 604 : 628 + d * d * 2.5), r: (d * 4).toFixed(1), z: i + 1, filter: h[1] ? 'none' : 'grayscale(.8) brightness(.5)' }; });
+    return { opps: opps, slots: slots, hand: hand };
+  }
+}
+</script>
+</body>
+</html>

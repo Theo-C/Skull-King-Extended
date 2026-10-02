@@ -783,3 +783,12 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .lbonus b{font-size:13.5px;font-weight:800;color:#f2e7cd}
 .lbonus small{font-size:11.5px;color:var(--muted)}
 .fulllog .lbonus b{color:var(--ink)}.fulllog .lbonus small{color:var(--ink2)}
+
+/* Main proportionnelle au bloc (prompt 1) : le bloc a sa hauteur, les cartes la remplissent */
+.rail{position:relative;height:clamp(150px,24dvh,240px);padding:0 16px;display:flex;flex-direction:column}
+.handhead{position:absolute;top:8px;left:14px;right:14px;z-index:35;pointer-events:none;align-items:flex-start}
+#hand{flex:1;min-height:0;padding:0;overflow:visible;display:flex;justify-content:center;align-items:center}
+#hand .card + .card{margin-left:var(--hm,-20px)}
+#hand .card.playable:hover,#hand .card.playable:focus-visible,#hand .card.sel{transform:translateY(calc(var(--y,0px) - var(--lift,24px))) rotate(var(--r,0deg))}
+.zoom .card{--s:1.1905}
+@media (max-width:639px){.rail{height:auto;flex:1}.handhead{display:none}.zoom .card{--s:1.1905}}

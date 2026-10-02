@@ -90,7 +90,7 @@ export class TableView {
   private flyFrom: { id: number; rect: DOMRect } | null = null; private sendingId: number | null = null;
   private prevScores: (number | undefined)[] = [];
   private wasMyTurn = false; private baseTitle = document.title; private resizeRaf = 0;
-  private k = 1; private evk: string | null = null;
+  private k = 1; private evk: string | null = null; private handObs: ResizeObserver | null = null;
   private roundGate: Promise<void> | null = null; private roundOpen: { round: number; ready: Set<number>; update: () => void; close: () => void } | null = null;
   private earlyReady: Record<number, number[]> = {};
   private prevWon: (number | undefined)[] = [];
@@ -165,11 +165,12 @@ export class TableView {
     $('#hand', root).addEventListener('mouseleave', () => { if (!TOUCH()) this.showHint(null); });
     this.ticker = setInterval(() => this.tick(), 1000);
     $('#hand', root).addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { const el = (ev.target as HTMLElement).closest('.card') as HTMLElement | null; if (el) { ev.preventDefault(); this.handClick(Number(el.dataset.id)); } } });
-    addEventListener('resize', this.onResize); document.addEventListener('visibilitychange', this.onVis);
+    addEventListener('resize', this.onResize);
+    this.handObs = new ResizeObserver(() => this.onResize()); this.handObs.observe($('#hand', root)); document.addEventListener('visibilitychange', this.onVis);
   }
   private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
   private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
-  destroy() { clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
+  destroy() { this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {
@@ -638,17 +639,15 @@ export class TableView {
     el.querySelector('.hidden-hand')?.remove();
 
     const before = new Map<number, number>(); for (const [id, c] of this.handEls) before.set(id, c.getBoundingClientRect().left);
-    // taille : la plus grande qui tient dans la largeur, en resserrant l'éventail si besoin
-    const len = hand.length, mob = innerWidth < 640, Wd = Math.max(220, el.clientWidth - 20);
-    const sMax = Math.min(mob ? 92 / 252 : 120 / 252, (innerHeight * (mob ? .19 : .2)) / 352), sMin = mob ? .27 : .34;
-    let v = .78, s = Math.min(sMax, Wd / (252 * (1 + (len - 1) * v)));
-    if (s < sMin) { s = sMin; if (len > 1) v = Math.max(.28, (Wd / (252 * s) - 1) / (len - 1)); }
-    el.style.setProperty('--hs', s.toFixed(3)); el.style.setProperty('--hv', v.toFixed(3));
+    // taille : les cartes remplissent le bloc en hauteur ; l'écart se resserre avec le nombre de cartes
+    const len = hand.length, { cardW, cardH, step } = handLayout(el.clientWidth, el.clientHeight, len);
+    el.style.setProperty('--hs', (cardW / 252).toFixed(4)); el.style.setProperty('--hm', (step - cardW).toFixed(1) + 'px');
+    el.style.setProperty('--lift', (cardH * .12).toFixed(1) + 'px');
 
     const ids = new Set(hand.map(c => c.id));
     for (const [id, c] of this.handEls) if (!ids.has(id)) { c.remove(); this.handEls.delete(id); }
     const playing = this.myTurnToPlay() && !this.choice; const legal = new Set(pv.legal);
-    const m = (len - 1) / 2, step = Math.min(3, 24 / Math.max(len, 1)); const added: HTMLElement[] = [];
+    const m = (len - 1) / 2; const added: HTMLElement[] = [];
     let prev: HTMLElement | null = null;
     hand.forEach((c, j) => {
       let ce = this.handEls.get(c.id);
@@ -670,7 +669,8 @@ export class TableView {
       if (act || playing) { ce.tabIndex = 0; ce.setAttribute('role', 'button'); } else { ce.removeAttribute('tabindex'); ce.removeAttribute('role'); }
       if (playing && !legal.has(c.id) && !pick) ce.setAttribute('aria-disabled', 'true'); else ce.removeAttribute('aria-disabled');
       ce.setAttribute('aria-label', (playing && !pick ? (legal.has(c.id) ? 'Jouer ' : 'Bloquée : ') : '') + cname(c));
-      const d = j - m; ce.style.setProperty('--r', (d * step).toFixed(2) + 'deg'); ce.style.setProperty('--y', (d * d * .6).toFixed(1) + 'px'); ce.style.zIndex = String(j + 1);
+      // éventail plat : 1° par carte, 1 px × d² de décalage vertical
+      const d = j - m; ce.style.setProperty('--r', d.toFixed(2) + 'deg'); ce.style.setProperty('--y', (d * d).toFixed(1) + 'px'); ce.style.zIndex = String(j + 1);
     });
     if (!this.animMs) return;
     // nouvelle donne : les cartes partent du centre de la table, une à une
@@ -953,6 +953,25 @@ function coupDeLaManche(ps: PublicView['players']): string | null {
     for (const it of x.items) if (it[0] >= 20) consider(it[0] + .5, `${p.name} : ${it[1]} (+${it[0]})`);
   }
   return best ? (best as { text: string }).text : null;
+}
+/**
+ * Cartes de la main proportionnelles au bloc (docs/table-v2/PROMPT-claude-code.md, prompt 1) :
+ * hauteur = hauteur disponible, largeur = hauteur / 1,4, écart = min(0,96 × largeur, place restante / (n − 1)) ;
+ * si l'écart passe sous 0,38 × largeur, on réduit les cartes. La partie visible d'une carte reste d'au moins 44 px.
+ */
+function handLayout(Wbox: number, Hbox: number, n: number) {
+  // marges : 8 px en haut et en bas, plus la descente des cartes du bord de l'éventail (d² px) ; un peu de largeur pour la rotation
+  const W = Math.max(60, Wbox - 10), H0 = Hbox - 22 - ((n - 1) / 2) ** 2;
+  // la rotation des cartes du bord ((n − 1) / 2 degrés) agrandit leur encombrement vertical
+  const H = Math.max(40, H0 / (1 + Math.sin((n - 1) / 2 * Math.PI / 180) / 1.4));
+  let cardH = H, cardW = cardH / 1.4;
+  if (cardW > W) { cardW = W; cardH = cardW * 1.4; }
+  let step = n > 1 ? Math.min(cardW * .96, (W - cardW) / (n - 1)) : cardW;
+  // trop de cartes : on les réduit jusqu'à ce que l'écart vaille 0,38 × largeur
+  if (n > 1 && step < cardW * .38) { cardW = W / (1 + .38 * (n - 1)); cardH = cardW * 1.4; step = cardW * .38; }
+  // la partie visible (cliquable) d'une carte fait au moins 44 px, quand la largeur le permet
+  if (n > 1 && step < 44 && 44 * (n - 1) + 60 <= W) { step = 44; cardW = Math.min(cardW, W - 44 * (n - 1)); cardH = cardW * 1.4; }
+  return { cardW, cardH, step };
 }
 function stakeLines(b: number, cards: number, rascal: boolean): [string, number][] {
   const tenue = `Mise ${b} tenue`;

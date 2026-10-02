@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Détail d'une partie</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible,a:focus-visible{outline:2px solid #ead08a;outline-offset:2px}
+.panel{min-width:0;display:flex;flex-direction:column;gap:14px;padding:20px 22px;border-radius:14px;background:linear-gradient(180deg,#2a2019,#1f1813);border:1px solid rgba(234,208,138,.18)}
+.h2{margin:0;font-family:'IM Fell English SC',serif;font-weight:400;font-size:24px;color:#f2e7cd}
+.lbl{font-size:13px;color:#a8987f}
+.gold{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 20px;border-radius:10px;border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;font-weight:800;font-size:16px;cursor:pointer;text-decoration:none;box-shadow:inset 0 0 0 1px rgba(90,60,10,.5),0 2px 0 #6b4c14}
+.ghost{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 18px;border-radius:10px;border:1px solid rgba(234,208,138,.45);background:transparent;color:#f2e7cd;font-weight:800;font-size:15px;cursor:pointer;text-decoration:none}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:8px 10px;text-align:center;border-bottom:1px solid rgba(234,208,138,.1)}
+th{font-weight:700;color:#a8987f;font-size:13px}
+td.r{color:#a8987f;font-weight:700}
+.ok{color:#9bd69f}.ko{color:#f0a08b}
+.lg{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border-radius:999px;border:1px solid rgba(234,208,138,.25);background:transparent;color:#efe6d2;font-weight:700;font-size:14px;cursor:pointer}
+.lg.off{opacity:.4}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 1640px; background: radial-gradient(ellipse at 30% 0%, #2a1f17 0%, #120e0b 60%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+<dc-import name="AppBar" active="historique" hint-size="100%,64px"></dc-import>
+<main style="max-width: 1200px; margin: 0 auto; box-sizing: border-box; padding: 24px 32px 56px; display: flex; flex-direction: column; gap: 22px;">
+<a href="Historique.dc.html" style="align-self: flex-start; color: #ead08a; font-weight: 700; text-decoration: none;">‹ Journal de bord</a>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 14px;">
+<div><h1 style="margin: 0; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 40px; color: #ead08a;">Table de Maëlle</h1>
+<div style="font-size: 15px; color: #d9cdb6;">Jeudi 1er octobre · 21 h 40 · 4 joueurs · 10 manches · extension complète · 52 min</div></div>
+<div style="display: flex; gap: 10px;"><button class="ghost">Partager le résultat</button><a class="gold" href="Salon.dc.html">Revanche avec la même table</a></div>
+</div>
+
+<section style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 14px; padding: 26px 20px 0; border-radius: 18px; background: radial-gradient(ellipse at 50% 30%, #2a6066 0%, #1f4c50 45%, #102c31 100%); border: 1px solid rgba(234,208,138,.25); overflow: hidden;">
+<sc-for list="{{podium}}" as="p" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 170px; order: {{p.order}};">
+<dc-import name="Avatar" v="{{p.v}}" letter="{{p.l}}" color="{{p.c}}" size="{{p.sz}}" ring="{{p.ring}}" hint-size="72px,72px"></dc-import>
+<b style="font-size: 17px; color: #f2e7cd;">{{p.name}}</b>
+<span style="font-family: 'Pirata One', cursive; font-size: 30px; line-height: 1; color: #ead08a;">{{p.total}}</span>
+<div style="width: 100%; height: {{p.h}}px; border-radius: 10px 10px 0 0; background: {{p.bg}}; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 10px; box-sizing: border-box; box-shadow: inset 0 2px 0 rgba(255,255,255,.25);">
+<span style="font-family: 'Pirata One', cursive; font-size: 34px; line-height: 1; color: rgba(30,20,10,.75);">{{p.rank}}</span>
+<span style="font-size: 12.5px; font-weight: 800; color: rgba(30,20,10,.7);">{{p.made}} mises tenues</span>
+<span style="margin-top: 4px; padding: 2px 9px; border-radius: 999px; background: rgba(20,14,8,.55); color: {{p.eInk}}; font-size: 12.5px; font-weight: 800;">Élo {{p.eloAfter}} ({{p.eloD}})</span>
+</div>
+</div>
+</sc-for>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 24px; align-items: start;">
+<section class="panel" style="grid-column: span 2;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;"><h2 class="h2">Évolution des scores</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{legend}}" as="l" hint-placeholder-count="4"><button class="{{l.cls}}" onClick="{{l.flip}}" aria-pressed="{{l.on}}"><span style="width: 12px; height: 12px; border-radius: 50%; background: {{l.c}};"></span>{{l.name}}</button></sc-for></div></div>
+<svg viewBox="0 0 760 300" style="width: 100%; height: auto; display: block;" role="img" aria-label="Score cumulé de chaque joueur, manche par manche">
+<sc-for list="{{gridY}}" as="g" hint-placeholder-count="5"><line x1="48" x2="744" y1="{{g.y}}" y2="{{g.y}}" stroke="{{g.st}}" stroke-width="1"></line><text x="40" y="{{g.ty}}" text-anchor="end" font-size="12" fill="#a8987f" font-family="Alegreya Sans">{{g.v}}</text></sc-for>
+<sc-for list="{{gridX}}" as="g" hint-placeholder-count="10"><text x="{{g.x}}" y="292" text-anchor="middle" font-size="12" fill="#a8987f" font-family="Alegreya Sans">{{g.v}}</text></sc-for>
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="4"><path d="{{l.d}}" fill="none" stroke="{{l.c}}" stroke-width="{{l.w}}" stroke-linejoin="round" stroke-linecap="round" opacity="{{l.op}}"></path><circle cx="{{l.ex}}" cy="{{l.ey}}" r="5" fill="{{l.c}}" opacity="{{l.op}}"></circle></sc-for>
+</svg>
+<span class="lbl">Manche 8 : votre mise de 0 ratée vous fait passer de 1er à 3e. Le 0 tenu en manche 10 (+100) vous redonne la tête.</span>
+</section>
+
+<section class="panel">
+<h2 class="h2">XP gagnée</h2>
+<sc-for list="{{xp}}" as="x" hint-placeholder-count="4"><div style="display: flex; justify-content: space-between; gap: 10px; font-size: 15px;"><span>{{x.t}}</span><b style="color: #ead08a;">{{x.v}}</b></div></sc-for>
+<div style="display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid rgba(234,208,138,.2); font-size: 18px;"><b>Total</b><b style="font-family: 'Pirata One', cursive; font-size: 26px; color: #ead08a;">+255 XP</b></div>
+<div style="height: 10px; border-radius: 5px; background: rgba(0,0,0,.35); box-shadow: inset 0 0 0 1px rgba(234,208,138,.3); overflow: hidden; display: flex;"><div style="width: 70%; background: #b78c33;"></div><div style="width: 8%; background: #f6e3a8;"></div></div>
+<span class="lbl">Niveau 12 · 2 340 / 3 000 XP</span>
+</section>
+
+<section class="panel">
+<h2 class="h2">Temps forts</h2>
+<sc-for list="{{moments}}" as="m" hint-placeholder-count="4">
+<div style="display: flex; gap: 12px; align-items: flex-start;">
+<span style="flex: none; min-width: 44px; padding: 3px 0; border-radius: 8px; text-align: center; font-weight: 800; font-size: 13px; background: rgba(201,161,74,.14); color: #ead08a;">M{{m.r}}</span>
+<span style="display: flex; flex-direction: column; gap: 2px;"><b style="color: #f2e7cd;">{{m.t}}</b><span class="lbl">{{m.d}}</span></span>
+</div>
+</sc-for>
+</section>
+
+<section class="panel" style="grid-column: span 2;">
+<div style="display: flex; justify-content: space-between; align-items: baseline;"><h2 class="h2">Manche par manche</h2><span class="lbl">mise / plis · points (bonus compris)</span></div>
+<div style="overflow-x: auto;">
+<table>
+<thead><tr><th scope="col" style="text-align: left;">Manche</th><sc-for list="{{cols}}" as="c" hint-placeholder-count="4"><th scope="col"><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: {{c.c}};"></span>{{c.name}}</span></th></sc-for></tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="10"><tr><td class="r" style="text-align: left;">{{r.n}}</td><sc-for list="{{r.cells}}" as="c" hint-placeholder-count="4"><td><span style="color: #d9cdb6;">{{c.bw}}</span> · <b class="{{c.cls}}">{{c.pts}}</b></td></sc-for></tr></sc-for>
+<tr><td style="text-align: left; font-weight: 800; color: #f2e7cd;">Total</td><sc-for list="{{cols}}" as="c" hint-placeholder-count="4"><td style="font-family: 'Pirata One', cursive; font-size: 22px; color: #ead08a;">{{c.total}}</td></sc-for></tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1640}}'>
+class Component extends DCLogic {
+  state = { hide: {} };
+  renderVals() {
+    var PL = [
+      { k: 'T', name: 'Théo (vous)', v: 2, l: 'T', c: '#d9b25a', elo: [133, 143, '+10'], R: [[1,1],[0,0],[1,1],[2,1],[2,2,20],[1,1],[2,2],[0,1],[3,3,30],[0,0]] },
+      { k: 'C', name: 'Corentin', v: 3, l: 'C', c: '#c8644b', elo: [122, 127, '+5'], R: [[0,0],[1,1],[1,0],[1,1,10],[2,2],[0,0],[3,2],[2,2,40],[2,2],[3,2]] },
+      { k: 'M', name: 'Maëlle', v: 6, l: 'M', c: '#7ab874', elo: [172, 163, '−9'], R: [[1,1],[1,0],[0,0],[1,1],[1,2],[2,2,20],[0,0],[1,1],[2,1],[2,2]] },
+      { k: 'Y', name: 'Ysolde', v: 0, l: 'Y', c: '#5c9db6', elo: [99, 93, '−6'], R: [[0,1],[1,1],[2,1],[0,0],[1,1],[3,2],[1,1,30],[2,1],[0,0],[1,1]] }
+    ];
+    var pts = (r, b, w, x) => b === 0 ? (w === 0 ? 10 * r : -10 * r) : (w === b ? 20 * b + (x || 0) : -10 * Math.abs(w - b));
+    PL.forEach(p => { var s = 0; p.pts = p.R.map((t, i) => pts(i + 1, t[0], t[1], t[2])); p.cum = p.pts.map(v => (s += v)); p.total = s; p.made = p.R.filter(t => t[0] === t[1]).length; });
+    var hide = this.state.hide;
+    var all = [].concat.apply([0], PL.map(p => p.cum)), lo = Math.floor(Math.min.apply(null, all) / 50) * 50, hi = Math.ceil(Math.max.apply(null, all) / 50) * 50;
+    var X = i => 48 + (i * 696) / 10, Y = v => 270 - ((v - lo) * 254) / (hi - lo);
+    var gridY = []; for (var v = lo; v <= hi; v += 50) gridY.push({ v: v, y: Y(v).toFixed(1), ty: (Y(v) + 4).toFixed(1), st: v === 0 ? 'rgba(234,208,138,.45)' : 'rgba(234,208,138,.1)' });
+    var gridX = []; for (var i = 1; i <= 10; i++) gridX.push({ x: X(i).toFixed(1), v: i });
+    var lines = PL.map((p, j) => { var d = 'M' + X(0).toFixed(1) + ' ' + Y(0).toFixed(1) + p.cum.map((c, i) => ' L' + X(i + 1).toFixed(1) + ' ' + Y(c).toFixed(1)).join('');
+      return { d: d, c: p.c, w: j === 0 ? 4 : 2.5, op: hide[p.k] ? 0 : 1, ex: X(10).toFixed(1), ey: Y(p.total).toFixed(1) }; });
+    var ranked = PL.slice().sort((a, b) => b.total - a.total);
+    var H = [214, 170, 132, 104], ORD = [2, 1, 3, 4], MB = ['linear-gradient(180deg,#f6e3a8,#b78c33)', 'linear-gradient(180deg,#f1f1ec,#9da3a8)', 'linear-gradient(180deg,#f0c19b,#a8653a)', 'linear-gradient(180deg,#6b5a45,#3d3226)'];
+    var podium = ranked.map((p, i) => ({ name: p.name, v: p.v, l: p.l, c: p.c, total: p.total, made: p.made, eloAfter: p.elo[1], eloD: p.elo[2], eInk: p.elo[2][0] === '+' ? '#9bd69f' : '#f0a08b', rank: i + 1, h: H[i], order: ORD[i], bg: MB[i], sz: i === 0 ? 84 : 68, ring: '0 0 0 3px #1b140e, 0 0 0 5px ' + p.c }));
+    return {
+      podium: podium, gridY: gridY, gridX: gridX, lines: lines,
+      legend: PL.map(p => ({ name: p.name, c: p.c, on: String(!hide[p.k]), cls: 'lg' + (hide[p.k] ? ' off' : ''), flip: () => { var h = Object.assign({}, hide); h[p.k] = !h[p.k]; this.setState({ hide: h }); } })),
+      cols: PL.map(p => ({ name: p.name, c: p.c, total: p.total })),
+      rows: PL[0].R.map((_, i) => ({ n: i + 1, cells: PL.map(p => { var t = p.R[i], x = p.pts[i]; return { bw: t[0] + '/' + t[1], pts: (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x), cls: t[0] === t[1] ? 'ok' : 'ko' }; }) })),
+      xp: [{ t: 'Partie terminée', v: '+50' }, { t: '8 mises tenues × 10', v: '+80' }, { t: 'Victoire', v: '+100' }, { t: 'Haut fait : Pari du Kraken', v: '+25' }],
+      moments: [
+        { r: 10, t: 'Pari du Kraken tenu par Théo', d: 'Mise de 0 sur 10 cartes · +100' },
+        { r: 9, t: 'Barbe-Cendre capture Bastien Tonnerre', d: 'Théo · bonus +30' },
+        { r: 8, t: 'Corentin récupère deux 14', d: 'Doublon et Perroquet · bonus +20 chacun' },
+        { r: 7, t: 'Lise Fil-de-Soie impose le 12 Pavillon noir de Maëlle', d: 'Ysolde remporte le pli · bonus +30' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

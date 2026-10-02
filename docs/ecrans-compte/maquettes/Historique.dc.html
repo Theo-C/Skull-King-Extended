@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Historique des parties</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+body{margin:0}
+button,input,select{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid #ead08a;outline-offset:2px}
+.chip{min-height:40px;padding:0 16px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font-weight:800;font-size:15px;cursor:pointer}
+.chip.on{background:#ead08a;border-color:#ead08a;color:#2b2117}
+.sel{min-height:40px;padding:0 12px;border-radius:9px;border:1px solid rgba(234,208,138,.3);background:#1b140e;color:#f2e7cd;font-size:15px;font-weight:700}
+.g{display:grid;grid-template-columns:56px minmax(0,1.6fr) minmax(0,1fr) auto;gap:8px 18px;align-items:center;padding:14px 18px;border-radius:12px;background:rgba(0,0,0,.22);border:1px solid rgba(234,208,138,.12);text-decoration:none;color:#efe6d2}
+.g:hover{border-color:rgba(234,208,138,.45);background:rgba(201,161,74,.06)}
+.rk{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Pirata One',cursive;font-size:26px;line-height:1}
+.lbl{font-size:13px;color:#a8987f}
+@media (max-width:720px){.g{grid-template-columns:48px minmax(0,1fr) auto}.g .opp{grid-column:2 / 4}}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 1240px; background: radial-gradient(ellipse at 30% 0%, #2a1f17 0%, #120e0b 60%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+<dc-import name="AppBar" active="historique" hint-size="100%,64px"></dc-import>
+<main style="max-width: 1200px; margin: 0 auto; box-sizing: border-box; padding: 32px 32px 56px; display: flex; flex-direction: column; gap: 22px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;">
+<div><h1 style="margin: 0; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 40px; color: #ead08a;">Journal de bord</h1><div style="font-size: 16px; color: #d9cdb6;">Toutes vos parties terminées, de la plus récente à la plus ancienne</div></div>
+<label style="display: flex; align-items: center; gap: 8px;"><span class="lbl" style="font-weight: 700;">Période</span>
+<select class="sel"><option>30 derniers jours</option><option>Cette année</option><option>Depuis toujours</option></select></label>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px;">
+<sc-for list="{{sum}}" as="s" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 3px; padding: 14px 16px; border-radius: 12px; background: linear-gradient(180deg, #2a2019, #1f1813); border: 1px solid rgba(234,208,138,.16);">
+<span style="font-family: 'Pirata One', cursive; font-size: 32px; line-height: 1; color: #ead08a;">{{s.v}}</span><span class="lbl">{{s.l}}</span>
+</div>
+</sc-for>
+</div>
+
+<div role="group" aria-label="Filtrer" style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{filters}}" as="f" hint-placeholder-count="4"><button class="{{f.cls}}" onClick="{{f.pick}}" aria-pressed="{{f.on}}">{{f.label}}</button></sc-for>
+</div>
+
+<sc-for list="{{months}}" as="m" hint-placeholder-count="2">
+<section style="display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 6px 0 0; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 22px; color: #f2e7cd;">{{m.name}} <span class="lbl" style="font-family: 'Alegreya Sans', sans-serif; font-size: 14px;">· {{m.count}}</span></h2>
+<sc-for list="{{m.games}}" as="g" hint-placeholder-count="3">
+<a class="g" href="DetailPartie.dc.html">
+<span class="rk" style="background: {{g.rkBg}}; color: {{g.rkInk}}; box-shadow: {{g.rkSh}};">{{g.rank}}</span>
+<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+<span style="font-weight: 800; font-size: 17px; color: #f2e7cd;">{{g.title}}</span>
+<span class="lbl">{{g.when}} · {{g.mode}}</span>
+</span>
+<span class="opp" style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+<span style="display: flex;"><sc-for list="{{g.ppl}}" as="p" hint-placeholder-count="4"><span style="margin-left: -8px;"><dc-import name="Avatar" v="{{p.v}}" letter="{{p.l}}" color="{{p.c}}" size="{{32}}" hint-size="32px,32px"></dc-import></span></sc-for></span>
+<span class="lbl" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{g.vs}}</span>
+</span>
+<span style="display: flex; align-items: center; gap: 16px; justify-content: flex-end;">
+<span style="display: flex; flex-direction: column; align-items: flex-end;"><span style="font-family: 'Pirata One', cursive; font-size: 26px; line-height: 1; color: {{g.scInk}};">{{g.score}}</span><span class="lbl">{{g.bids}} mises tenues</span></span>
+<span style="padding: 4px 10px; border-radius: 999px; background: rgba(201,161,74,.14); border: 1px solid rgba(234,208,138,.4); color: #ead08a; font-weight: 800; font-size: 13px; white-space: nowrap;">{{g.xp}}</span>
+<span style="min-width: 64px; text-align: center; padding: 4px 10px; border-radius: 999px; background: {{g.eBg}}; color: {{g.eInk}}; font-weight: 800; font-size: 13px; white-space: nowrap;">Élo {{g.elo}}</span>
+<svg viewBox="0 0 24 24" style="width: 18px; height: 18px; flex: none;" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="#a8987f" stroke-width="2"></path></svg>
+</span>
+</a>
+</sc-for>
+</section>
+</sc-for>
+<sc-if value="{{empty}}" hint-placeholder-val="{{false}}"><div style="padding: 36px; text-align: center; border-radius: 12px; border: 1px dashed rgba(234,208,138,.3); color: #a8987f;">Aucune partie pour ce filtre.</div></sc-if>
+<button style="align-self: center; min-height: 44px; padding: 0 22px; border-radius: 10px; border: 1px solid rgba(234,208,138,.45); background: transparent; color: #f2e7cd; font-weight: 800; font-size: 15px; cursor: pointer;">Voir les parties plus anciennes</button>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  state = { f: 'all' };
+  renderVals() {
+    var P = { M: { v: 6, l: 'M', c: '#7ab874', n: 'Maëlle' }, C: { v: 3, l: 'C', c: '#c8644b', n: 'Corentin' }, Y: { v: 0, l: 'Y', c: '#5c9db6', n: 'Ysolde' }, A: { v: -1, l: 'A', c: '#a982c4', n: 'Aurore' }, B: { v: 7, l: 'B', c: '#e0954a', n: 'Baptiste' } };
+    var G = [
+      ['oct', 'Hier · 21 h 40', 'Table de Maëlle', 1, 280, '8/10', 'MCY', 'Extension complète', '+255 XP', '+10'],
+      ['oct', '30 sept. · 22 h 05', 'Revanche du mardi', 3, 140, '5/10', 'MCYB', 'Extension complète', '+100 XP', '−3'],
+      ['sep', '28 sept. · 20 h 15', 'Table de Corentin', 2, 245, '7/10', 'CY', 'Règles de base', '+120 XP', '+4'],
+      ['sep', '24 sept. · 21 h 30', 'Soirée Kraken', 1, 412, '9/10', 'MAB', 'Extension · variante Lazare', '+240 XP', '+12'],
+      ['sep', '19 sept. · 22 h 50', 'Table de Théo', 4, -30, '3/10', 'MCYA', 'Extension complète', '+80 XP', '−11']
+    ];
+    var md = { 1: ['radial-gradient(circle at 35% 30%,#f6e3a8,#b78c33 70%)', '#2b2117', '0 0 14px rgba(234,208,138,.45)'], 2: ['radial-gradient(circle at 35% 30%,#f1f1ec,#9da3a8 70%)', '#22272b', 'none'], 3: ['radial-gradient(circle at 35% 30%,#f0c19b,#a8653a 70%)', '#2b1a10', 'none'] };
+    var f = this.state.f;
+    var keep = g => f === 'all' || (f === 'win' && g[3] === 1) || (f === 'ext' && g[7].indexOf('Extension') === 0) || (f === 'base' && g[7] === 'Règles de base');
+    var games = G.filter(keep).map(g => { var m = md[g[3]] || ['rgba(0,0,0,.35)', '#d9cdb6', 'inset 0 0 0 1px rgba(234,208,138,.3)'];
+      var ppl = g[6].split('').map(k => P[k]);
+      return { m: g[0], when: g[1], title: g[2], rank: g[3], score: g[4], bids: g[5], mode: g[7], xp: g[8], elo: g[9], eBg: g[9][0] === '+' ? 'rgba(134,201,138,.14)' : 'rgba(232,131,107,.14)', eInk: g[9][0] === '+' ? '#9bd69f' : '#f0a08b', ppl: ppl, vs: 'avec ' + ppl.map(p => p.n).join(', '),
+        rkBg: m[0], rkInk: m[1], rkSh: m[2], scInk: g[4] < 0 ? '#f0a08b' : '#ead08a' }; });
+    var months = [['oct', 'Octobre 2026'], ['sep', 'Septembre 2026']].map(k => { var gs = games.filter(g => g.m === k[0]); return { name: k[1], games: gs, count: gs.length + (gs.length > 1 ? ' parties' : ' partie') }; }).filter(m => m.games.length);
+    var F = [['all', 'Toutes'], ['win', 'Victoires'], ['ext', 'Avec extension'], ['base', 'Règles de base']];
+    return {
+      sum: [{ v: '12', l: 'parties ce mois-ci' }, { v: '5', l: 'victoires' }, { v: '71 %', l: 'mises tenues' }, { v: '+1 640', l: 'XP gagnée' }, { v: '143', l: 'Élo · +12 ce mois-ci' }],
+      filters: F.map(x => ({ label: x[1], on: String(f === x[0]), cls: 'chip' + (f === x[0] ? ' on' : ''), pick: () => this.setState({ f: x[0] }) })),
+      months: months, empty: !months.length
+    };
+  }
+}
+</script>
+</body>
+</html>
