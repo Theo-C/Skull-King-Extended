@@ -5,26 +5,31 @@ import { $, esc, signed } from '../util';
 import { avatarHTML, fromProfile } from '../avatar';
 import { levelFor, fmt } from '../xp';
 
-const SCOPES: [string, string][] = [['friends', 'Entre amis'], ['all', 'Tous']];
+const SCOPES: [string, string][] = [['friends', 'Entre amis'], ['all', 'Tous les pirates']];
 const PERIODS: [string, string][] = [['week', 'Semaine'], ['month', 'Mois'], ['ever', 'Toujours']];
 const LAST: Record<string, string> = { week: 'Élo sur 7 jours', month: 'Élo sur 30 jours', ever: 'Record' };
 const TOP = 50;
+// jeton de génération : une réponse arrivée après un changement de filtre ou de période est ignorée
+let gen = 0;
 
 export async function leaderboardPage(root: HTMLElement, uid: string, q: URLSearchParams) {
+  const my = ++gen;
   const scope = SCOPES.some(x => x[0] === q.get('s')) ? q.get('s')! : 'friends';
   const period = PERIODS.some(x => x[0] === q.get('p')) ? q.get('p')! : 'month';
   const setQ = (k: string, v: string) => { location.hash = '#/classement?' + new URLSearchParams({ s: scope, p: period, [k]: v }).toString(); };
   const seg = (key: string, list: [string, string][], cur: string, label: string) =>
     `<div class="seg" role="group" aria-label="${label}">${list.map(([k, l]) => `<button class="sb ${k === cur ? 'on' : ''}" data-k="${key}" data-v="${k}" aria-pressed="${k === cur}">${l}</button>`).join('')}</div>`;
-  root.innerHTML = `<section class="apage board">
-    <div class="hhead"><div><h1>Classement</h1><p>Classé à l'Élo : tout le monde part de 100, on gagne en finissant devant des joueurs mieux classés.</p></div>
+  root.innerHTML = `<section class="apage lboard">
+    <div class="hhead"><div><h1>Classement</h1><p>Classé à l'Élo : tout le monde part de 100, on gagne ou perd des points selon sa place et le niveau des adversaires. 5 parties minimum pour apparaître.</p></div>
       <div class="segs">${seg('s', SCOPES, scope, 'Qui')}${seg('p', PERIODS, period, 'Période')}</div></div>
-    <section class="podium lb" id="podium"></section>
+    <section class="podium lb" id="podium" aria-busy="true">${[0, 1, 2].map(i => `<div class="pod2 lbp skel" style="order:${[2, 1, 3][i]}" aria-hidden="true"><span class="skav"></span><b>&nbsp;</b><span class="lbl">&nbsp;</span><div class="step s${i + 1}" style="height:${[170, 125, 95][i]}px"></div></div>`).join('')}<span class="sr">Chargement du podium…</span></section>
     <section class="apanel ltab"><div class="tscroll" id="lb"><p class="empty">Chargement…</p></div><div class="lbl gapnote" id="gap"></div></section>
   </section>`;
   root.querySelectorAll<HTMLElement>('.sb').forEach(b => b.onclick = () => setQ(b.dataset.k!, b.dataset.v!));
 
   const { data, error } = await sb.rpc('leaderboard_period', { scope, period });
+  if (my !== gen) return;
+  $('#podium', root).removeAttribute('aria-busy');
   if (error) { $('#lb', root).innerHTML = '<p class="empty">Classement indisponible pour le moment.</p>'; $('#podium', root).hidden = true; return; }
   const all = (data || []) as any[];
   const meIdx = all.findIndex(r => r.user_id === uid);
@@ -37,9 +42,10 @@ export async function leaderboardPage(root: HTMLElement, uid: string, q: URLSear
       sb.from('player_stats').select('*').eq('user_id', uid).maybeSingle(),
       sb.from('profiles').select('pseudo, color, avatar_kind, avatar_art, avatar_url, xp, public_rank').eq('id', uid).maybeSingle(),
     ]);
+    if (my !== gen) return;
     if (pr) extra = { rank: null, user_id: uid, ...pr, elo: Math.round(Number(st?.elo ?? 100)), games: st?.games ?? 0, wins: st?.wins ?? 0,
       bids_pct: st?.bids_total ? Math.round(100 * st.bids_made / st.bids_total) : null, best_score: st?.best_score ?? null, delta: period === 'ever' ? st?.elo_best ?? 100 : null,
-      why: pr.public_rank === false ? 'profil masqué du classement public' : `${Math.max(0, 5 - (st?.ranked_games ?? 0))} partie(s) classée(s) avant d'apparaître` };
+      why: pr.public_rank === false ? 'profil masqué du classement public' : (n => `encore ${n} partie${n > 1 ? 's' : ''} classée${n > 1 ? 's' : ''} avant d'apparaître`)(Math.max(1, 5 - (st?.ranked_games ?? 0))) };
   }
 
   const MB = ['s1', 's2', 's3'], H = [170, 125, 95], ORD = [2, 1, 3];
@@ -55,7 +61,7 @@ export async function leaderboardPage(root: HTMLElement, uid: string, q: URLSear
     const me = r.user_id === uid, lv = levelFor(r.xp ?? 0), d = r.delta == null ? null : Number(r.delta);
     const last = period === 'ever' ? (d == null ? '—' : fmt(d)) : d == null ? '—' : signed(d);
     return `<tr class="${me ? 'me' : ''}"${me ? ' aria-current="true"' : ''}><td class="l rk">${r.rank ?? '—'}</td>
-      <td class="l"><span class="who">${avatarHTML(fromProfile(r), 34)}<span><b>${esc(r.pseudo)}${me ? ' (vous)' : ''}</b><span class="lbl">${r.why ? esc(r.why) : `Niv. ${lv.level} · ${esc(lv.title)}`}</span></span></span></td>
+      <th class="l" scope="row"><span class="who">${avatarHTML(fromProfile(r), 34)}<span><b>${esc(r.pseudo)}${me ? ' (vous)' : ''}</b><span class="lbl">${r.why ? esc(r.why) : `Niv. ${lv.level} · ${esc(lv.title)}`}</span></span></span></th>
       <td class="elo">${fmt(r.elo)}</td><td>${r.games}</td><td>${r.wins}</td><td>${r.bids_pct == null ? '—' : r.bids_pct + ' %'}</td><td>${r.best_score ?? '—'}</td>
       <td class="last ${period !== 'ever' && d ? (d > 0 ? 'pos' : 'neg') : ''}">${last}</td></tr>`;
   };
