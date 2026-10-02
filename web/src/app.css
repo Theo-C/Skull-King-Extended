@@ -276,3 +276,35 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 .tablepv>span{display:flex;flex-direction:column}.tablepv b{color:var(--parch)}
 .ebtns{display:flex;gap:10px}
 @media (max-width:719px){.phero{padding:18px;gap:16px}.pline h1{font-size:30px}.eloval .big{font-size:48px}.etabs{width:100%}.etabs button{flex:1;padding:0 6px}}
+
+/* Historique */
+.hhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
+.hhead h1{margin:0;font:400 40px var(--f-disp);color:var(--brass2)}.hhead p{margin:0;font-size:16px;color:#d9cdb6}
+.persel{display:flex;align-items:center;gap:8px}
+.sel{min-height:44px;padding:0 12px;border-radius:9px;border:1px solid rgba(234,208,138,.3);background:#1b140e;color:var(--parch);font:700 15px var(--f-body)}
+.sums{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:12px}
+.sum{display:flex;flex-direction:column;gap:3px;padding:14px 16px;border-radius:12px;background:linear-gradient(180deg,#2a2019,#1f1813);border:1px solid rgba(234,208,138,.16)}
+.sum .big{font-size:32px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font:800 15px var(--f-body);cursor:pointer}
+.chip.on{background:#ead08a;border-color:#ead08a;color:#2b2117}
+.month{display:flex;flex-direction:column;gap:10px}
+.month h2{margin:6px 0 0;font:400 22px var(--f-disp);color:var(--parch)}.month h2 .lbl{font:400 14px var(--f-body)}
+.hrow2{display:grid;grid-template-columns:56px minmax(0,1.6fr) minmax(0,1fr) auto;gap:8px 18px;align-items:center;padding:14px 18px;border-radius:12px;
+  background:rgba(0,0,0,.22);border:1px solid rgba(234,208,138,.12);text-decoration:none;color:var(--text)}
+.hrow2:hover{border-color:rgba(234,208,138,.45);background:rgba(201,161,74,.06)}
+.hmed{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font:400 26px/1 'Pirata One',var(--f-disp);background:rgba(0,0,0,.35);color:#d9cdb6;box-shadow:inset 0 0 0 1px rgba(234,208,138,.3)}
+.hmed.m1,.medal.m1{background:radial-gradient(circle at 35% 30%,#f6e3a8,#b78c33 70%);color:#2b2117;box-shadow:0 0 14px rgba(234,208,138,.45)}
+.hmed.m2,.medal.m2{background:radial-gradient(circle at 35% 30%,#f1f1ec,#9da3a8 70%);color:#22272b;box-shadow:none}
+.hmed.m3,.medal.m3{background:radial-gradient(circle at 35% 30%,#f0c19b,#a8653a 70%);color:#2b1a0e;box-shadow:none}
+.hmid{display:flex;flex-direction:column;gap:3px;min-width:0}.ht{font-weight:800;font-size:17px;color:var(--parch)}
+.hrow2 .opp{display:flex;align-items:center;gap:10px;min-width:0}.hrow2 .opp .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hrow2 .stack-av .avatar+.avatar{margin-left:-8px}
+.hend{display:flex;align-items:center;gap:16px;justify-content:flex-end}.hend svg{width:18px;height:18px;flex:none}
+.hsc{display:flex;flex-direction:column;align-items:flex-end}.hsc b{font:400 26px/1 'Pirata One',var(--f-disp);color:var(--brass2)}.hsc b.neg{color:#f0a08b}
+.xpchip{padding:4px 10px;border-radius:999px;background:rgba(201,161,74,.14);border:1px solid rgba(234,208,138,.4);color:#ead08a;font-weight:800;font-size:13px;white-space:nowrap}
+.elochip{min-width:64px;text-align:center;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.06);color:var(--muted);font-weight:800;font-size:13px;white-space:nowrap}
+.elochip.up{background:rgba(134,201,138,.14);color:#9bd69f}.elochip.down{background:rgba(232,131,107,.14);color:#f0a08b}
+.empty-box{padding:36px;text-align:center;border-radius:12px;border:1px dashed rgba(234,208,138,.3);color:var(--muted)}
+.abtn.more{align-self:center}
+@media (max-width:720px){.hrow2{grid-template-columns:48px minmax(0,1fr) auto;padding:12px}.hrow2 .opp{grid-column:2/4}.hend{gap:8px;flex-wrap:wrap}.hend .xpchip{display:none}.hhead h1{font-size:30px}}

@@ -202,6 +202,7 @@ returns jsonb language sql stable security definer set search_path = public as $
   select coalesce(jsonb_agg(row_to_json(t) order by t.finished_at desc), '[]'::jsonb) from (
     select r.game_id as id, g.code, r.place, r.score, r.bids_made, r.rounds, r.players, r.elo_delta, r.elo_after, r.finished_at,
            coalesce((g.options->>'exp')::boolean, false) as ext,
+           g.options, (select gp.name from public.game_players gp where gp.game_id = r.game_id and gp.user_id = g.host) as host_name, g.host = p_user as hosted,
            (select coalesce(sum(x.amount), 0) from public.xp_events x where x.game_id = r.game_id and x.user_id = p_user)::integer as xp,
            (select jsonb_agg(jsonb_build_object('name', gp.name, 'bot', gp.bot, 'rank', gp.rank, 'score', gp.final_score, 'user_id', gp.user_id,
                    'color', pr.color, 'avatar_kind', pr.avatar_kind, 'avatar_art', pr.avatar_art, 'avatar_url', pr.avatar_url) order by gp.rank, gp.seat)
