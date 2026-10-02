@@ -1,42 +1,141 @@
-// Accueil : mes parties, créer une partie, rejoindre avec un code.
+// Accueil (#/) : héros (avatar, niveau, XP, créer / code / entraînement), « À vous de jouer », parties en cours,
+// terminées récemment, mini classement entre amis, derniers hauts faits. Maquettes Accueil et AccueilMobile.
 import { sb, callGame } from '../api';
-import { $, esc, toast } from '../util';
+import { $, esc, toast, relDay, signed } from '../util';
 import { optionsHTML, readOptions, wireOptions } from '../options';
 import { go } from '../main';
+import { myProfile } from '../account';
+import { avatarHTML, fromProfile } from '../avatar';
+import { xpLine, LEVEL_TITLES, xpToReach, fmt } from '../xp';
 
-const STATUS: Record<string, string> = { lobby: 'Salon', playing: 'En cours', finished: 'Terminée' };
+export const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>';
+const PROFILE_COLS = 'pseudo, color, avatar_kind, avatar_art, avatar_url';
 
 export async function homePage(root: HTMLElement, uid: string) {
-  root.innerHTML = `<section class="page">
-    <div class="hero">
-      <div><h1>Vos parties</h1><p class="lead">Créez une table, envoyez le lien à vos amis, et que le meilleur pirate l'emporte.</p></div>
-      <div class="hero-actions"><button class="btn gold big" id="bCreate">Créer une partie</button>
-        <form id="fCode" class="codeform"><input id="code" maxlength="6" placeholder="CODE" aria-label="Code d'invitation" autocapitalize="characters"><button class="btn alt" type="submit">Rejoindre</button></form></div>
-    </div>
+  const me = await myProfile(uid);
+  const x = xpLine(me?.xp ?? 0);
+  const next = LEVEL_TITLES.find(([l]) => l > x.level);
+  const toNext = next ? xpToReach(next[0]) - (me?.xp ?? 0) : 0;
+  root.innerHTML = `<section class="apage home">
+    <section class="hero2">
+      <svg class="rose" viewBox="0 0 400 400" aria-hidden="true"><circle cx="200" cy="200" r="150" fill="none" stroke="#ead08a" stroke-width="2"/><circle cx="200" cy="200" r="120" fill="none" stroke="#ead08a" stroke-dasharray="3 8"/><path d="M200 40l18 142 142 18-142 18-18 142-18-142-142-18 142-18z" fill="#ead08a"/></svg>
+      <div class="who">
+        <a href="#/profil" aria-label="Mon profil">${avatarHTML(fromProfile(me, 'Pirate'), 88, `0 0 0 3px #1b140e,0 0 0 6px ${me?.color || '#d9b25a'}`)}</a>
+        <div class="txt">
+          <h1>Bonjour, ${esc(me?.pseudo ?? 'pirate')}</h1>
+          <div class="lvl">Niveau ${x.level} · <b>${esc(x.title)}</b>${next ? ` · encore ${fmt(toNext)} XP avant <b>${esc(next[1])}</b>` : ''}</div>
+          <div class="xpbar" title="${x.text} XP"><span style="width:${x.pct}%"></span></div>
+        </div>
+      </div>
+      <div class="acts">
+        <button class="abtn gold" id="bCreate">Créer une partie</button>
+        <form id="fCode" class="codeform2" aria-label="Rejoindre avec un code"><label for="code" class="sr">Code d'invitation</label>
+          <input id="code" maxlength="6" placeholder="CODE" autocapitalize="characters" autocomplete="off"><button class="abtn ghost" type="submit">Rejoindre</button></form>
+        <a class="abtn ghost" href="#/entrainement">Entraînement contre des bots</a>
+      </div>
+    </section>
     <div id="create" hidden></div>
-    <div class="grid2">
-      <div class="box"><h2>En cours</h2><div id="live" class="glist"><p class="muted">Chargement…</p></div></div>
-      <div class="box"><h2>Terminées</h2><div id="done" class="glist"><p class="muted">Chargement…</p></div></div>
+    <div id="turn"></div>
+    <div class="agrid">
+      <section class="apanel span2">
+        <div class="hrow"><h2>Vos parties</h2><span id="liveN"></span></div>
+        <div id="live" class="glist2"><p class="empty">Chargement…</p></div>
+        <h3>Terminées récemment</h3>
+        <div id="done" class="glist2"><p class="empty">Chargement…</p></div>
+        <a class="more" href="#/historique">Tout l'historique</a>
+      </section>
+      <div class="col">
+        <section class="apanel"><div class="hrow"><h2>Entre amis</h2><span>Élo</span></div><div id="friends"><p class="empty">Chargement…</p></div><a class="more" href="#/classement">Voir le classement</a></section>
+        <section class="apanel"><h2>Derniers hauts faits</h2><div id="feats"><p class="empty">Chargement…</p></div><a class="more" href="#/profil">Tous vos hauts faits</a></section>
+      </div>
     </div>
   </section>`;
   $('#bCreate', root).onclick = () => openCreate(root);
   $('#fCode', root).addEventListener('submit', ev => { ev.preventDefault(); const c = ($('#code', root) as HTMLInputElement).value.trim().toUpperCase(); if (c) go('#/rejoindre/' + c); });
+  loadLive(root, uid); loadDone(root, uid); loadFriends(root, uid); loadFeats(root, uid);
+}
 
+/** Parties en cours et salons, avec le bandeau « À vous de jouer » pour la première où l'on est attendu. */
+async function loadLive(root: HTMLElement, uid: string) {
   const { data, error } = await sb.from('game_players')
-    .select('seat, games!inner(id, code, status, updated_at, host, round:state->round, waiting:state->waiting, players:state->players)')
-    .eq('user_id', uid);
-  if (error) { $('#live', root).innerHTML = `<p class="muted">Impossible de charger vos parties.</p>`; return; }
+    .select('seat, games!inner(id, code, status, updated_at, host, round:state->round, trickNo:state->trickNo, cards:state->cards, waiting:state->waiting, current:state->current, players:state->players)')
+    .eq('user_id', uid).in('games.status', ['lobby', 'playing']);
+  if (error) { $('#live', root).innerHTML = '<p class="empty">Impossible de charger vos parties.</p>'; return; }
   const rows = (data || []).map((r: any) => ({ seat: r.seat, ...r.games })).sort((a: any, b: any) => b.updated_at.localeCompare(a.updated_at));
-  const item = (g: any) => {
-    const mine = g.status === 'playing' && Array.isArray(g.waiting) && g.waiting.includes(g.seat);
-    const names = Array.isArray(g.players) ? g.players.map((p: any) => esc(p.name)).join(', ') : '';
-    let sub = g.status === 'lobby' ? `Code ${g.code} · en attente des joueurs` : g.status === 'playing' ? `Manche ${g.round ?? 1} / 10` : 'Partie terminée';
-    if (g.status === 'finished' && Array.isArray(g.players)) { const me = g.players[g.seat]; const best = Math.max(...g.players.map((p: any) => p.score)); sub = `${me.score} pts${me.score === best ? ' · victoire' : ''}`; }
-    return `<a class="gitem" href="#/partie/${g.id}"><span class="st-${g.status}">${STATUS[g.status]}</span><b>${names || 'Salon ' + g.code}</b><small>${sub}</small>${mine ? '<em>À vous de jouer</em>' : ''}</a>`;
-  };
-  const live = rows.filter((g: any) => g.status !== 'finished'), done = rows.filter((g: any) => g.status === 'finished').slice(0, 12);
-  $('#live', root).innerHTML = live.length ? live.map(item).join('') : '<p class="muted">Aucune partie en cours. Créez-en une !</p>';
-  $('#done', root).innerHTML = done.length ? done.map(item).join('') : '<p class="muted">Vos parties terminées apparaîtront ici.</p>';
+  // sièges et avatars de toutes ces parties en une requête
+  const ids = rows.map((g: any) => g.id);
+  let seats: any[] = [];
+  if (ids.length) {
+    const r = await sb.from('game_players').select(`game_id, seat, user_id, bot, name, profiles(${PROFILE_COLS})`).in('game_id', ids).order('seat');
+    seats = r.data || [];
+  }
+  const nameOf = (g: any, seat: number) => g.players?.[seat]?.name ?? seats.find(s => s.game_id === g.id && s.seat === seat)?.name ?? '?';
+  $('#liveN', root).textContent = rows.length ? `${rows.length} en cours` : '';
+  let turn: any = null;
+  const cards = rows.map((g: any) => {
+    const gs = seats.filter(s => s.game_id === g.id);
+    const who = gs.filter(s => s.user_id || s.bot).slice(0, 4).map(s => avatarHTML(s.profiles ? fromProfile(s.profiles, s.name) : { letter: s.name }, 38)).join('');
+    const hostSeat = gs.find(s => s.user_id === g.host);
+    const title = g.status === 'lobby' ? `Salon ${g.code}` : g.host === uid ? 'Votre table' : `Table de ${hostSeat?.name ?? '?'}`;
+    let sub: string, badge: string, cls = '';
+    if (g.status === 'lobby') {
+      const free = gs.filter(s => !s.bot && !s.user_id).length;
+      sub = `En attente · ${free ? `${free} place${free > 1 ? 's' : ''} libre${free > 1 ? 's' : ''}` : 'complet'}`; badge = 'Salon'; cls = 'salon';
+    } else {
+      const ps = g.players || [], mine = ps[g.seat], rank = mine ? 1 + ps.filter((p: any) => p.score > mine.score).length : 0;
+      sub = `Manche ${g.round ?? 1} · vous : ${mine?.score ?? 0} pts, ${rank === 1 ? '1er' : rank + 'e'}`;
+      const myTurn = Array.isArray(g.waiting) && g.waiting.includes(g.seat);
+      if (myTurn) { badge = 'À vous de jouer'; cls = 'turn'; turn ??= { g, mine, rank, host: title }; }
+      else badge = g.current != null ? `Tour de ${esc(nameOf(g, g.current))}` : 'En cours';
+    }
+    let dots = ''; for (let r = 1; r <= 10; r++) dots += `<i class="${g.status === 'lobby' ? '' : r < g.round ? 'd' : r === g.round ? 'n' : ''}"></i>`;
+    return `<a class="gcard" href="#/partie/${g.id}"><span class="stack-av">${who}</span>
+      <span class="gm"><span class="gt">${esc(title)}</span><span class="gs">${sub}</span><span class="rdots" aria-hidden="true">${dots}</span></span>
+      <span class="badge ${cls}">${badge}</span></a>`;
+  });
+  $('#live', root).innerHTML = cards.join('') || '<p class="empty">Aucune partie en cours. Créez-en une ou rejoignez des amis avec un code.</p>';
+  if (turn) {
+    const t = turn.host === 'Votre table' ? 'à votre table' : turn.host.replace(/^Table de /, 'à la table de ');
+    $('#turn', root).innerHTML = `<a class="turnband" href="#/partie/${turn.g.id}"><span class="dot"></span>
+      <span class="tx"><b>À vous de jouer ${esc(t)}</b><span>Manche ${turn.g.round} sur 10${turn.g.trickNo ? ` · pli ${turn.g.trickNo}` : ''} · vous êtes ${turn.rank === 1 ? '1er' : turn.rank + 'e'} avec ${turn.mine?.score ?? 0} points</span></span>
+      <span class="go">Reprendre</span></a>`;
+  }
+}
+
+/** Trois dernières parties terminées (historique du serveur : place, score, mises tenues, XP). */
+async function loadDone(root: HTMLElement, uid: string) {
+  try {
+    const { items } = await callGame<{ items: any[] }>('history.list', {});
+    $('#done', root).innerHTML = items.slice(0, 3).map(g => doneCard(g, uid)).join('') || '<p class="empty">Vos parties terminées apparaîtront ici.</p>';
+  } catch { $('#done', root).innerHTML = '<p class="empty">Historique indisponible pour le moment.</p>'; }
+}
+export function doneCard(g: any, uid: string) {
+  const mine = (g.seats || []).filter((s: any) => s.user_id !== uid).map((s: any) => s.name).filter(Boolean).slice(0, 3);
+  const list = (a: string[]) => a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1];
+  const title = g.place === 1 ? `Victoire contre ${list(mine)}` : `Avec ${list(mine)}`;
+  return `<a class="gcard" href="#/partie/${g.id}"><span class="medal m${Math.min(g.place, 4)}">${g.place}</span>
+    <span class="gm"><span class="gt">${esc(title)}</span><span class="gs">${esc(relDay(g.finished_at))} · ${g.bids_made} mises tenues sur ${g.rounds}</span></span>
+    <span class="sc"><b>${g.score}</b>${g.xp ? `<span>+${fmt(g.xp)} XP</span>` : ''}</span></a>`;
+}
+
+/** Mini classement entre amis : Élo et variation sur 7 jours. */
+async function loadFriends(root: HTMLElement, uid: string) {
+  const { data, error } = await sb.rpc('leaderboard_period', { scope: 'friends', period: 'week' });
+  if (error) { $('#friends', root).innerHTML = '<p class="empty">Classement indisponible.</p>'; return; }
+  const rows = (data || []) as any[];
+  const top = rows.slice(0, 5); const meRow = rows.find(r => r.user_id === uid);
+  if (meRow && !top.includes(meRow)) top.push(meRow);
+  $('#friends', root).innerHTML = top.map(r => `<div class="frow${r.user_id === uid ? ' me' : ''}"><span class="rk">${r.rank}</span>${avatarHTML(fromProfile(r), 32)}
+    <span class="nm">${esc(r.pseudo)}</span><span class="el"><b>${r.elo}</b> <span class="${r.delta > 0 ? 'pos' : r.delta < 0 ? 'neg' : ''}">${r.delta ? signed(Number(r.delta)) : ''}</span></span></div>`).join('')
+    || '<p class="empty">Jouez une partie en ligne avec des amis pour les voir ici.</p>';
+}
+
+/** Trois derniers hauts faits débloqués. */
+async function loadFeats(root: HTMLElement, uid: string) {
+  const { data, error } = await sb.from('user_achievements').select('code, unlocked_at, achievements(name, description)').eq('user_id', uid).order('unlocked_at', { ascending: false }).limit(3);
+  if (error) { $('#feats', root).innerHTML = '<p class="empty">Hauts faits indisponibles.</p>'; return; }
+  $('#feats', root).innerHTML = (data || []).map((a: any) => `<div class="feat"><span class="fbadge">${STAR}</span><span><b>${esc(a.achievements?.name ?? a.code)}</b><span>${esc(a.achievements?.description ?? '')} · ${esc(relDay(a.unlocked_at).toLowerCase())}</span></span></div>`).join('')
+    || '<p class="empty">Terminez une partie en ligne pour débloquer « Premier abordage ».</p>';
 }
 
 function openCreate(root: HTMLElement) {

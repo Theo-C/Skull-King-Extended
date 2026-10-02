@@ -26,3 +26,16 @@ export const closeModal = () => { $('#modal').hidden = true; };
 export async function copyText(text: string) {
   try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
 }
+
+const DAY = 86400000;
+/** « Aujourd'hui », « Hier », « Mardi » (cette semaine), sinon « 26 sept. ». */
+export function relDay(iso: string | null | undefined) {
+  if (!iso) return '';
+  const d = new Date(iso), now = new Date(), start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((start(now) - start(d)) / DAY);
+  if (days <= 0) return "Aujourd'hui"; if (days === 1) return 'Hier';
+  if (days < 7) { const w = d.toLocaleDateString('fr-FR', { weekday: 'long' }); return w[0].toUpperCase() + w.slice(1); }
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
+}
+/** « +12 » / « −3 » (vrai signe moins), arrondi à l'entier sauf précision demandée. */
+export const signed = (v: number, digits = 0) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(digits).replace('.', ',');
