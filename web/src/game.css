@@ -790,15 +790,15 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .fulllog .lbonus b{color:var(--ink)}.fulllog .lbonus small{color:var(--ink2)}
 
 /* Main proportionnelle au bloc (prompt 1) : le bloc a sa hauteur, les cartes la remplissent */
-.rail{position:relative;height:clamp(150px,24dvh,240px);padding:0 16px 0 20px;display:flex;flex-direction:row;gap:12px}
-/* maquette Main : titre, nombre de cartes et mise · plis en colonne à gauche de l'éventail, jamais par-dessus les cartes */
-.handhead{flex:none;width:118px;display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start;gap:8px;padding-top:12px;flex-wrap:nowrap}
-.handhead .tags{flex-direction:column;gap:6px;flex-wrap:nowrap}
+.rail{position:relative;height:clamp(150px,24dvh,240px);padding:0 16px;display:flex;align-items:center}
+/* maquette Main : titre, nombre de cartes et mise · plis en surimpression dans le coin haut-gauche du rail ;
+   pointer-events:none pour que les cartes qui passent dessous restent survolables et cliquables */
+.handhead{position:absolute;left:20px;top:10px;width:120px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;pointer-events:none;z-index:0}
+.handhead .tags{flex-direction:column;gap:4px;flex-wrap:nowrap}
 .handhead .tags span{background:none;border:0;border-radius:0;padding:0;font-weight:400;font-size:13px;color:#d9c7a4}
 .handhead .tags b{font:800 13px var(--f-body);color:#f2e7cd}
 .handhead .tags span.ok b{color:var(--good)}.handhead .tags span.ko b{color:var(--bad)}
-#hand{min-width:0}
-#hand{flex:1;min-height:0;padding:0;overflow:visible;display:flex;justify-content:center;align-items:center}
+#hand{flex:1;min-width:0;min-height:0;padding:0;overflow:visible;display:flex;justify-content:center;align-items:center}
 #hand .card + .card{margin-left:var(--hm,-20px)}
 #hand .card.playable:hover,#hand .card.playable:focus-visible,#hand .card.sel{transform:translateY(calc(var(--y,0px) - var(--lift,24px))) rotate(var(--r,0deg))}
 .zoom .card{--s:1.1905}

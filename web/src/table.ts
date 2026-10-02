@@ -1150,8 +1150,9 @@ function handLayout(Wbox: number, Hbox: number, n: number) {
   // trop de cartes : on les réduit jusqu'à ce que l'écart vaille 0,38 × largeur
   if (n > 1 && step < cardW * .38) { cardW = W / (1 + .38 * (n - 1)); cardH = cardW * 1.4; step = cardW * .38; }
   // la partie visible (cliquable) d'une carte fait au moins 44 px, quand la largeur le permet
-  // en dernier recours on réduit les cartes (40 px de large au moins) ; sur un téléphone étroit à 9-10 cartes, 44 px restent hors d'atteinte
-  if (n > 1 && step < 44) { cardW = Math.max(40, Math.min(cardW, W - 44 * (n - 1))); cardH = cardW * 1.4; step = Math.min(cardW * .96, (W - cardW) / (n - 1)); }
+  // (prompt 1, règle « bouton ≥ 44 px même avec fort chevauchement ») ; sur un téléphone très étroit
+  // (10 cartes sur 320 px) le total 44 × n dépasse la largeur : on garde cardW = 44 et step suit la largeur restante
+  if (n > 1 && step < 44) { cardW = Math.max(44, Math.min(cardW, W - 44 * (n - 1))); cardH = cardW * 1.4; step = Math.min(cardW * .96, (W - cardW) / (n - 1)); }
   return { cardW, cardH, step };
 }
 /** Résumé de la main pendant la mise (maquette Bid) : « 2 atouts · 1 pirate · 1 sirène ». */
