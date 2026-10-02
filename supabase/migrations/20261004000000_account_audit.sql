@@ -105,8 +105,8 @@ returns uuid[] language sql stable security definer set search_path = public as 
 $$;
 
 -- ---------- Historique : curseur (date de fin, partie), sans saut quand deux parties finissent au même instant ----------
-drop function if exists public.history_list(uuid, timestamptz, text, integer);
-create or replace function public.history_list(p_user uuid, p_before timestamptz default null, p_before_id uuid default null,
+-- Nouvelle fonction (history_list reste en place pour la version précédente du serveur, le temps du déploiement).
+create or replace function public.history_page(p_user uuid, p_before timestamptz default null, p_before_id uuid default null,
                                                p_filter text default 'all', p_limit integer default 20)
 returns jsonb language sql stable security definer set search_path = public as $$
   select coalesce(jsonb_agg(row_to_json(t) order by t.finished_at desc, t.id desc), '[]'::jsonb) from (
@@ -160,12 +160,12 @@ begin
 end $$;
 
 revoke execute on function public.unsettled_games(uuid) from public, anon, authenticated;
-revoke execute on function public.history_list(uuid, timestamptz, uuid, text, integer) from public, anon, authenticated;
+revoke execute on function public.history_page(uuid, timestamptz, uuid, text, integer) from public, anon, authenticated;
 revoke execute on function public.history_get(uuid, uuid) from public, anon, authenticated;
 revoke execute on function public.rematch_claim(uuid, text) from public, anon, authenticated;
 revoke execute on function public.game_settle(uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.unsettled_games(uuid) to service_role;
-grant execute on function public.history_list(uuid, timestamptz, uuid, text, integer) to service_role;
+grant execute on function public.history_page(uuid, timestamptz, uuid, text, integer) to service_role;
 grant execute on function public.history_get(uuid, uuid) to service_role;
 grant execute on function public.rematch_claim(uuid, text) to service_role;
 grant execute on function public.game_settle(uuid, jsonb) to service_role;

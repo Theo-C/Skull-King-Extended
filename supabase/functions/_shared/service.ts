@@ -18,7 +18,7 @@ export interface Store {
   seats(gameId: string): Promise<SeatRow[]>;
   secret(gameId: string): Promise<E.State | null>;
   commit(gameId: string, expectedVersion: number, c: Commit): Promise<number | null>; // null : conflit de version
-  /** Appel d'une fonction SQL réservée au serveur (settle_inputs, game_settle, history_list, history_get, profile_update, unsettled_games, rematch_claim). */
+  /** Appel d'une fonction SQL réservée au serveur (settle_inputs, game_settle, history_page, history_get, profile_update, unsettled_games, rematch_claim). */
   rpc(name: string, args: Record<string, unknown>): Promise<any>;
 }
 export class HttpError extends Error { constructor(public status: number, msg: string) { super(msg); } }
@@ -234,7 +234,7 @@ async function historyList(store: Store, uid: string, body: any) {
     try { const S = await store.secret(id); if (S) await settleFinished(store, id, S, await store.seats(id)); }
     catch (e) { console.error('règlement en retard', id, e); }
   }
-  const items = (await store.rpc('history_list', { p_user: uid, p_before: before, p_before_id: beforeId, p_filter: filter, p_limit: PAGE })) as any[] ?? [];
+  const items = (await store.rpc('history_page', { p_user: uid, p_before: before, p_before_id: beforeId, p_filter: filter, p_limit: PAGE })) as any[] ?? [];
   const last = items[items.length - 1];
   return { items, next: items.length === PAGE ? last.finished_at : null, next_id: items.length === PAGE ? last.id : null };
 }
