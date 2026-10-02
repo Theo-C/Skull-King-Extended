@@ -349,3 +349,24 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 .rtab .bw{color:#d9cdb6}.rtab .ok{color:#9bd69f}.rtab .ko{color:#f0a08b}
 .rtab tr.tt td{font:400 22px 'Pirata One',var(--f-disp);color:var(--brass2)}.rtab tr.tt td.l{font:800 14px var(--f-body);color:var(--parch)}
 @media (max-width:720px){.dhead h1{font-size:30px}.pod2{width:calc(50% - 10px)}.podium{gap:8px}}
+
+/* Classement */
+.segs{display:flex;flex-wrap:wrap;gap:10px}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:rgba(0,0,0,.3)}
+.sb{min-height:44px;padding:0 16px;border-radius:9px;border:1px solid transparent;background:transparent;color:#d9cdb6;font:800 15px var(--f-body);cursor:pointer}
+.sb.on{background:rgba(201,161,74,.16);border-color:rgba(234,208,138,.45);color:var(--brass2)}
+.podium.lb{gap:18px;padding-top:28px}
+.pod2.lbp{width:200px}.pod2.lbp b{font-size:18px}.pod2 .lbl{color:#d9cdb6}
+.pod2.lbp .m{font-size:14px}
+.ltab{padding:10px 18px 16px}
+.lbtab{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+.lbtab th{padding:10px 12px;font-size:13px;font-weight:700;color:var(--muted);text-align:right;border-bottom:1px solid rgba(234,208,138,.2);white-space:nowrap}
+.lbtab td{padding:10px 12px;text-align:right;border-bottom:1px solid rgba(234,208,138,.08);font-size:15px;white-space:nowrap}
+.lbtab .l{text-align:left}.lbtab td.rk{font-weight:800;color:var(--muted);width:40px}
+.lbtab .who{display:inline-flex;align-items:center;gap:10px}.lbtab .who>span:last-child{display:flex;flex-direction:column}.lbtab .who b{color:var(--parch)}
+.lbtab td.elo{font:400 22px 'Pirata One',var(--f-disp);color:var(--brass2)}
+.lbtab td.last{font-weight:800}
+.lbtab tr.me{background:rgba(201,161,74,.12);box-shadow:inset 3px 0 0 #ead08a}
+.lbtab tr.sep td{text-align:center;color:var(--muted);padding:4px}
+.gapnote{padding:12px 12px 0}.gapnote b{color:var(--brass2)}
+@media (max-width:720px){.pod2.lbp{width:calc(33% - 12px)}.podium.lb{gap:8px}.pod2.lbp .m{font-size:11px}.segs,.seg{width:100%}.seg .sb{flex:1;padding:0 6px}.lbtab td,.lbtab th{padding:8px 6px}}
