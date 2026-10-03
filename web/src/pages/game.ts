@@ -69,6 +69,8 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       },
       // apparence actuelle du joueur pour le rendu de l'objet en repli (avatar)
       myLook: () => myLookCache || { color: '#d9b25a', look: null },
+      // aperçu d'un joueur au survol de son pod
+      playerCard: (u: string) => callGame<any>('player.card', { user_id: u }),
     }, () => go('#/'));
     // avatars et couleurs des joueurs (les bots gardent l'initiale sur la couleur par défaut)
     const ids = seats.filter(s => s.user_id).map(s => s.user_id);

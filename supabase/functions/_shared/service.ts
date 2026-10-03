@@ -54,6 +54,7 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'act': return withRetry(() => act(store, uid, body));
     case 'profile.update': return profileUpdate(store, uid, body);
     case 'profile.wardrobe': return wardrobe(store, uid);
+    case 'player.card': return playerCard(store, body);
     case 'chest.open': return chestOpen(store, uid);
     case 'shop.buy': return shopBuy(store, uid, body);
     case 'history.list': return historyList(store, uid, body);
@@ -283,6 +284,15 @@ async function profileUpdate(store: Store, uid: string, body: any) {
   if (!Object.keys(p).length) throw bad('Rien à enregistrer.');
   await store.rpc('profile_update', { p_user: uid, p });
   return { ok: true };
+}
+
+/* ---------- Aperçu d'un joueur (ApercuJoueur) : identité, Élo, statistiques, inventaire ---------- */
+async function playerCard(store: Store, body: any) {
+  const t = body?.user_id;
+  if (typeof t !== 'string' || !UUID.test(t)) throw bad('Joueur inconnu.');
+  const d = await store.rpc('player_card', { p_user: t });
+  if (!d) throw new HttpError(404, 'Profil introuvable.');
+  return d;
 }
 
 /* ---------- Garde-robe ---------- */

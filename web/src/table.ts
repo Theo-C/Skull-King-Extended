@@ -9,6 +9,7 @@ import { installCardZoom, setZoomNote } from './zoom';
 import { avatarHTML, type AvatarData, type Look } from './avatar';
 import { levelFor, xpToReach, LEVEL_TITLES, fmt, xpReason as xpLabel } from './xp';
 import { openChestOverlay, type ChestResult } from './chest';
+import { PlayerCardCtl, type PlayerCardData, type SeatSnapshot } from './playercard';
 
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -35,6 +36,8 @@ export interface TableBackend {
   equipItem?(slot: string, value: string): Promise<void>;
   /** Apparence et couleur du joueur pour le rendu de l'objet en repli (avatar). */
   myLook?: () => { color: string; look: Look | null };
+  /** Aperçu d'un joueur (player.card) pour la fenêtre au survol d'un pod. */
+  playerCard?(uid: string): Promise<PlayerCardData>;
 }
 /** Réactions proposées (les seules acceptées, y compris depuis le réseau). */
 export const EMOTES = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
@@ -112,6 +115,7 @@ export class TableView {
   private k = 1; private evk: string | null = null; private handObs: ResizeObserver | null = null;
   private roundGate: Promise<void> | null = null; private roundOpen: { round: number; ready: Set<number>; update: () => void; close: () => void } | null = null;
   private earlyReady: Record<number, number[]> = {};
+  private playerCardCtl: PlayerCardCtl | null = null;
   private prevWon: (number | undefined)[] = [];
   private oppEls: HTMLElement[] = [];
   private playedMine = new Set<number>(); private playedRound = -1;
@@ -171,6 +175,18 @@ export class TableView {
     const paintSound = () => { bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff; bs.setAttribute('aria-label', soundOn() ? 'Couper le son' : 'Activer le son'); bs.title = bs.getAttribute('aria-label')!; };
     paintSound(); bs.onclick = () => { setSound(!soundOn()); paintSound(); if (soundOn()) sfx.coin(); };
     installCardZoom(); setZoomNote(card => this.zoomNote(card)); preloadArt();
+    // Aperçu joueur au survol d'un pod : cache per-partie, évite la main et le centre du plateau à l'affichage
+    if (this.backend.playerCard) this.playerCardCtl = new PlayerCardCtl(
+      (u) => this.backend.playerCard!(u),
+      () => { location.hash = '#/profil'; },
+      () => {
+        const out: HTMLElement[] = [];
+        const h = $('#hand', this.root); if (h) out.push(h);
+        const c = this.root.querySelector('.center') as HTMLElement | null; if (c) out.push(c);
+        for (const el of Array.from(this.root.querySelectorAll('.tslot')) as HTMLElement[]) out.push(el);
+        return out;
+      },
+    );
     $('#bRules', root).onclick = () => modal(rulesHTML());
     $('#bExit', root).onclick = () => this.onExit();
     $('#layer', root).addEventListener('click', ev => {
@@ -189,7 +205,7 @@ export class TableView {
   }
   private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
   private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
-  destroy() { this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
+  destroy() { this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); this.playerCardCtl?.destroy(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {
@@ -289,6 +305,21 @@ export class TableView {
   setAvatars(list: (AvatarData | null)[]) { this.avatars = list; if (this.pub) this.render(); }
   private colorOf(i: number) { return this.avatars[i]?.color || PCOL[i % 9]; }
   private avatar(i: number, name: string, size: number) { return avatarHTML({ ...(this.avatars[i] || {}), letter: name, color: this.colorOf(i) }, size, size >= 50 ? `0 0 0 2px #1b140e,0 0 0 4px ${this.colorOf(i)}` : undefined); }
+  /** Instantané d'un joueur pour l'aperçu : place courante, résultat manche par manche, mise/plis du moment. */
+  private seatSnapshot(i: number): SeatSnapshot {
+    const pb = this.pub!, p = pb.players[i], n = pb.players.length;
+    const scores = pb.players.map(q => q.score);
+    const place = 1 + scores.filter(s => s > p.score).length;
+    const hist: SeatSnapshot['hist'] = Array.from({ length: 10 }, (_, k) => {
+      const h = p.hist?.[k];
+      return h ? { bid: h.bid, won: h.won, made: h.bid === h.won, played: true } : { bid: 0, won: 0, made: false, played: false };
+    });
+    const current = (pb.phase === 'play' || pb.phase === 'bid')
+      ? { round: pb.round, bid: pb.bidsRevealed ? (p.bid ?? null) : null, won: p.won }
+      : null;
+    return { seat: i, isBot: !!p.bot, isMe: i === this.mySeat, name: p.name, color: this.colorOf(i),
+      placeNow: { place, score: p.score, total: n }, hist, current };
+  }
 
   /* ---------- Lise Fil-de-Soie ---------- */
   private lise: { by: number; seat: number; pos: number; until: number } | null = null;
@@ -460,7 +491,11 @@ export class TableView {
     pb.players.forEach((p, i) => {
       const g = geo[(i - b + n) % n];
       let el = this.seatEls[i];
-      if (!el) { el = document.createElement('div'); el.className = 'pod'; layer.append(el); this.seatEls[i] = el; }
+      if (!el) {
+        el = document.createElement('div'); el.className = 'pod'; layer.append(el); this.seatEls[i] = el;
+        // aperçu joueur : un seul attach() par pod (idempotent dans le contrôleur), les données sont relues à chaque ouverture
+        this.playerCardCtl?.attach(el, () => ({ snapshot: this.seatSnapshot(i), uid: this.backend.seatUids?.[i] ?? null }));
+      }
       el.style.left = g.px + 'px'; el.style.top = g.py + 'px'; el.style.setProperty('--pc', this.colorOf(i));
       const active = this.isActive(i);
       el.classList.toggle('active', active); el.classList.toggle('liseby', this.liseNow()?.by === i); el.classList.toggle('me', i === this.mySeat); el.classList.toggle('cpt', n >= 6);
