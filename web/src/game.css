@@ -433,9 +433,10 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .pod .pinfo{flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:3px}
 .pod .pn{display:flex;align-items:center;gap:6px;min-width:0}
 .pod .nm{flex:0 1 auto;min-width:2.4em;font-weight:800;font-size:16px;color:var(--parch);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* ENTAME : indicateur plus visible, animation de pulsation discrète pour attirer l'œil */
-.pod .entame{flex:none;padding:3px 8px;border-radius:999px;background:linear-gradient(180deg,#f6e3a8,#c9a14a);color:#2b2117;font-size:11px;font-weight:800;letter-spacing:.08em;box-shadow:0 0 0 1px rgba(90,60,10,.3),0 0 8px rgba(234,208,138,.4);animation:entpulse 2.2s ease-in-out infinite}
-@keyframes entpulse{0%,100%{box-shadow:0 0 0 1px rgba(90,60,10,.3),0 0 8px rgba(234,208,138,.4)}50%{box-shadow:0 0 0 1px rgba(90,60,10,.3),0 0 14px rgba(234,208,138,.75)}}
+/* ENTAME : pastille flottante au-dessus du pod. Sort du flux de .pinfo (overflow:hidden) pour ne pas être rognée.
+   Positionnée en absolu sur le pod, l'animation de pulsation attire l'œil au début de chaque manche. */
+.pod .entame{position:absolute;top:-10px;left:50%;transform:translateX(-50%);z-index:3;padding:3px 10px;border-radius:999px;background:linear-gradient(180deg,#f6e3a8,#c9a14a);color:#2b2117;font-size:11px;font-weight:800;letter-spacing:.08em;white-space:nowrap;box-shadow:0 0 0 1px rgba(90,60,10,.35),0 2px 6px rgba(0,0,0,.4),0 0 10px rgba(234,208,138,.5);animation:entpulse 2.2s ease-in-out infinite;pointer-events:none}
+@keyframes entpulse{0%,100%{box-shadow:0 0 0 1px rgba(90,60,10,.35),0 2px 6px rgba(0,0,0,.4),0 0 10px rgba(234,208,138,.5)}50%{box-shadow:0 0 0 1px rgba(90,60,10,.35),0 2px 6px rgba(0,0,0,.4),0 0 16px rgba(234,208,138,.85)}}
 @media (prefers-reduced-motion:reduce){.pod .entame{animation:none}}
 .pod .ps{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pod .ps.gold{color:var(--brass2)}

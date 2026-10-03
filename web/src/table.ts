@@ -473,7 +473,7 @@ export class TableView {
     } else if (p.hasBid) { right = `<div class="bidst"><div class="sealed">${SEAL}</div></div>`; status = 'a misé'; }
     else { right = '<div class="bidst"><div class="think"><i></i><i></i><i></i></div></div>'; status = 'réfléchit…'; }
     return `<div class="av">${ring}${this.avatar(i, p.name, 56)}</div>
-      <div class="pinfo"><div class="pn"><span class="nm">${esc(p.name)}</span>${lead}</div><div class="ps ${gold ? 'gold' : ''}">${status}</div></div>${right}`;
+      <div class="pinfo"><div class="pn"><span class="nm">${esc(p.name)}</span></div><div class="ps ${gold ? 'gold' : ''}">${status}</div></div>${right}${lead}`;
   }
   renderTable() {
     const pb = this.pub; if (!pb) return;
