@@ -1,6 +1,7 @@
-// Règlement d'une partie terminée (fonction pure) : places, mises tenues, XP, hauts faits, Élo et résumé pour l'écran de fin.
+// Règlement d'une partie terminée (fonction pure) : places, mises tenues, XP, hauts faits, Élo, cosmétiques et résumé pour l'écran de fin.
 // Les bots ne reçoivent rien ; une partie avec un seul humain donne de l'XP mais ne compte pas pour l'Élo.
-// Le résultat est écrit par la fonction SQL game_settle (idempotente) : voir supabase/migrations/20261003000000_profiles_xp.sql.
+// Le résultat est écrit par la fonction SQL game_settle (idempotente) : voir supabase/migrations/20261003000000_profiles_xp.sql
+// et 20261005000000_cosmetics.sql pour la partie coffre, pièces et objets.
 import * as E from './engine.ts';
 import { eloDeltas } from './elo.ts';
 import { XP, levelFor } from './xp.ts';
@@ -18,11 +19,29 @@ export const ACHIEVEMENTS: Record<string, { name: string; description: string }>
   velvet: { name: 'Main de velours', description: 'Tenir 5 mises à 0 au total' },
 };
 
+/** Objet garanti au passage d'un titre (section « Avatar composé et garde-robe » de SPEC.md) et au déblocage d'un haut fait. */
+export const TITLE_COSMETICS: [number, string, string][] = [
+  [5,  'hat:tricorne',    'Tricorne (Gabier)'],
+  [11, 'hat:plume',       'Chapeau à plume (Bosco)'],
+  [16, 'hat:bicorne',     'Bicorne (Capitaine)'],
+  [25, 'hat:amiral',      "Chapeau d'amiral (Amiral)"],
+  [30, 'bg:or',           'Salle au trésor (Légende)'],
+];
+export const ACHIEVEMENT_COSMETICS: Record<string, string> = {
+  kraken_bet:   'frame:tentacules',
+  siren_hunter: 'neck:perles',
+  silk_thread:  'neck:medaillon',
+  captain:      'hat:couronne',
+  abyss:        'pet:poulpe',
+};
+/** Pièces : +10 par partie terminée, +5 par mise tenue (SPEC). Coffre : 1 au vainqueur humain d'une partie en ligne. */
+export const WALLET = { gameCoins: 10, bidCoin: 5, winChest: 1 } as const;
+
 export interface SettleSeat { seat: number; user_id: string | null; bot: boolean; name: string }
 /** Ce que la base sait d'un joueur avant la partie (fonction SQL settle_inputs). */
 export interface SettleInput {
   xp: number; elo: number; ranked_games: number; games: number; wins: number;
-  sirens_captured: number; zero_bids_made: number; achievements: string[];
+  sirens_captured: number; zero_bids_made: number; achievements: string[]; cosmetics?: string[];
 }
 export interface Settlement {
   results: { user_id: string; place: number; score: number; bids_made: number; rounds: number; players: number; elo_before: number; elo_after: number | null; elo_delta: number | null;
@@ -30,6 +49,10 @@ export interface Settlement {
   xp: { user_id: string; reason: string; amount: number }[];
   achievements: { user_id: string; code: string }[];
   stats: { user_id: string; win: number; bids_made: number; bids_total: number; score: number; sirens: number; zero_bids_made: number; ranked: boolean; elo_after: number }[];
+  /** Nouveaux objets cosmétiques gagnés (titre ou haut fait) : un par (user_id, cosmetic_id). */
+  cosmetics: { user_id: string; cosmetic_id: string; source: string }[];
+  /** Variation du porte-monnaie (pièces et coffres) à ajouter en bloc. Une seule ligne par joueur. */
+  wallet: { user_id: string; coins: number; chests: number }[];
   /** Résumé par utilisateur, publié dans games.state.settled pour l'écran de fin de partie. */
   public: Record<string, any>;
 }
@@ -39,7 +62,7 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
   const humans = seats.filter(s => s.user_id && !s.bot && inputs[s.user_id]);
   const ranked = humans.length >= 2;
   const elo = ranked ? eloDeltas(humans.map(s => ({ id: s.user_id!, elo: Number(inputs[s.user_id!].elo), games: inputs[s.user_id!].ranked_games, place: ranks[s.seat] }))) : [];
-  const out: Settlement = { results: [], xp: [], achievements: [], stats: [], public: {} };
+  const out: Settlement = { results: [], xp: [], achievements: [], stats: [], cosmetics: [], wallet: [], public: {} };
   const nameOf = (uid: string) => humans.find(h => h.user_id === uid)?.name ?? '?';
 
   for (const s of humans) {
@@ -68,6 +91,21 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
     if (win) lines.push({ reason: 'win', amount: XP.win });
     for (const c of fresh) lines.push({ reason: 'ach:' + c, amount: XP.achievement });
     const gain = lines.reduce((a, x) => a + x.amount, 0);
+    const levelBefore = levelFor(inp.xp).level, levelAfter = levelFor(inp.xp + gain).level;
+
+    // Cosmétiques : chapeaux de titre (nouveaux paliers franchis) + objets de haut fait (une seule fois chacun).
+    // La liste `inp.cosmetics` évite les doublons si game_settle rejoue la partie.
+    const owned = new Set(inp.cosmetics ?? []);
+    const cos: { cosmetic_id: string; source: string }[] = [];
+    for (const [threshold, id] of TITLE_COSMETICS)
+      if (levelBefore < threshold && levelAfter >= threshold && !owned.has(id)) cos.push({ cosmetic_id: id, source: 'title:' + threshold });
+    for (const code of fresh) {
+      const id = ACHIEVEMENT_COSMETICS[code];
+      if (id && !owned.has(id)) cos.push({ cosmetic_id: id, source: 'achievement:' + code });
+    }
+
+    // Pièces : +10 par partie, +5 par mise tenue ; coffre : 1 au vainqueur humain.
+    const coins = WALLET.gameCoins + WALLET.bidCoin * made, chests = win ? WALLET.winChest : 0;
 
     const e = elo.find(x => x.id === uid);
     out.results.push({ user_id: uid, place, score: p.score, bids_made: made, rounds: hist.length, players: seats.length,
@@ -75,12 +113,15 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
     out.xp.push(...lines.map(l => ({ user_id: uid, ...l })));
     out.achievements.push(...fresh.map(code => ({ user_id: uid, code })));
     out.stats.push({ user_id: uid, win, bids_made: made, bids_total: hist.length, score: p.score, sirens: f.sirens, zero_bids_made: zeroMade, ranked, elo_after: e ? e.after : Number(inp.elo) });
+    out.cosmetics.push(...cos.map(c => ({ user_id: uid, ...c })));
+    out.wallet.push({ user_id: uid, coins, chests });
     out.public[uid] = {
       place, score: p.score, bidsMade: made, rounds: hist.length,
       xp: lines, xpTotal: gain, xpBefore: inp.xp, xpAfter: inp.xp + gain,
-      levelBefore: levelFor(inp.xp).level, levelAfter: levelFor(inp.xp + gain).level,
+      levelBefore, levelAfter,
       achievements: fresh.map(code => ({ code, ...ACHIEVEMENTS[code] })),
       elo: e ? { before: e.before, after: e.after, delta: e.delta, vs: e.vs.map(v => ({ ...v, name: nameOf(v.id) })) } : null,
+      coins, chests, cosmetics: cos,
     };
   }
   return out;

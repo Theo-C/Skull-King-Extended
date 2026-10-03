@@ -50,6 +50,21 @@ const store: Store = {
     try { return (await db.query<any>(`select ${name}(${keys.map((k, i) => `${k} => $${i + 1}${Array.isArray(args[k]) ? '::uuid[]' : ''}`).join(', ')}) as r`, vals)).rows[0].r; }
     finally { await db.exec('reset role'); }
   },
+  async cosmetics() {
+    return (await db.query<any>('select id, slot, value, default_owned, how from cosmetics')).rows;
+  },
+  async userCosmetics(uid) {
+    return (await db.query<any>('select cosmetic_id from user_cosmetics where user_id=$1', [uid])).rows.map(r => r.cosmetic_id);
+  },
+  async wallet(uid) {
+    const r = (await db.query<any>('select coins, chests from user_wallet where user_id=$1', [uid])).rows[0];
+    return { coins: r?.coins ?? 0, chests: r?.chests ?? 0 };
+  },
+  async shopDay(day) {
+    await db.exec('set role service_role');
+    try { return (await db.query<any>(day ? 'select cosmetic_id, price from shop_day($1::date)' : 'select cosmetic_id, price from shop_day()', day ? [day] : [])).rows; }
+    finally { await db.exec('reset role'); }
+  },
 };
 async function as<T = any>(uid: string, sql: string, params: any[] = []) {
   await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub', '${uid}', false);`);

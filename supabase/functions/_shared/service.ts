@@ -8,6 +8,7 @@ export interface Commit {
   patch: { status?: string; options?: any; state?: any };
   secret?: E.State; hands?: { user_id: string; seat: number; data: any }[]; events?: any[]; seats?: SeatRow[];
 }
+export interface CosmeticRow { id: string; slot: string; value: string | null; default_owned: boolean; how: string | null }
 export interface Store {
   /** Adresse du projet Supabase (https://<ref>.supabase.co) : seule origine acceptée pour les photos de profil. */
   readonly origin: string;
@@ -18,8 +19,16 @@ export interface Store {
   seats(gameId: string): Promise<SeatRow[]>;
   secret(gameId: string): Promise<E.State | null>;
   commit(gameId: string, expectedVersion: number, c: Commit): Promise<number | null>; // null : conflit de version
-  /** Appel d'une fonction SQL réservée au serveur (settle_inputs, game_settle, history_page, history_get, profile_update, unsettled_games, rematch_claim). */
+  /** Appel d'une fonction SQL réservée au serveur (settle_inputs, game_settle, history_page, history_get, profile_update, unsettled_games, rematch_claim, chest_open, shop_buy). */
   rpc(name: string, args: Record<string, unknown>): Promise<any>;
+  /** Catalogue complet (public.cosmetics), chargé une fois. */
+  cosmetics(): Promise<CosmeticRow[]>;
+  /** Identifiants des objets possédés par le joueur, en plus de ceux qui sont libres par défaut. */
+  userCosmetics(uid: string): Promise<string[]>;
+  /** Porte-monnaie du joueur (pièces et coffres non ouverts). Zéro par défaut si la ligne n'existe pas encore. */
+  wallet(uid: string): Promise<{ coins: number; chests: number }>;
+  /** Boutique du jour (3 objets déterministes à partir de la date, prix inclus). */
+  shopDay(day?: string): Promise<{ cosmetic_id: string; price: number }[]>;
 }
 export class HttpError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 const bad = (m: string) => new HttpError(400, m);
@@ -44,6 +53,9 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'start': return withRetry(() => start(store, uid, body));
     case 'act': return withRetry(() => act(store, uid, body));
     case 'profile.update': return profileUpdate(store, uid, body);
+    case 'profile.wardrobe': return wardrobe(store, uid);
+    case 'chest.open': return chestOpen(store, uid);
+    case 'shop.buy': return shopBuy(store, uid, body);
     case 'history.list': return historyList(store, uid, body);
     case 'history.get': return historyGet(store, uid, body);
     case 'rematch': return rematch(store, uid, body);
@@ -190,6 +202,55 @@ export async function settleFinished(store: Store, gameId: string, S: E.State, s
 
 /* ---------- Profil ---------- */
 export const PALETTE = ['#d9b25a', '#c8644b', '#7ab874', '#5c9db6', '#a982c4', '#e0954a', '#c9c0ae', '#d77fa1'];
+const HAIR_STYLES = ['court', 'meche', 'long', 'boucles', 'chignon', 'tresse', 'queue', 'none'];
+const BEARDS = ['none', 'mous', 'short', 'long'];
+const SLOT_KEYS = ['hat', 'face', 'neck', 'pet', 'bg', 'frame'] as const;
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+/** Vérifie qu'un `look` ne contient que des objets possédés et des valeurs connues.
+ *  Les champs libres (teint, coiffure, pilosité) sont vérifiés dans leur plage ; les couleurs doivent être au format #RRGGBB. */
+async function validateLook(store: Store, uid: string, look: any): Promise<Record<string, unknown>> {
+  if (typeof look !== 'object' || look === null || Array.isArray(look)) throw bad("Format d'apparence invalide.");
+  const out: Record<string, unknown> = {};
+  if ('skin' in look) {
+    const v = look.skin; if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 5) throw bad('Teint inconnu.');
+    out.skin = v;
+  }
+  if ('hair' in look) {
+    const v = look.hair; if (typeof v !== 'string' || !HAIR_STYLES.includes(v)) throw bad('Coiffure inconnue.');
+    out.hair = v;
+  }
+  if ('hc' in look) {
+    const v = look.hc; if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 5) throw bad('Couleur de cheveux inconnue.');
+    out.hc = v;
+  }
+  if ('beard' in look) {
+    const v = look.beard; if (typeof v !== 'string' || !BEARDS.includes(v)) throw bad('Pilosité inconnue.');
+    out.beard = v;
+  }
+  for (const key of ['htc', 'nkc', 'ptc'] as const) if (key in look) {
+    const v = look[key]; if (typeof v !== 'string' || !HEX.test(v)) throw bad('Couleur invalide.');
+    out[key] = v;
+  }
+  // Vérifier que chaque emplacement (chapeau, visage, cou, compagnon, décor, cadre) pointe sur un objet possédé.
+  const needs: { slot: string; value: string | null }[] = [];
+  for (const slot of SLOT_KEYS) if (slot in look) {
+    const v = look[slot]; if (v !== null && typeof v !== 'string') throw bad('Objet invalide.');
+    needs.push({ slot, value: v }); out[slot] = v;
+  }
+  if (needs.length) {
+    const cat = await store.cosmetics();
+    const ownedExtra = new Set(await store.userCosmetics(uid));
+    const ownsSlotValue = (slot: string, value: string | null) =>
+      cat.some(c => c.slot === slot && c.value === value && (c.default_owned || ownedExtra.has(c.id)));
+    for (const { slot, value } of needs) {
+      if (value === null && (slot === 'bg')) continue; // décor null = Haute mer par défaut, toujours autorisé
+      if (!ownsSlotValue(slot, value)) throw bad(`Objet non possédé pour la rubrique ${slot}.`);
+    }
+  }
+  return out;
+}
+
 async function profileUpdate(store: Store, uid: string, body: any) {
   const p: Record<string, unknown> = {};
   if (body.pseudo != null) {
@@ -214,6 +275,7 @@ async function profileUpdate(store: Store, uid: string, body: any) {
       p.avatar_url = u;
     }
   }
+  if (body.look != null) p.look = await validateLook(store, uid, body.look);
   for (const k of ['public_rank', 'notify_turn', 'sounds']) if (body[k] != null) {
     if (typeof body[k] !== 'boolean') throw bad('Réglage invalide.');
     p[k] = body[k];
@@ -221,6 +283,23 @@ async function profileUpdate(store: Store, uid: string, body: any) {
   if (!Object.keys(p).length) throw bad('Rien à enregistrer.');
   await store.rpc('profile_update', { p_user: uid, p });
   return { ok: true };
+}
+
+/* ---------- Garde-robe ---------- */
+async function wardrobe(store: Store, uid: string) {
+  const [owned, w, shop] = await Promise.all([store.userCosmetics(uid), store.wallet(uid), store.shopDay()]);
+  return { owned, coins: w.coins, chests: w.chests, shop };
+}
+async function chestOpen(store: Store, uid: string) {
+  const r = await store.rpc('chest_open', { p_user: uid, p_seed: null });
+  if (r?.error) throw bad(r.error);
+  return r;
+}
+async function shopBuy(store: Store, uid: string, body: any) {
+  if (typeof body.cosmetic_id !== 'string' || body.cosmetic_id.length > 48) throw bad('Objet inconnu.');
+  const r = await store.rpc('shop_buy', { p_user: uid, p_cosmetic: body.cosmetic_id });
+  if (r?.error) throw bad(r.error);
+  return r;
 }
 
 /* ---------- Historique ---------- */

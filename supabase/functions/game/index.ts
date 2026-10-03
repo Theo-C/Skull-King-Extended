@@ -1,7 +1,7 @@
 // Edge Function « game » : arbitre toutes les actions de partie.
 // Déploiement : supabase functions deploy game
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { handle, HttpError, type Store, type GameRow, type SeatRow } from '../_shared/service.ts';
+import { handle, HttpError, type Store, type GameRow, type SeatRow, type CosmeticRow } from '../_shared/service.ts';
 
 const URL_ = Deno.env.get('SUPABASE_URL')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -61,7 +61,31 @@ const store: Store = {
     if (error) fail(error, name);
     return data;
   },
+  async cosmetics() {
+    // cache 60 s : le catalogue est en données de départ (migration), il bouge rarement
+    if (cosmeticsCache && Date.now() - cosmeticsCache.at < 60_000) return cosmeticsCache.rows;
+    const { data, error } = await admin.from('cosmetics').select('id, slot, value, default_owned, how');
+    if (error) fail(error, 'catalogue');
+    cosmeticsCache = { at: Date.now(), rows: (data ?? []) as CosmeticRow[] };
+    return cosmeticsCache.rows;
+  },
+  async userCosmetics(uid) {
+    const { data, error } = await admin.from('user_cosmetics').select('cosmetic_id').eq('user_id', uid);
+    if (error) fail(error, 'inventaire');
+    return (data ?? []).map(r => r.cosmetic_id);
+  },
+  async wallet(uid) {
+    const { data, error } = await admin.from('user_wallet').select('coins, chests').eq('user_id', uid).maybeSingle();
+    if (error) fail(error, 'porte-monnaie');
+    return { coins: data?.coins ?? 0, chests: data?.chests ?? 0 };
+  },
+  async shopDay(day) {
+    const { data, error } = await admin.rpc('shop_day', day ? { p_day: day } : {});
+    if (error) fail(error, 'boutique');
+    return ((data ?? []) as { cosmetic_id: string; price: number }[]).map(r => ({ cosmetic_id: r.cosmetic_id, price: r.price }));
+  },
 };
+let cosmeticsCache: { at: number; rows: CosmeticRow[] } | null = null;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
