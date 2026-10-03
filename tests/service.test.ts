@@ -155,6 +155,16 @@ ok('règlement rejoué : « already »', await settleFinished(store, G, S_end!, 
 const xpAfter = (await db.query<any>('select xp from profiles where id = any($1::uuid[])', [users])).rows.map((x: any) => x.xp);
 ok('règlement rejoué : XP inchangée', xpAfter.sort().join() === xpBefore.split(',').sort().join());
 
+// Porte-monnaie et objets gagnés : 1 coffre au vainqueur, 10 + 5 × mises tenues pièces, pas de double application
+const winnerUid = res[0].user_id as string;
+const winnerBids = Number((await db.query<any>('select bids_made from game_results where game_id=$1 and user_id=$2', [G, winnerUid])).rows[0].bids_made);
+const wWin = await store.wallet(winnerUid);
+ok('porte-monnaie : 1 coffre au vainqueur humain', wWin.chests === 1, wWin);
+ok('porte-monnaie : 10 + 5 × mises tenues', wWin.coins === 10 + 5 * winnerBids, { wWin, winnerBids });
+await settleFinished(store, G, S_end!, await store.seats(G));
+const wWin2 = await store.wallet(winnerUid);
+ok('porte-monnaie : règlement rejoué n’ajoute rien', wWin2.coins === wWin.coins && wWin2.chests === wWin.chests, { wWin, wWin2 });
+
 // ---------- Historique, détail, revanche, profil ----------
 const hist = await handle(store, U.alice, { action: 'history.list' });
 ok('historique : la partie terminée', hist.items.length === 1 && hist.items[0].id === G && hist.next === null, hist);
@@ -195,6 +205,63 @@ const row = await store.gameById(g2.id);
 const v1 = await store.commit(g2.id, row!.version, { patch: {} });
 const v2 = await store.commit(g2.id, row!.version, { patch: {} });
 ok('écriture concurrente détectée', v1 != null && v2 == null, { v1, v2 });
+
+// ---------- Cosmétiques : coffre, boutique, apparence ----------
+// Catalogue : les objets de titre et de haut fait sont bien dans la base
+const titleIds = ['hat:tricorne', 'hat:plume', 'hat:bicorne', 'hat:amiral', 'bg:or', 'frame:tentacules', 'neck:perles', 'neck:medaillon', 'hat:couronne', 'pet:poulpe'];
+const catIds = ((await db.query<any>('select id from cosmetics where id = any($1::text[])', [titleIds])).rows).map((r: any) => r.id).sort();
+ok('catalogue : objets de titre et de haut fait présents', catIds.join() === [...titleIds].sort().join(), catIds);
+
+// chest.open : graine fixe → objet attendu ; appel sans coffre → erreur
+const nobodyUid = U.eve;
+await db.exec(`insert into user_wallet (user_id, chests) values ('${nobodyUid}', 1) on conflict (user_id) do update set chests = 1`);
+const open1 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 123 });
+ok('coffre : graine fixe → objet déterministe', open1?.ok && typeof open1.cosmetic_id === 'string' && ['c', 'r', 'l'].includes(open1.rarity), open1);
+const noMore = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 456 });
+ok('coffre : rien à ouvrir → erreur', !!noMore?.error, noMore);
+// doublon : on force un second coffre avec la même graine (donc même objet) et on vérifie la conversion en pièces
+await db.exec(`update user_wallet set chests = 1, coins = 0 where user_id = '${nobodyUid}'`);
+const open2 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 123 });
+ok('coffre : doublon converti en pièces', open2?.duplicate === true && open2.cosmetic_id === open1.cosmetic_id && open2.coins > 0, open2);
+const payouts: Record<string, number> = { c: 30, r: 80, l: 200 };
+const payout = payouts[open2.rarity as string];
+const wAfter = (await db.query<any>('select coins from user_wallet where user_id=$1', [nobodyUid])).rows[0];
+ok('coffre : barème du doublon (c:30 r:80 l:200)', Number(wAfter.coins) === payout, { expected: payout, got: wAfter.coins });
+
+// Tirage : vérifier la répartition commune/rare sur 400 ouvertures avec des graines dérivées (pas de légendaire au pool
+// de départ : les 5 % de légendaires basculent sur rare ou commun — c'est le comportement attendu du secours).
+let cC = 0, cR = 0, cL = 0;
+for (let i = 0; i < 400; i++) {
+  await db.exec(`update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
+  const r = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 1_000_000 + i * 2017 });
+  if (r?.rarity === 'c') cC++; else if (r?.rarity === 'r') cR++; else if (r?.rarity === 'l') cL++;
+}
+ok('coffre : fréquence commune autour de 70 %', Math.abs(cC - 280) <= 50, { cC, cR, cL });
+ok('coffre : fréquence rare autour de 25 %', Math.abs(cR - 100) <= 40, { cC, cR, cL });
+
+// Boutique : 3 objets déterministes à partir de la date, puis achat et refus (prix et pool)
+const shop1 = await store.shopDay('2026-10-03'), shop2 = await store.shopDay('2026-10-03'), shop3 = await store.shopDay('2026-10-04');
+ok('boutique : 3 objets déterministes par jour', shop1.length === 3 && JSON.stringify(shop1) === JSON.stringify(shop2) && JSON.stringify(shop1) !== JSON.stringify(shop3), { shop1, shop3 });
+await expectErr('boutique : objet pas en vente → refus', handle(store, nobodyUid, { action: 'shop.buy', cosmetic_id: 'hat:couronne' }), 400);
+// achat : on crédite assez de pièces, on prend un objet de la boutique du jour
+const todayShop = await store.shopDay();
+await db.exec(`update user_wallet set coins = 500 where user_id = '${nobodyUid}'`);
+const buy = await handle(store, nobodyUid, { action: 'shop.buy', cosmetic_id: todayShop[0].cosmetic_id });
+ok('boutique : achat réussi', !!buy?.ok && buy.cosmetic_id === todayShop[0].cosmetic_id, buy);
+await expectErr('boutique : rachat refusé', handle(store, nobodyUid, { action: 'shop.buy', cosmetic_id: todayShop[0].cosmetic_id }), 400);
+
+// Apparence (look) : un objet non possédé est refusé, un objet libre + couleur hex passent
+await expectErr('look : objet non possédé → refus', handle(store, U.alice, { action: 'profile.update', look: { hat: 'bicorne' } }), 400);
+await expectErr('look : coiffure inconnue → refus', handle(store, U.alice, { action: 'profile.update', look: { hair: 'rose' } }), 400);
+await expectErr('look : couleur mal formée → refus', handle(store, U.alice, { action: 'profile.update', look: { htc: 'rouge' } }), 400);
+await expectErr('look : teint hors plage → refus', handle(store, U.alice, { action: 'profile.update', look: { skin: 42 } }), 400);
+await handle(store, U.alice, { action: 'profile.update', look: { skin: 2, hair: 'meche', hc: 1, beard: 'short', hat: 'bandana', htc: '#9e2a22', face: null, neck: 'foulard', nkc: '#2f5f8a', bg: 'nuit' } });
+const look = (await db.query<any>('select look from profiles where id=$1', [U.alice])).rows[0].look;
+ok('look : apparence libre enregistrée', look?.hair === 'meche' && look?.hat === 'bandana' && look?.htc === '#9e2a22' && look?.bg === 'nuit', look);
+
+// profile.wardrobe : résumé pour l'UI (inventaire + porte-monnaie + boutique du jour)
+const wr = await handle(store, winnerUid, { action: 'profile.wardrobe' });
+ok('garde-robe : inventaire + porte-monnaie + boutique', Array.isArray(wr.owned) && typeof wr.coins === 'number' && typeof wr.chests === 'number' && wr.shop.length === 3, wr);
 
 console.log(`Serveur : ${passes} vérifications réussies, ${fails} échec(s), ${moves} actions jouées par 4 comptes.`);
 if (fails) process.exit(1);

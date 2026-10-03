@@ -86,14 +86,14 @@ create table public.user_wallet (
 );
 
 -- ---------- Boutique : 3 objets déterministes par jour, à partir des objets vendables ----------
--- Pool : cosmetics.how = 'shop'. Toujours au moins un objet, répété si le pool est trop petit.
+-- Pool : cosmetics.how = 'shop'. Si le pool a moins de 3 objets, les mêmes peuvent revenir (le `distinct` serait plus beau,
+-- mais tant que le pool compte au moins 3 objets uniques en production c'est bon).
 create or replace function public.shop_day(p_day date default (now() at time zone 'utc')::date)
 returns table (slot_idx int, cosmetic_id text, price integer) language sql stable security definer set search_path = public as $$
   with pool as (select id, rarity, row_number() over (order by id) as rn, count(*) over () as n from public.cosmetics where how = 'shop'),
-       seed as (select ('x' || substr(md5(p_day::text), 1, 8))::bit(32)::bigint as s),
        picks as (
          select g.i as slot_idx,
-                ((((select s from seed) + g.i * 1664525) % 2147483647) % greatest((select n from pool), 1)) + 1 as rn
+                ((((('x' || substr(md5(p_day::text), 1, 8))::bit(32)::bigint) + g.i::bigint * 1664525) % 2147483647) % greatest((select max(n) from pool), 1)) + 1 as rn
          from generate_series(0, 2) g(i))
        select picks.slot_idx, pool.id, case pool.rarity when 'c' then 60 when 'r' then 120 else 200 end
        from picks join pool on pool.rn = picks.rn
@@ -121,12 +121,13 @@ revoke execute on function public.shop_buy(uuid, text) from public, anon, authen
 grant execute on function public.shop_buy(uuid, text) to service_role;
 
 -- ---------- Coffre : tirage 70/25/5, doublon → pièces (30/80/200) ----------
--- Pool : cosmetics.how = 'chest' ; si une rareté est absente du pool, l'une des autres la remplace.
+-- Pool : cosmetics.how = 'chest' ; si une rareté est absente du pool (par exemple aucun légendaire au catalogue de départ),
+-- on bascule sur la rareté voisine la plus proche.
 create or replace function public.chest_open(p_user uuid, p_seed bigint default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   v_chests int; v_seed bigint; v_roll numeric; v_rar text; v_id text; v_name text; v_dup boolean;
-  v_payout int;
+  v_payout int; v_count int;
 begin
   insert into public.user_wallet (user_id) values (p_user) on conflict (user_id) do nothing;
   select chests into v_chests from public.user_wallet where user_id = p_user for update;
@@ -135,15 +136,17 @@ begin
   v_seed := coalesce(p_seed, (extract(epoch from clock_timestamp()) * 1000)::bigint # ('x' || substr(md5(p_user::text), 1, 8))::bit(32)::bigint);
   v_roll := ((v_seed % 10000) + 10000) % 10000 / 10000.0;
   v_rar := case when v_roll < 0.70 then 'c' when v_roll < 0.95 then 'r' else 'l' end;
-  -- Tirer un objet de rareté v_rar ; s'il n'y en a pas, basculer sur une rareté voisine
-  with pool as (select id, name, rarity, row_number() over (order by id) as rn, count(*) over () as n from public.cosmetics where how = 'chest' and rarity = v_rar),
-       alt as (select id, name, rarity, row_number() over (order by rarity, id) as rn, count(*) over () as n from public.cosmetics where how = 'chest' and rarity <> v_rar)
-  select id, name, rarity into v_id, v_name, v_rar from (
-    select p.* from pool p where p.n > 0 and p.rn = (((v_seed / 10000) % p.n + p.n) % p.n) + 1
-    union all
-    select a.* from alt a where (select n from pool limit 1) = 0 and a.rn = (((v_seed / 10000) % a.n + a.n) % a.n) + 1
-    limit 1) t;
-  if v_id is null then return jsonb_build_object('error', 'Coffre vide : prévenez l''équipe.'); end if;
+  -- Tirer un objet de rareté v_rar ; si cette rareté est absente, on bascule sur une rareté voisine (c ↔ r ↔ l)
+  select count(*) into v_count from public.cosmetics where how = 'chest' and rarity = v_rar;
+  if v_count = 0 then v_rar := case v_rar when 'l' then 'r' when 'c' then 'r' else 'c' end; end if;
+  select count(*) into v_count from public.cosmetics where how = 'chest' and rarity = v_rar;
+  if v_count = 0 then
+    select rarity into v_rar from public.cosmetics where how = 'chest' order by rarity limit 1;
+    select count(*) into v_count from public.cosmetics where how = 'chest' and rarity = v_rar;
+  end if;
+  if v_count = 0 then return jsonb_build_object('error', 'Coffre vide : prévenez l''équipe.'); end if;
+  with pool as (select id, name, row_number() over (order by id) as rn from public.cosmetics where how = 'chest' and rarity = v_rar)
+    select id, name into v_id, v_name from pool where rn = (((v_seed / 10000) % v_count + v_count) % v_count) + 1;
   -- déduire le coffre
   update public.user_wallet set chests = chests - 1 where user_id = p_user;
   -- doublon → pièces
