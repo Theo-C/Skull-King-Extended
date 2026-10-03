@@ -1,15 +1,15 @@
 // Profil de l'utilisateur connecté (mis en cache), en-tête commun (AppBar) et barre d'onglets du téléphone.
 import { sb } from './api';
 import { $, esc } from './util';
-import { avatarHTML, fromProfile } from './avatar';
+import { avatarHTML, fromProfile, type Look } from './avatar';
 import { xpLine } from './xp';
 import { setSound } from './sound';
 
 export interface Profile {
   id: string; pseudo: string; color: string; avatar_kind: string; avatar_art: number | null; avatar_url: string | null;
-  xp: number; public_rank: boolean; notify_turn: boolean; sounds: boolean;
+  look: Look | null; xp: number; public_rank: boolean; notify_turn: boolean; sounds: boolean;
 }
-const COLS = 'id, pseudo, color, avatar_kind, avatar_art, avatar_url, xp, public_rank, notify_turn, sounds';
+const COLS = 'id, pseudo, color, avatar_kind, avatar_art, avatar_url, look, xp, public_rank, notify_turn, sounds';
 let cache: { uid: string; p: Profile } | null = null;
 let pending: { uid: string; p: Promise<Profile | null> } | null = null;
 
@@ -22,7 +22,7 @@ export function myProfile(uid: string, force = false): Promise<Profile | null> {
     let { data, error } = await sb.from('profiles').select(COLS).eq('id', uid).maybeSingle();
     if (error) {
       const r = await sb.from('profiles').select('id, pseudo').eq('id', uid).maybeSingle();
-      data = r.data ? { color: '#d9b25a', avatar_kind: 'initial', avatar_art: null, avatar_url: null, xp: 0, public_rank: true, notify_turn: true, sounds: true, ...r.data } as any : null;
+      data = r.data ? { color: '#d9b25a', avatar_kind: 'initial', avatar_art: null, avatar_url: null, look: null, xp: 0, public_rank: true, notify_turn: true, sounds: true, ...r.data } as any : null;
     }
     const prof = data as Profile | null;
     if (prof) { cache = { uid, p: prof }; applyPrefs(prof); }
