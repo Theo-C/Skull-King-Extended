@@ -293,6 +293,7 @@ async function wardrobe(store: Store, uid: string) {
 async function chestOpen(store: Store, uid: string) {
   const r = await store.rpc('chest_open', { p_user: uid, p_seed: null });
   if (r?.error) throw bad(r.error);
+  // Le site attend { cosmetic_id, slot, value, name, rarity, duplicate, coins_gained, coins, chests } : voir web/src/chest.ts
   return r;
 }
 async function shopBuy(store: Store, uid: string, body: any) {

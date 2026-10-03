@@ -2,7 +2,11 @@
 .appbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;align-items:center;gap:12px 24px;flex-wrap:wrap;
   padding:10px 16px;background:rgba(18,14,11,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
 .appbar .brand{display:flex;align-items:center;gap:10px;margin-right:auto;text-decoration:none;color:inherit;min-width:0}
-.appbar nav{display:flex;gap:4px;flex-wrap:wrap}
+.appbar nav{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.chbadge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(201,161,74,.14);border:1px solid rgba(234,208,138,.5);color:var(--brass2);text-decoration:none;font-weight:800;font-size:13px;margin-left:4px}
+.chbadge:hover{background:rgba(201,161,74,.22)}
+.chbadge svg{width:18px;height:18px;display:block}
+.chbadge .chn{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--brass2);color:#2b2117;font-size:12px}
 .appbar nav a{color:var(--text);text-decoration:none;font-weight:700;font-size:14px;padding:7px 12px;border-radius:7px;border:1px solid transparent}
 .appbar nav a:hover{color:var(--brass2)}
 .appbar nav a.on{border-color:rgba(234,208,138,.35);color:var(--brass2);background:rgba(201,161,74,.08)}

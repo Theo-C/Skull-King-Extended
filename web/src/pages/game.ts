@@ -4,7 +4,8 @@ import { sb, callGame, inviteLink } from '../api';
 import { $, esc, toast, copyText } from '../util';
 import { optionsHTML, readOptions, wireOptions } from '../options';
 import { TableView } from '../table';
-import { fromProfile } from '../avatar';
+import { fromProfile, type Look } from '../avatar';
+import { myProfile, forgetProfile } from '../account';
 import { detailPage } from './detail';
 import { renderSalon } from './salon';
 import { go, setCleanup } from '../main';
@@ -12,6 +13,7 @@ import { go, setCleanup } from '../main';
 export async function gamePage(root: HTMLElement, id: string, uid: string) {
   let channel: RealtimeChannel | null = null, table: TableView | null = null, mode: 'lobby' | 'table' | null = null;
   let lastEventId = 0, syncing = false, again = false, timer: any = null, stopped = false;
+  let myLookCache: { color: string; look: Look | null } | null = null;
   const stop = () => { stopped = true; if (channel) sb.removeChannel(channel); clearInterval(timer); table?.destroy(); };
   setCleanup(stop);
 
@@ -59,12 +61,23 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       settled: async () => (await callGame<any>('history.get', { id }))?.state?.settled ?? null,
       // coffre de victoire ouvert depuis la superposition de fin de partie
       openChest: () => callGame<any>('chest.open', {}),
+      // équiper l'objet reçu : met à jour profiles.look avec le nouvel emplacement
+      equipItem: async (slot, value) => {
+        const base = await myProfile(uid); const nextLook = { ...(base?.look || {}), [slot]: value };
+        await callGame('profile.update', { look: nextLook });
+        forgetProfile();
+      },
+      // apparence actuelle du joueur pour le rendu de l'objet en repli (avatar)
+      myLook: () => myLookCache || { color: '#d9b25a', look: null },
     }, () => go('#/'));
     // avatars et couleurs des joueurs (les bots gardent l'initiale sur la couleur par défaut)
     const ids = seats.filter(s => s.user_id).map(s => s.user_id);
     if (ids.length) {
       const { data: profs } = await sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url, look').in('id', ids);
-      if (profs) table.setAvatars(seats.map(s => { const p = profs.find((x: any) => x.id === s.user_id); return p ? fromProfile(p) : null; }));
+      if (profs) {
+        table.setAvatars(seats.map(s => { const p = profs.find((x: any) => x.id === s.user_id); return p ? fromProfile(p) : null; }));
+        const me = profs.find((x: any) => x.id === uid); if (me) myLookCache = { color: me.color || '#d9b25a', look: me.look || null };
+      }
     }
   };
 

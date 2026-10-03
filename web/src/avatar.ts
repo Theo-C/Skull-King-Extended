@@ -30,9 +30,10 @@ export interface Look {
 export interface AvatarData { kind?: 'initial' | 'art' | 'photo' | string | null; art?: number | null; url?: string | null; letter?: string; color?: string | null; look?: Look | null }
 
 /** Catalogue d'objets (aligné sur public.cosmetics / maquettes/Profil.dc.html).
- *  id = `slot:value`. default_owned = libre pour tout le monde. how = source d'obtention. */
+ *  id = `slot:value`. default_owned = libre pour tout le monde. how = source d'obtention.
+ *  4 niveaux de rareté : c (Commun) · r (Rare) · e (Épique) · l (Légendaire). */
+export type Rar = 'c' | 'r' | 'e' | 'l';
 export const CATALOG = (() => {
-  type Rar = 'c' | 'r' | 'l';
   interface Item { id: string; slot: string; value: string | null; name: string; rarity: Rar; defaultOwned: boolean; how: string | null; variantKey?: 'htc' | 'nkc' | 'ptc'; variants?: string[] }
   const C: Item[] = [
     { id: 'hat:none', slot: 'hat', value: null, name: 'Tête nue', rarity: 'c', defaultOwned: true, how: null },
@@ -54,8 +55,8 @@ export const CATALOG = (() => {
 
     { id: 'neck:none', slot: 'neck', value: null, name: 'Rien', rarity: 'c', defaultOwned: true, how: null },
     { id: 'neck:foulard', slot: 'neck', value: 'foulard', name: 'Foulard', rarity: 'c', defaultOwned: true, how: null, variantKey: 'nkc', variants: ['#9e2a22', '#2f5f8a', '#c9a14a'] },
-    { id: 'neck:jabot', slot: 'neck', value: 'jabot', name: 'Jabot de dentelle', rarity: 'r', defaultOwned: false, how: 'chest' },
-    { id: 'neck:perles', slot: 'neck', value: 'perles', name: 'Collier de perles', rarity: 'r', defaultOwned: false, how: 'achievement:siren_hunter' },
+    { id: 'neck:jabot', slot: 'neck', value: 'jabot', name: 'Jabot de dentelle', rarity: 'e', defaultOwned: false, how: 'chest' },
+    { id: 'neck:perles', slot: 'neck', value: 'perles', name: 'Collier de perles', rarity: 'e', defaultOwned: false, how: 'achievement:siren_hunter' },
     { id: 'neck:medaillon', slot: 'neck', value: 'medaillon', name: 'Médaillon d\'or', rarity: 'l', defaultOwned: false, how: 'achievement:silk_thread' },
 
     { id: 'pet:none', slot: 'pet', value: null, name: 'Personne', rarity: 'c', defaultOwned: true, how: null },

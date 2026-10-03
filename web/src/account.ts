@@ -64,6 +64,17 @@ export function shell(user: { id: string } | null, active: string) {
       pill.setAttribute('aria-label', `Mon profil : ${p.pseudo} · Niv. ${x.level}`);
       pill.innerHTML = `${avatarHTML(fromProfile(p), 36)}<span><b>${esc(p.pseudo)} <i>· Niv. ${x.level}</i></b><span class="mxp" title="${x.text} XP"><span style="width:${x.pct}%"></span></span></span>`;
     });
+    // Badge coffre : visible dans l'en-tête quand on a au moins un coffre non ouvert
+    sb.from('user_wallet').select('chests').eq('user_id', user.id).maybeSingle().then(({ data }) => {
+      const n = Number(data?.chests ?? 0);
+      let b = $('#chestBadge') as HTMLElement | null;
+      if (n > 0) {
+        if (!b) { b = document.createElement('a'); b.id = 'chestBadge'; b.className = 'chbadge'; nav.append(b); }
+        b.setAttribute('href', '#/profil');
+        b.setAttribute('aria-label', `${n} coffre${n > 1 ? 's' : ''} à ouvrir dans votre garde-robe`);
+        b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h18v9H3zM3 10c0-4 3-6 9-6s9 2 9 6M10 12h4v3h-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span class="chn">${n}</span>`;
+      } else if (b) { b.remove(); }
+    });
   } else {
     nav.innerHTML = link('practice', 'Entraînement', '#/entrainement') + link('rules', 'Règles', '#/regles') + link('login', 'Connexion', '#/connexion');
     pill.hidden = true; pill.removeAttribute('aria-current'); tabs.hidden = true; tabs.innerHTML = '';

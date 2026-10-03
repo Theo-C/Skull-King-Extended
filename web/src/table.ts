@@ -6,8 +6,9 @@ import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
 import { installCardZoom, setZoomNote } from './zoom';
-import { avatarHTML, type AvatarData } from './avatar';
+import { avatarHTML, type AvatarData, type Look } from './avatar';
 import { levelFor, xpToReach, LEVEL_TITLES, fmt, xpReason as xpLabel } from './xp';
+import { openChestOverlay, type ChestResult } from './chest';
 
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -28,8 +29,12 @@ export interface TableBackend {
   gameId?: string; uid?: string; seatUids?: (string | null)[]; rematch?(): Promise<string>;
   /** Règlement de fin de partie relu au serveur (history.get) quand il tarde à arriver par l'état de la partie. */
   settled?(): Promise<any>;
-  /** Coffre de victoire : appelle chest.open côté serveur et renvoie le résultat (objet, rareté, pièces si doublon). */
-  openChest?(): Promise<{ cosmetic_id?: string; name?: string; rarity?: string; duplicate?: boolean; coins?: number; error?: string }>;
+  /** Coffre de victoire : appelle chest.open côté serveur et renvoie le résultat complet pour openChestOverlay (web/src/chest.ts). */
+  openChest?(): Promise<ChestResult>;
+  /** Équiper un objet gagné (profile.update { look: { ...slot: value } }). */
+  equipItem?(slot: string, value: string): Promise<void>;
+  /** Apparence et couleur du joueur pour le rendu de l'objet en repli (avatar). */
+  myLook?: () => { color: string; look: Look | null };
 }
 /** Réactions proposées (les seules acceptées, y compris depuis le réseau). */
 export const EMOTES = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
@@ -1116,20 +1121,22 @@ export class TableView {
       const i = Number(el.dataset.elo), u = this.backend.seatUids?.[i]; const e = u ? res[u]?.elo : null;
       if (e) el.textContent += ` · Élo ${signed(Math.round(e.delta))}`;
     });
-    // Coffre : ouverture au clic, puis révélation de l'objet (avec rendu composé) ou doublon → pièces
+    // Coffre : la superposition d'ouverture (chest.ts) prend la main. En cas de succès, on cache le bloc coffre
+    // de la fin de partie puisqu'il n'y a plus de coffre à ouvrir.
     const chestEl = ov.querySelector('#fchest') as HTMLElement | null;
     if (chestEl) {
       const open = async () => {
-        if (chestEl.dataset.state === 'opening' || chestEl.dataset.state === 'open') return;
+        if (chestEl.dataset.state === 'opening') return;
         chestEl.dataset.state = 'opening';
         try {
           const r = await this.backend.openChest!();
-          if (r?.error) { chestEl.dataset.state = 'closed'; toast(r.error, 'err'); return; }
-          const name = r?.name || 'Objet mystère', rarity = r?.rarity || 'c';
-          const rarName = rarity === 'l' ? 'légendaire' : rarity === 'r' ? 'rare' : 'commun';
-          const sub = r?.duplicate ? `Doublon : +${r.coins ?? 0} pièces à votre bourse.` : 'Visible à la table dès la prochaine partie.';
-          chestEl.dataset.state = 'open';
-          chestEl.innerHTML = `<span class="pop fchest-pop"><span class="coin"></span></span><span class="fchest-txt pop"><span class="ftag ${rarity}">Objet ${esc(rarName)} obtenu</span><b>${esc(name)}</b><span>${esc(sub)}</span></span>`;
+          const look = this.backend.myLook?.();
+          openChestOverlay(r, {
+            color: look?.color,
+            onEquip: this.backend.equipItem,
+            onOpenNext: this.backend.openChest ? () => this.backend.openChest!() : undefined,
+            onClose: () => { chestEl.dataset.state = 'open'; chestEl.innerHTML = '<span class="fchest-txt"><span class="ftag">Coffre ouvert ✓</span><b>Objet reçu</b><span>Retrouvez-le dans votre garde-robe.</span></span>'; },
+          });
         } catch (e: any) { chestEl.dataset.state = 'closed'; toast(e?.message || 'Coffre impossible à ouvrir pour l\'instant.', 'err'); }
       };
       (ov.querySelector('#fchestBtn') as HTMLButtonElement).onclick = open;

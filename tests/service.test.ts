@@ -212,32 +212,34 @@ const titleIds = ['hat:tricorne', 'hat:plume', 'hat:bicorne', 'hat:amiral', 'bg:
 const catIds = ((await db.query<any>('select id from cosmetics where id = any($1::text[])', [titleIds])).rows).map((r: any) => r.id).sort();
 ok('catalogue : objets de titre et de haut fait présents', catIds.join() === [...titleIds].sort().join(), catIds);
 
-// chest.open : graine fixe → objet attendu ; appel sans coffre → erreur
+// chest.open : graine fixe → objet attendu ; appel sans coffre → erreur ; payload complet
 const nobodyUid = U.eve;
 await db.exec(`insert into user_wallet (user_id, chests) values ('${nobodyUid}', 1) on conflict (user_id) do update set chests = 1`);
 const open1 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 123 });
-ok('coffre : graine fixe → objet déterministe', open1?.ok && typeof open1.cosmetic_id === 'string' && ['c', 'r', 'l'].includes(open1.rarity), open1);
+ok('coffre : graine fixe → objet déterministe', open1?.ok && typeof open1.cosmetic_id === 'string' && ['c', 'r', 'e', 'l'].includes(open1.rarity), open1);
+ok('coffre : payload complet (slot, value, coins, chests)', typeof open1.slot === 'string' && 'value' in open1 && typeof open1.coins === 'number' && typeof open1.chests === 'number' && open1.chests === 0 && open1.coins_gained === 0, open1);
 const noMore = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 456 });
 ok('coffre : rien à ouvrir → erreur', !!noMore?.error, noMore);
 // doublon : on force un second coffre avec la même graine (donc même objet) et on vérifie la conversion en pièces
 await db.exec(`update user_wallet set chests = 1, coins = 0 where user_id = '${nobodyUid}'`);
 const open2 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 123 });
-ok('coffre : doublon converti en pièces', open2?.duplicate === true && open2.cosmetic_id === open1.cosmetic_id && open2.coins > 0, open2);
-const payouts: Record<string, number> = { c: 30, r: 80, l: 200 };
+ok('coffre : doublon converti en pièces', open2?.duplicate === true && open2.cosmetic_id === open1.cosmetic_id && open2.coins_gained > 0, open2);
+const payouts: Record<string, number> = { c: 30, r: 80, e: 140, l: 200 };
 const payout = payouts[open2.rarity as string];
-const wAfter = (await db.query<any>('select coins from user_wallet where user_id=$1', [nobodyUid])).rows[0];
-ok('coffre : barème du doublon (c:30 r:80 l:200)', Number(wAfter.coins) === payout, { expected: payout, got: wAfter.coins });
+ok('coffre : barème du doublon (c:30 r:80 e:140 l:200)', Number(open2.coins) === payout && Number(open2.coins_gained) === payout, { expected: payout, got: open2 });
 
-// Tirage : vérifier la répartition commune/rare sur 400 ouvertures avec des graines dérivées (pas de légendaire au pool
-// de départ : les 5 % de légendaires basculent sur rare ou commun — c'est le comportement attendu du secours).
-let cC = 0, cR = 0, cL = 0;
-for (let i = 0; i < 400; i++) {
+// Tirage : vérifier la répartition commune/rare/épique sur 500 ouvertures. Le pool légendaire reste vide dans le
+// catalogue de départ (poulpe est le seul 'l' chest_pool, et c'est aussi un objet de haut fait très rare au tirage),
+// donc on ne contrôle pas la fréquence légendaire — on vérifie juste commune/rare/épique.
+let cC = 0, cR = 0, cE = 0, cL = 0;
+for (let i = 0; i < 500; i++) {
   await db.exec(`update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
   const r = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 1_000_000 + i * 2017 });
-  if (r?.rarity === 'c') cC++; else if (r?.rarity === 'r') cR++; else if (r?.rarity === 'l') cL++;
+  if (r?.rarity === 'c') cC++; else if (r?.rarity === 'r') cR++; else if (r?.rarity === 'e') cE++; else if (r?.rarity === 'l') cL++;
 }
-ok('coffre : fréquence commune autour de 70 %', Math.abs(cC - 280) <= 50, { cC, cR, cL });
-ok('coffre : fréquence rare autour de 25 %', Math.abs(cR - 100) <= 40, { cC, cR, cL });
+ok('coffre : fréquence commune autour de 62 %', Math.abs(cC - 310) <= 60, { cC, cR, cE, cL });
+ok('coffre : fréquence rare autour de 26 %', Math.abs(cR - 130) <= 50, { cC, cR, cE, cL });
+ok('coffre : fréquence épique autour de 9 %', Math.abs(cE - 45) <= 30, { cC, cR, cE, cL });
 
 // Boutique : 3 objets déterministes à partir de la date, puis achat et refus (prix et pool)
 const shop1 = await store.shopDay('2026-10-03'), shop2 = await store.shopDay('2026-10-03'), shop3 = await store.shopDay('2026-10-04');

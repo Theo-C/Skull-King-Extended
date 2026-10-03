@@ -5,6 +5,7 @@ import { $, esc, toast } from '../util';
 import { myProfile, forgetProfile, shell, applyPrefs, type Profile } from '../account';
 import { avatarHTML, avatarSVG, CATALOG, PALETTE, ART_NAMES, type AvatarData, type Look, type CosmeticItem } from '../avatar';
 import { xpLine, LEVEL_TITLES, xpToReach, fmt } from '../xp';
+import { openChestOverlay, type ChestResult } from '../chest';
 
 const COLOR_NAMES = ['Or', 'Corail', 'Algue', 'Lagon', 'Améthyste', 'Ambre', 'Écume', 'Corail rose'];
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z"/></svg>';
@@ -284,7 +285,13 @@ function openEditor(root: HTMLElement, uid: string, p: Profile, onSaved: (s: Par
 
 /* ---------- Garde-robe ---------- */
 const DEFAULT_LOOK: Look = { skin: 1, hair: 'court', hc: 0, beard: 'none', hat: null, face: null, neck: null, pet: null, bg: 'mer', frame: null };
-const RARITY: Record<string, { name: string; color: string }> = { c: { name: 'Commun', color: '#b9a27f' }, r: { name: 'Rare', color: '#6fb3d0' }, l: { name: 'Légendaire', color: '#ead08a' } };
+// 4 niveaux de rareté, couleurs alignées sur maquettes/Coffre.dc.html
+const RARITY: Record<string, { name: string; color: string }> = {
+  c: { name: 'Commun', color: '#d6dde4' },
+  r: { name: 'Rare', color: '#4fa8ff' },
+  e: { name: 'Épique', color: '#c27dff' },
+  l: { name: 'Légendaire', color: '#ffc94a' },
+};
 const WT: [string, string][] = [['base', 'Visage'], ['hat', 'Chapeaux'], ['face', 'Yeux et visage'], ['neck', 'Cou'], ['pet', 'Compagnons'], ['bg', 'Décor'], ['frame', 'Cadre']];
 const HAIR_OPTS: [string, string][] = [['Court', 'court'], ['Mèche', 'meche'], ['Long', 'long'], ['Bouclé', 'boucles'], ['Chignon', 'chignon'], ['Tresse', 'tresse'], ['Queue', 'queue'], ['Rasé', 'none']];
 const BEARD_OPTS: [string, string][] = [['Aucune', 'none'], ['Moustache', 'mous'], ['Barbe courte', 'short'], ['Grande barbe', 'long']];
@@ -439,16 +446,24 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
   async function openChestFlow(btn: HTMLButtonElement) {
     if (st.busy) return; st.busy = true; btn.disabled = true;
     try {
-      const r = await callGame('chest.open', {});
-      if (r?.duplicate) {
-        st.coins += Number(r.coins || 0); st.chests = Math.max(0, st.chests - 1);
-        toast(`Doublon : ${r.name} → +${r.coins} pièces.`);
-      } else {
-        st.owned.add(r.cosmetic_id); st.chests = Math.max(0, st.chests - 1);
-        st.reveal = { cosmeticId: r.cosmetic_id, name: r.name, rarity: r.rarity };
-      }
-    } catch (e: any) { toast(e.message, 'err'); }
-    finally { st.busy = false; render(); }
+      const r = await callGame<ChestResult>('chest.open', {});
+      // Après chaque ouverture, on met à jour le porte-monnaie et l'inventaire local, puis on continue l'anim
+      const applyResult = (res: ChestResult) => {
+        st.coins = res.coins; st.chests = res.chests;
+        if (!res.duplicate) st.owned.add(res.cosmetic_id);
+      };
+      applyResult(r);
+      openChestOverlay(r, {
+        color: st.color,
+        onEquip: async (slot, value) => {
+          (st.look as any)[slot] = value; st.saved = { ...st.look }; st.savedColor = st.color;
+          await callGame('profile.update', { look: st.look });
+          onSaved({ look: { ...st.look } });
+        },
+        onOpenNext: async () => { const n = await callGame<ChestResult>('chest.open', {}); applyResult(n); return n; },
+        onClose: () => { st.busy = false; render(); },
+      });
+    } catch (e: any) { st.busy = false; btn.disabled = false; toast(e.message, 'err'); render(); }
   }
   async function doShopBuy(btn: HTMLButtonElement) {
     if (st.busy) return; const id = btn.dataset.buy!, s = st.shop.find(x => x.cosmetic_id === id); if (!s) return;
