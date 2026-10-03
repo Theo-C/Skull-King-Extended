@@ -417,7 +417,7 @@ export class TableView {
       let st: string;
       if (pb.bidsRevealed && p.bid != null) st = `<b class="og ${p.won > p.bid ? 'over' : p.won === p.bid ? 'ok' : ''}">${p.won}/${p.bid}</b>`;
       else st = `<span class="ost">${p.hasBid ? 'a misé' : 'réfléchit…'}</span>`;
-      setHTML(el, `<div class="oh">${this.avatar(i, p.name, 30)}<span class="onm">${esc(p.name)}</span>${pb.phase === 'play' && pb.leader === i ? '<span class="oent" title="Entame">E</span>' : ''}</div>
+      setHTML(el, `<div class="oh">${this.avatar(i, p.name, 30)}<span class="onm">${esc(p.name)}</span>${pb.leader != null && pb.leader === i && pb.phase !== 'end' ? '<span class="oent" title="Entame le pli">E</span>' : ''}</div>
         <div class="ob">${st}<span>${p.score} pts</span></div>`);
     }
   }
@@ -452,8 +452,8 @@ export class TableView {
   private podHTML(i: number, active: boolean) {
     const pb = this.pub!, p = pb.players[i], me = i === this.mySeat;
     const ring = active ? `<svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="27" fill="none" stroke="rgba(234,208,138,.18)" stroke-width="3"/><circle class="run" cx="30" cy="30" r="27" fill="none" stroke="#ead08a" stroke-width="3" stroke-linecap="round" transform="rotate(-90 30 30)"/></svg>` : '';
-    // Indicateur « ENTAME » visible même pendant la révélation des mises : savoir qui ouvre le prochain pli
-    const lead = pb.leader === i && (pb.phase === 'play' || this.evk === 'bids') ? '<span class="entame" title="Entame le pli">ENTAME</span>' : '';
+    // Indicateur « ENTAME » visible dès que le leader est connu (début de manche, phase de mise comprise)
+    const lead = pb.leader != null && pb.leader === i && pb.phase !== 'end' ? '<span class="entame" title="Entame le pli">ENTAME</span>' : '';
     let status = `${p.score} pts · ${p.handCount} carte${p.handCount > 1 ? 's' : ''}`, gold = false, right: string;
     const lf = this.liseNow();
     if (lf && lf.by === i) { status = `joue ${PIRATES.mary.n}`; gold = true; }
