@@ -90,6 +90,7 @@ function mobileGeometry(n: number): Spot[] {
 const PENDING_LABEL: Record<string, string> = {
   plank: 'choisit le pirate qui marche sur la planche', rosie: 'choisit qui entame le prochain pli', bahij: 'pioche et défausse deux cartes',
   rascal: 'choisit sa mise', juanita: 'consulte la pioche', harry: 'décide de modifier sa mise', mary: 'choisit une carte face cachée',
+  conpick: 'choisit un pouvoir à voler avec Corbin',
 };
 
 export class TableView {
@@ -420,7 +421,8 @@ export class TableView {
   private podHTML(i: number, active: boolean) {
     const pb = this.pub!, p = pb.players[i], me = i === this.mySeat;
     const ring = active ? `<svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="27" fill="none" stroke="rgba(234,208,138,.18)" stroke-width="3"/><circle class="run" cx="30" cy="30" r="27" fill="none" stroke="#ead08a" stroke-width="3" stroke-linecap="round" transform="rotate(-90 30 30)"/></svg>` : '';
-    const lead = pb.phase === 'play' && pb.leader === i ? '<span class="entame">ENTAME</span>' : '';
+    // Indicateur « ENTAME » visible même pendant la révélation des mises : savoir qui ouvre le prochain pli
+    const lead = pb.leader === i && (pb.phase === 'play' || this.evk === 'bids') ? '<span class="entame" title="Entame le pli">ENTAME</span>' : '';
     let status = `${p.score} pts · ${p.handCount} carte${p.handCount > 1 ? 's' : ''}`, gold = false, right: string;
     const lf = this.liseNow();
     if (lf && lf.by === i) { status = `joue ${PIRATES.mary.n}`; gold = true; }
@@ -447,8 +449,9 @@ export class TableView {
     this.fitBoard();
     const tbl = $('#table', this.root), layer = $('#layer', this.root);
     const n = pb.players.length, mob = this.mob, b = this.bottom(), geo = mob ? mobileGeometry(n) : geometry(n);
-    // taille des cartes du pli, en px du plateau (92 px de large à 3-4 joueurs ; 74 px sur téléphone)
-    const ts = (mob ? (n <= 5 ? 74 : n <= 7 ? 62 : 54) : (n <= 4 ? 92 : n <= 6 ? 84 : 76)) / 252;
+    // taille des cartes du pli, en px du plateau. Agrandie (108/100/92 au lieu de 92/84/76) : les illustrations
+    // restent lisibles même avec 7 joueurs. Mobile pareil, 88/76/66 au lieu de 74/62/54.
+    const ts = (mob ? (n <= 5 ? 88 : n <= 7 ? 76 : 66) : (n <= 4 ? 108 : n <= 6 ? 100 : 92)) / 252;
     tbl.style.setProperty('--ts', ts.toFixed(3));
     if (this.seatEls.length && !this.seatEls[0].isConnected) { this.seatEls = []; this.centerEl = null; this.tcards.clear(); }
 
@@ -739,8 +742,11 @@ export class TableView {
       if (act || playing) { ce.tabIndex = 0; ce.setAttribute('role', 'button'); } else { ce.removeAttribute('tabindex'); ce.setAttribute('role', 'img'); }
       if (playing && !legal.has(c.id) && !pick) ce.setAttribute('aria-disabled', 'true'); else ce.removeAttribute('aria-disabled');
       ce.setAttribute('aria-label', (playing && !pick ? (legal.has(c.id) ? 'Jouer ' : 'Bloquée : ') : '') + cname(c));
-      // éventail plat : 1° par carte, 1 px × d² de décalage vertical
-      const d = j - m; ce.style.setProperty('--r', d.toFixed(2) + 'deg'); ce.style.setProperty('--y', (d * d).toFixed(1) + 'px'); ce.style.zIndex = String(j + 1);
+      // éventail plat : 1° par carte, 1 px × d² de décalage vertical.
+      // z-index décroissant : la carte 0 est au-dessus, chaque carte suivante passe DERRIÈRE la précédente,
+      // donc on voit la gauche (pastille) et le milieu de chaque carte ; le médaillon chiffre en haut à droite
+      // reste visible pour toutes les cartes sauf la dernière, puisqu'il n'est pas recouvert.
+      const d = j - m; ce.style.setProperty('--r', d.toFixed(2) + 'deg'); ce.style.setProperty('--y', (d * d).toFixed(1) + 'px'); ce.style.zIndex = String(len - j);
     });
     if (!this.animMs) return;
     // nouvelle donne : les cartes partent du centre de la table, une à une
@@ -881,6 +887,7 @@ export class TableView {
         case 'rascal': return this.setAction(`${PIRATES.rascal.n} : combien de points engagez-vous sur votre mise ?<small>Gagnés si la mise est tenue, perdus sinon.</small>`, btns(opts));
         case 'harry': return this.setAction(`${PIRATES.harry.n} : votre mise est de ${pv.bid}. La modifier ?`, btns(opts));
         case 'juanita': return this.setAction(`${PIRATES.juanita.n} : vous pouvez consulter les cartes non distribuées.`, [{ label: 'Voir la pioche', cls: 'gold', on: () => this.showDeck() }]);
+        case 'conpick': return this.setAction('Corbin le Second : quel pouvoir volez-vous ?<small>Un seul pouvoir parmi les pirates capturés.</small>', btns(opts));
         case 'bahij': {
           const k = pv.pendingData?.k ?? 2; if (!this.pick || this.pick.k !== k) { this.pick = { k, sel: new Set() }; this.renderHand(); }
           return this.setAction(`${PIRATES.bahij.n} : vous avez pioché ${k} carte${k > 1 ? 's' : ''}. Défaussez-en ${k}.<small>${this.pick.sel.size} / ${k} sélectionnée(s)</small>`,
@@ -986,13 +993,17 @@ export class TableView {
     const coup = coupDeLaManche(ps);
     const ov = document.createElement('div'); ov.className = 'roverlay'; this.copySpd(ov);
     const back = document.activeElement as HTMLElement | null;
+    // À la manche 10, la partie est finie : plus de « prêt pour la suite », juste un bouton pour voir le résultat.
+    const last = r === 10;
+    const readyLabel = last ? 'Voir le résultat' : 'Je suis prêt';
+    const readyBtn = this.mySeat != null ? `<button class="btn gold big" id="rReady">${readyLabel}</button>` : '';
     ov.innerHTML = `<div class="rsheet" role="dialog" aria-modal="true" aria-labelledby="rTitle">
-      <div class="rhead"><div><div class="rsub">Manche ${r} sur 10 · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">Fin de la manche</h2></div>
-        <div class="rready"><span id="rCount"></span><div class="rbar"><i style="animation-duration:${READY_S}s"></i></div></div></div>
+      <div class="rhead"><div><div class="rsub">Manche ${r} sur 10 · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">${last ? 'Fin de la partie' : 'Fin de la manche'}</h2></div>
+        <div class="rready"${last ? ' hidden' : ''}><span id="rCount"></span><div class="rbar"><i style="animation-duration:${READY_S}s"></i></div></div></div>
       <div class="rcols"><span>#</span><span>Pirate</span><span>Mise → plis</span><span>Points</span><span>Bonus</span><span class="r">Manche</span><span class="r">Total</span></div>
       <div class="rrows">${rows}</div>
       ${coup ? `<div class="coup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg><div><b>Coup de la manche</b><span>${esc(coup)}</span></div></div>` : ''}
-      <div class="rfoot"><button class="btn alt" id="rSheet">Feuille complète</button>${this.mySeat != null ? '<button class="btn gold big" id="rReady">Je suis prêt</button>' : ''}</div></div>`;
+      <div class="rfoot"><button class="btn alt" id="rSheet">Feuille complète</button>${readyBtn}</div></div>`;
     document.body.append(ov);
     // les bots sont toujours prêts ; les « prêt » reçus avant l'ouverture de la fenêtre sont repris
     const ready = new Set<number>([...ps.map((p, i) => p.bot ? i : -1).filter(i => i >= 0), ...(this.earlyReady[r] || [])]);
@@ -1000,6 +1011,7 @@ export class TableView {
     return new Promise(res => {
       let done = false;
       const update = () => {
+        if (last) { if (ready.size >= ps.length) close(); return; }
         const left = Math.max(0, Math.ceil(READY_S - (Date.now() - t0) / 1000));
         (ov.querySelector('#rCount') as HTMLElement).textContent = `Manche ${r + 1} dans ${left} s · ${ready.size} prêt${ready.size > 1 ? 's' : ''} sur ${ps.length}`;
         if (btn && this.mySeat != null && ready.has(this.mySeat)) { btn.disabled = true; btn.textContent = 'Prêt'; }
@@ -1017,7 +1029,8 @@ export class TableView {
         ev.preventDefault(); if (btn && !btn.disabled) btn.click(); close();
       };
       document.addEventListener('keydown', onKey);
-      const iv = setInterval(() => { if (Date.now() - t0 >= READY_S * 1000) close(); else update(); }, 250);
+      // Manche 10 : pas de délai, le joueur clique quand il veut passer au résultat final
+      const iv = setInterval(() => { if (!last && Date.now() - t0 >= READY_S * 1000) close(); else update(); }, 250);
       this.roundOpen = { round: r, ready, update, close };
       btn?.addEventListener('click', () => { ready.add(this.mySeat!); this.backend.ready?.(r); update(); });
       (ov.querySelector('#rSheet') as HTMLElement).onclick = () => this.scoreSheet();
@@ -1178,7 +1191,9 @@ function handLayout(Wbox: number, Hbox: number, n: number) {
   const H = Math.max(40, H0 / (1 + Math.sin((n - 1) / 2 * Math.PI / 180) / 1.4));
   let cardH = H, cardW = cardH / 1.4;
   if (cardW > W) { cardW = W; cardH = cardW * 1.4; }
-  let step = n > 1 ? Math.min(cardW * .96, (W - cardW) / (n - 1)) : cardW;
+  // Même avec peu de cartes, on garde un chevauchement d'environ 28 % de la largeur de carte (step ≤ 72 %)
+  // pour donner un aspect de « main » plus réaliste. L'étalement maximum reste limité par la largeur disponible.
+  let step = n > 1 ? Math.min(cardW * .72, (W - cardW) / (n - 1)) : cardW;
   // trop de cartes : on les réduit jusqu'à ce que l'écart vaille 0,38 × largeur
   if (n > 1 && step < cardW * .38) { cardW = W / (1 + .38 * (n - 1)); cardH = cardW * 1.4; step = cardW * .38; }
   // la partie visible (cliquable) d'une carte fait au moins 44 px, quand la largeur le permet

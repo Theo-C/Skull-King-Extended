@@ -363,6 +363,8 @@ function processPending(S: State) {
     if (pd.t === 'rascal') { pd.data = { pub: [0, 10, 20].map(v => ({ v, label: String(v) })) }; return true; }
     if (pd.t === 'harry') { pd.data = { pub: [{ v: -1, label: '−1', disabled: p.bid! <= 0 }, { v: 0, label: 'Garder' }, { v: 1, label: '+1', disabled: p.bid! >= S.cards }] }; return true; }
     if (pd.t === 'juanita') { pd.data = { pub: [{ v: 1, label: 'Compris' }] }; return true; }
+    // Corbin le Second avec plus d'un pirate capturé : options déjà fournies à la poussée
+    if (pd.t === 'conpick') { if (!pd.data?.pub?.length) { S.pending.shift(); continue; } return true; }
     S.pending.shift();
   }
   if (t.stage === 'plank') resolveTrick(S);
@@ -412,7 +414,12 @@ function resolveTrick(S: State) {
         let list: string[] = [];
         if (R.winner.card.kind === 'pirate') list = [R.winner.card.pid!];
         else if (R.winner.card.kind === 'con') list = R.captured.filter(e => e.card.kind === 'pirate').map(e => e.card.pid!);
-        for (const pid of list) { S.pending.push({ t: pid, seat: wi }); log(S, [`Pouvoir de ${PIRATES[pid].n} : ${w.name} ${PIRATES[pid].pw}`]); }
+        // Corbin le Second avec plusieurs pirates capturés : le joueur choisit UN seul pouvoir à voler.
+        if (R.winner.card.kind === 'con' && list.length > 1) {
+          S.pending.push({ t: 'conpick', seat: wi, data: { pub: list.map(pid => ({ v: pid, label: PIRATES[pid].n })) } });
+        } else {
+          for (const pid of list) { S.pending.push({ t: pid, seat: wi }); log(S, [`Pouvoir de ${PIRATES[pid].n} : ${w.name} ${PIRATES[pid].pw}`]); }
+        }
       }
     }
   }
@@ -507,6 +514,13 @@ function choose(S: State, pd: Pending, v: any) {
     case 'rascal': if (!allowed(v)) throw new RuleError('Mise invalide.'); p.rascal += v; log(S, [`${p.name} mise ${v} points`]); break;
     case 'harry': if (!allowed(v)) throw new RuleError('Choix invalide.'); if (v) { p.bid! += v; log(S, [`${p.name} change son pari : ${p.bid}`]); } else log(S, [`${p.name} garde son pari`]); break;
     case 'juanita': break;
+    case 'conpick': {
+      // Le joueur qui a joué Corbin le Second choisit UN pouvoir à voler parmi les pirates capturés.
+      const pid = String(v); if (!allowed(pid)) throw new RuleError('Choix invalide.');
+      log(S, [`${p.name} vole le pouvoir de ${PIRATES[pid].n} : ${PIRATES[pid].pw}`]);
+      S.pending.push({ t: pid, seat: pd.seat });
+      break;
+    }
     case 'mary': {
       const seat = v && typeof v === 'object' ? v.seat : v;
       if (!allowed(seat)) throw new RuleError('Choix invalide.');
@@ -595,6 +609,13 @@ function botChoose(S: State, pd: Pending): any {
     case 'rascal': { const d = p.bid! - p.won; return d === 0 && p.hand.length <= 2 ? 20 : (d >= 0 && d <= 1 ? 10 : 0); }
     case 'harry': { let d = p.won > p.bid! ? 1 : (p.bid! - p.won > p.hand.length ? -1 : 0); if (p.bid! + d < 0 || p.bid! + d > S.cards) d = 0; return d; }
     case 'juanita': return 1;
+    case 'conpick': {
+      // Bot : préfère un pouvoir utile selon ses besoins (bahij si doit changer de cartes, rascal si risque, harry si proche)
+      const need = p.bid! - p.won;
+      const prefs: string[] = need > 0 ? ['rascal', 'harry', 'bahij', 'juanita', 'rosie'] : ['harry', 'bahij', 'rosie', 'juanita', 'rascal'];
+      for (const pid of prefs) if (pub.some((o: any) => o.v === pid)) return pid;
+      return pub[0].v;
+    }
     case 'mary': { const o = pub.filter((x: any) => x.v !== pd.seat).sort((a: any, b: any) => S.players[b.v].score - S.players[a.v].score); const t = (o[0] || pub[0]); return { seat: t.v, pos: Math.floor(rand(S) * t.count) }; }
     case 'bahij': { const need = p.bid! - p.won; const s = p.hand.map(c => ({ c, v: pw({ card: c, as: 'pirate', val: 14 }) })).sort((a, b) => need > 0 ? a.v - b.v : b.v - a.v); return s.slice(0, pd.data.k).map(x => x.c.id); }
   }

@@ -33,7 +33,8 @@ function tone(when: number, dur: number, freq: number, gain: number, type: Oscil
 }
 
 export const sfx = {
-  card: () => swish(0, .11, 2200, .35),
+  // Pose d'une carte : court frottement de papier + tap sourd (basses fréquences), moins strident que l'ancien swish seul
+  card: () => { swish(0, .05, 1600, .14); tone(.015, .07, 190, .09, 'triangle'); tone(.02, .05, 95, .06); },
   deal: (n: number) => { for (let i = 0; i < Math.min(n, 12); i++) swish(i * .07, .07, 2600, .22); },
   coin: () => { tone(0, .09, 1568, .07, 'triangle'); tone(.06, .16, 2349, .05, 'triangle'); },
   win: () => { tone(0, .2, 659, .08); tone(.11, .34, 988, .07); },

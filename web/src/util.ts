@@ -8,17 +8,23 @@ export function toast(msg: string, kind: 'ok' | 'err' = 'ok') {
   document.body.append(t); setTimeout(() => t.classList.add('out'), 3200); setTimeout(() => t.remove(), 3700);
 }
 
-/** Fenêtre modale ; renvoie la valeur du bouton cliqué. */
+/** Fenêtre modale ; renvoie la valeur du bouton cliqué. Échap renvoie null (comme « Fermer »). */
 export function modal(html: string, buttons: { label: string; value: any; cls?: string }[] = [{ label: 'Fermer', value: null }]): Promise<any> {
   const m = $('#modal'); const body = $('#modalBody');
   body.innerHTML = html + '<div class="foot"></div>';
   const foot = $('.foot', body);
   return new Promise(res => {
+    let done = false;
+    const finish = (v: any) => { if (done) return; done = true; m.hidden = true; document.removeEventListener('keydown', onKey, true); res(v); };
+    const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape' && !m.hidden) { ev.preventDefault(); ev.stopPropagation(); finish(null); } };
+    document.addEventListener('keydown', onKey, true);
     buttons.forEach(b => {
       const el = document.createElement('button'); el.className = 'btn ' + (b.cls || 'gold'); el.textContent = b.label;
-      el.onclick = () => { m.hidden = true; res(b.value); }; foot.append(el);
+      el.onclick = () => finish(b.value); foot.append(el);
     });
     m.hidden = false; m.scrollTop = 0;
+    // focus au premier bouton pour que Entrée confirme et Échap passe par le listener global
+    const firstBtn = foot.querySelector('button') as HTMLElement | null; firstBtn?.focus();
   });
 }
 export const closeModal = () => { $('#modal').hidden = true; };
