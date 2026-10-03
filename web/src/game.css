@@ -816,8 +816,10 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .lbonus small{font-size:11.5px;color:var(--muted)}
 .fulllog .lbonus b{color:var(--ink)}.fulllog .lbonus small{color:var(--ink2)}
 
-/* Main proportionnelle au bloc (prompt 1) : le bloc a sa hauteur, les cartes la remplissent */
-.rail{position:relative;height:clamp(150px,24dvh,240px);padding:0 16px;display:flex;align-items:center}
+/* Main proportionnelle au bloc (prompt 1) : le bloc a sa hauteur, les cartes la remplissent.
+   align-items:stretch (défaut) : #hand doit prendre toute la hauteur du rail, sinon handLayout()
+   lit clientHeight = 0 au premier rendu et bloque les cartes à 40 px (plancher). */
+.rail{position:relative;height:clamp(150px,24dvh,240px);padding:0 16px;display:flex;align-items:stretch}
 /* maquette Main : titre, nombre de cartes et mise · plis en surimpression dans le coin haut-gauche du rail ;
    pointer-events:none pour que les cartes qui passent dessous restent survolables et cliquables */
 .handhead{position:absolute;left:20px;top:10px;width:120px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;pointer-events:none;z-index:0}
