@@ -288,3 +288,81 @@ revoke execute on function public.profile_update(uuid, jsonb) from public, anon,
 grant execute on function public.settle_inputs(uuid[]) to service_role;
 grant execute on function public.game_settle(uuid, jsonb) to service_role;
 grant execute on function public.profile_update(uuid, jsonb) to service_role;
+
+-- ---------- Historique, détail, classement : ajout de look dans les joueurs renvoyés ----------
+create or replace function public.history_page(p_user uuid, p_before timestamptz default null, p_before_id uuid default null,
+                                               p_filter text default 'all', p_limit integer default 20)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(row_to_json(t) order by t.finished_at desc, t.id desc), '[]'::jsonb) from (
+    select r.game_id as id, g.code, r.place, r.score, r.bids_made, r.rounds, r.players, r.elo_delta, r.elo_after, r.finished_at,
+           coalesce((g.options->>'exp')::boolean, false) as ext,
+           g.options, (select gp.name from public.game_players gp where gp.game_id = r.game_id and gp.user_id = g.host) as host_name, g.host = p_user as hosted,
+           (select coalesce(sum(x.amount), 0) from public.xp_events x where x.game_id = r.game_id and x.user_id = p_user)::integer as xp,
+           (select jsonb_agg(jsonb_build_object('name', gp.name, 'bot', gp.bot, 'rank', gp.rank, 'score', gp.final_score, 'user_id', gp.user_id,
+                   'color', pr.color, 'avatar_kind', pr.avatar_kind, 'avatar_art', pr.avatar_art, 'avatar_url', pr.avatar_url, 'look', pr.look) order by gp.rank, gp.seat)
+              from public.game_players gp left join public.profiles pr on pr.id = gp.user_id where gp.game_id = r.game_id) as seats
+    from public.game_results r join public.games g on g.id = r.game_id
+    where r.user_id = p_user
+      and (p_before is null or (r.finished_at, r.game_id) < (p_before, coalesce(p_before_id, 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)))
+      and (p_filter = 'all'
+        or (p_filter = 'wins' and r.place = 1)
+        or (p_filter = 'ext' and coalesce((g.options->>'exp')::boolean, false))
+        or (p_filter = 'base' and not coalesce((g.options->>'exp')::boolean, false)))
+    order by r.finished_at desc, r.game_id desc
+    limit greatest(1, least(p_limit, 50))
+  ) t;
+$$;
+
+create or replace function public.history_get(p_user uuid, p_game uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not exists (select 1 from public.game_players gp where gp.game_id = p_game and gp.user_id = p_user) then null else
+    jsonb_build_object(
+      'id', g.id, 'code', g.code, 'status', g.status, 'options', g.options, 'created_at', g.created_at, 'finished_at', g.finished_at, 'host', g.host,
+      'state', g.state,
+      'seats', (select jsonb_agg(jsonb_build_object('seat', gp.seat, 'name', gp.name, 'bot', gp.bot, 'rank', gp.rank, 'score', gp.final_score, 'user_id', gp.user_id,
+                 'color', pr.color, 'avatar_kind', pr.avatar_kind, 'avatar_art', pr.avatar_art, 'avatar_url', pr.avatar_url, 'look', pr.look) order by gp.seat)
+                from public.game_players gp left join public.profiles pr on pr.id = gp.user_id where gp.game_id = g.id),
+      'results', (select coalesce(jsonb_agg(row_to_json(r)), '[]'::jsonb) from public.game_results r where r.game_id = g.id),
+      'xp', (select coalesce(jsonb_agg(jsonb_build_object('reason', x.reason, 'amount', x.amount) order by x.id), '[]'::jsonb)
+             from public.xp_events x where x.game_id = g.id and x.user_id = p_user))
+  end
+  from public.games g where g.id = p_game;
+$$;
+revoke execute on function public.history_page(uuid, timestamptz, uuid, text, integer) from public, anon, authenticated;
+revoke execute on function public.history_get(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.history_page(uuid, timestamptz, uuid, text, integer) to service_role;
+grant execute on function public.history_get(uuid, uuid) to service_role;
+
+-- Classement : ajout de look (apparence composée) à la ligne retournée
+drop function if exists public.leaderboard_period(text, text);
+create or replace function public.leaderboard_period(scope text default 'all', period text default 'ever')
+returns table (rank bigint, user_id uuid, pseudo text, color text, avatar_kind text, avatar_art smallint, avatar_url text, look jsonb, xp integer,
+               elo integer, games integer, wins integer, bids_pct integer, best_score integer, delta numeric, me boolean)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if scope not in ('friends', 'all') then raise exception 'scope inconnu : %', scope using errcode = '22023'; end if;
+  if period not in ('week', 'month', 'ever') then raise exception 'période inconnue : %', period using errcode = '22023'; end if;
+  return query
+  with pool as (
+    select s.*, p.pseudo, p.color, p.avatar_kind, p.avatar_art, p.avatar_url, p.look, p.xp, p.public_rank
+    from public.player_stats s join public.profiles p on p.id = s.user_id
+    where s.games > 0 and case
+      when scope = 'friends' then s.user_id = auth.uid() or exists (
+        select 1 from public.game_results a join public.game_results b on b.game_id = a.game_id
+        where a.user_id = auth.uid() and b.user_id = s.user_id)
+      else s.ranked_games >= 5 and p.public_rank end
+  )
+  select rank() over (order by pool.elo desc, pool.games desc), pool.user_id, pool.pseudo, pool.color, pool.avatar_kind, pool.avatar_art, pool.avatar_url, pool.look, pool.xp,
+         round(pool.elo)::integer, pool.games, pool.wins,
+         case when pool.bids_total > 0 then round(100.0 * pool.bids_made / pool.bids_total)::integer end,
+         pool.best_score,
+         case when period = 'ever' then pool.elo_best else (
+           select coalesce(sum(r.elo_delta), 0) from public.game_results r
+           where r.user_id = pool.user_id and r.elo_delta is not null
+             and r.finished_at >= now() - case when period = 'week' then interval '7 days' else interval '30 days' end) end,
+         pool.user_id = auth.uid()
+  from pool
+  order by 1, pool.pseudo;
+end $$;
+revoke execute on function public.leaderboard_period(text, text) from public, anon;
+grant execute on function public.leaderboard_period(text, text) to authenticated;

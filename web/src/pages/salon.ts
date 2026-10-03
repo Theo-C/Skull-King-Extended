@@ -22,7 +22,7 @@ const profCache = new Map<string, any>();
 async function profilesOf(ids: string[]) {
   const miss = ids.filter(i => !profCache.has(i));
   if (miss.length) {
-    const { data } = await sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url, xp').in('id', miss);
+    const { data } = await sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url, look, xp').in('id', miss);
     (data || []).forEach((p: any) => profCache.set(p.id, p));
   }
   return (id: string | null) => id ? profCache.get(id) ?? null : null;

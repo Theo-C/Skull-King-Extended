@@ -61,7 +61,7 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
     // avatars et couleurs des joueurs (les bots gardent l'initiale sur la couleur par défaut)
     const ids = seats.filter(s => s.user_id).map(s => s.user_id);
     if (ids.length) {
-      const { data: profs } = await sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url').in('id', ids);
+      const { data: profs } = await sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url, look').in('id', ids);
       if (profs) table.setAvatars(seats.map(s => { const p = profs.find((x: any) => x.id === s.user_id); return p ? fromProfile(p) : null; }));
     }
   };

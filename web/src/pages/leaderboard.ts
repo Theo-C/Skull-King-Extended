@@ -40,7 +40,7 @@ export async function leaderboardPage(root: HTMLElement, uid: string, q: URLSear
     // pas encore classé chez « Tous » (moins de 5 parties classées, ou profil masqué) : on montre quand même sa ligne
     const [{ data: st }, { data: pr }] = await Promise.all([
       sb.from('player_stats').select('*').eq('user_id', uid).maybeSingle(),
-      sb.from('profiles').select('pseudo, color, avatar_kind, avatar_art, avatar_url, xp, public_rank').eq('id', uid).maybeSingle(),
+      sb.from('profiles').select('pseudo, color, avatar_kind, avatar_art, avatar_url, look, xp, public_rank').eq('id', uid).maybeSingle(),
     ]);
     if (my !== gen) return;
     if (pr) extra = { rank: null, user_id: uid, ...pr, elo: Math.round(Number(st?.elo ?? 100)), games: st?.games ?? 0, wins: st?.wins ?? 0,

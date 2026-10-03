@@ -10,7 +10,7 @@ import { avatarHTML, fromProfile } from '../avatar';
 import { xpLine, LEVEL_TITLES, xpToReach, fmt } from '../xp';
 
 export const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>';
-const PROFILE_COLS = 'pseudo, color, avatar_kind, avatar_art, avatar_url';
+const PROFILE_COLS = 'pseudo, color, avatar_kind, avatar_art, avatar_url, look';
 const nth = (r: number) => r === 1 ? '1er' : r + 'e';
 const bidsTxt = (g: any) => `${g.bids_made} mise${g.bids_made > 1 ? 's' : ''} tenue${g.bids_made > 1 ? 's' : ''} sur ${g.rounds}`;
 
