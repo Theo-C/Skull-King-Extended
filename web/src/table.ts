@@ -28,6 +28,8 @@ export interface TableBackend {
   gameId?: string; uid?: string; seatUids?: (string | null)[]; rematch?(): Promise<string>;
   /** Règlement de fin de partie relu au serveur (history.get) quand il tarde à arriver par l'état de la partie. */
   settled?(): Promise<any>;
+  /** Coffre de victoire : appelle chest.open côté serveur et renvoie le résultat (objet, rareté, pièces si doublon). */
+  openChest?(): Promise<{ cosmetic_id?: string; name?: string; rarity?: string; duplicate?: boolean; coins?: number; error?: string }>;
 }
 /** Réactions proposées (les seules acceptées, y compris depuis le réseau). */
 export const EMOTES = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
@@ -1103,13 +1105,36 @@ export class TableView {
         <span class="felo"><span class="o">${Math.round(elo.before)}</span><span class="o">→</span><span class="n">${Math.round(elo.after)}</span><b class="${elo.delta >= 0 ? 'pos' : 'neg'}">${signed(Math.round(elo.delta))}</b></span>
         ${((elo.vs || []) as any[]).map(v => `<div class="fvs"><span>${vsLabel(v)}</span><b class="${v.delta >= 0 ? 'pos' : 'neg'}">${signedOne(v.delta)}</b></div>`).join('')}</div>`
         : '<div class="fbox"><span class="ftag">Élo</span><span class="lbl">Partie non classée : il faut au moins deux joueurs humains.</span></div>'}
-      ${ach ? `<div class="fach"><span class="medal2">${ACH_STAR}</span><span><span class="ftag dark">Haut fait débloqué</span><b>${esc(ach.name)}</b><span>${esc(ach.description)}${s.achievements.length > 1 ? ` · et ${s.achievements.length - 1} autre${s.achievements.length > 2 ? 's' : ''}` : ''}</span></span></div>` : ''}`;
+      ${ach ? `<div class="fach"><span class="medal2">${ACH_STAR}</span><span><span class="ftag dark">Haut fait débloqué</span><b>${esc(ach.name)}</b><span>${esc(ach.description)}${s.achievements.length > 1 ? ` · et ${s.achievements.length - 1} autre${s.achievements.length > 2 ? 's' : ''}` : ''}</span></span></div>` : ''}
+      ${s.chests > 0 && this.backend.openChest ? `<div class="fchest" id="fchest" data-state="closed"><button type="button" id="fchestBtn" class="fchestbtn" aria-label="Ouvrir le coffre de victoire">
+        <svg viewBox="0 0 72 64" aria-hidden="true"><rect x="8" y="28" width="56" height="30" rx="3" fill="#6b4226" stroke="#2a170b" stroke-width="2"/><path d="M8 28c0-12 10-18 28-18s28 6 28 18z" fill="#7d4f2c" stroke="#2a170b" stroke-width="2"/><path d="M8 28h56M20 12v46M52 12v46" stroke="#c9a14a" stroke-width="3"/><rect x="31" y="30" width="10" height="12" rx="2" fill="#e3c47a" stroke="#8a6620"/></svg>
+      </button><span class="fchest-txt"><span class="ftag">Coffre de victoire</span><b>Un objet pour votre pirate vous attend.</b><button class="abtn gold" id="fchestOpen">Ouvrir le coffre</button></span></div>` : ''}
+      ${s.coins ? `<div class="fcoins" style="animation-delay:calc(2.6s * var(--spd,1))"><span class="coin"></span><b>+${s.coins}</b> pièces${s.chests > 0 ? ' et 1 coffre' : ''} ajoutées à votre bourse.</div>` : ''}`;
     // place et Élo de chacun sous le podium
     const res = (this.latest?.pub as any)?.settled || {};
     ov.querySelectorAll<HTMLElement>('[data-elo]').forEach(el => {
       const i = Number(el.dataset.elo), u = this.backend.seatUids?.[i]; const e = u ? res[u]?.elo : null;
       if (e) el.textContent += ` · Élo ${signed(Math.round(e.delta))}`;
     });
+    // Coffre : ouverture au clic, puis révélation de l'objet (avec rendu composé) ou doublon → pièces
+    const chestEl = ov.querySelector('#fchest') as HTMLElement | null;
+    if (chestEl) {
+      const open = async () => {
+        if (chestEl.dataset.state === 'opening' || chestEl.dataset.state === 'open') return;
+        chestEl.dataset.state = 'opening';
+        try {
+          const r = await this.backend.openChest!();
+          if (r?.error) { chestEl.dataset.state = 'closed'; toast(r.error, 'err'); return; }
+          const name = r?.name || 'Objet mystère', rarity = r?.rarity || 'c';
+          const rarName = rarity === 'l' ? 'légendaire' : rarity === 'r' ? 'rare' : 'commun';
+          const sub = r?.duplicate ? `Doublon : +${r.coins ?? 0} pièces à votre bourse.` : 'Visible à la table dès la prochaine partie.';
+          chestEl.dataset.state = 'open';
+          chestEl.innerHTML = `<span class="pop fchest-pop"><span class="coin"></span></span><span class="fchest-txt pop"><span class="ftag ${rarity}">Objet ${esc(rarName)} obtenu</span><b>${esc(name)}</b><span>${esc(sub)}</span></span>`;
+        } catch (e: any) { chestEl.dataset.state = 'closed'; toast(e?.message || 'Coffre impossible à ouvrir pour l\'instant.', 'err'); }
+      };
+      (ov.querySelector('#fchestBtn') as HTMLButtonElement).onclick = open;
+      (ov.querySelector('#fchestOpen') as HTMLButtonElement).onclick = open;
+    }
   }
   private maybeFinal() { if (this.pub?.phase === 'end' && !this.shownEnd) { this.shownEnd = true; this.finalOverlay(); } }
   scoreSheet() {

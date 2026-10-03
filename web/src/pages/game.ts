@@ -57,6 +57,8 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       rematch: async () => (await callGame<{ id: string }>('rematch', { id })).id,
       // règlement de fin de partie relu au serveur (il le refait s'il a été interrompu)
       settled: async () => (await callGame<any>('history.get', { id }))?.state?.settled ?? null,
+      // coffre de victoire ouvert depuis la superposition de fin de partie
+      openChest: () => callGame<any>('chest.open', {}),
     }, () => go('#/'));
     // avatars et couleurs des joueurs (les bots gardent l'initiale sur la couleur par défaut)
     const ids = seats.filter(s => s.user_id).map(s => s.user_id);

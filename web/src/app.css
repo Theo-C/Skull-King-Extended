@@ -538,3 +538,20 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 @media (max-width:720px){.fcard{padding:20px 16px}.fhead h2{font-size:30px}.fpod{width:24%}.fpodium{gap:6px}}
 @media (prefers-reduced-motion:reduce){.finov *,.finov{animation:none!important}}
 .fbox.fxl{justify-content:flex-start}
+/* Coffre de victoire dans la superposition de fin de partie */
+.fchest{display:flex;align-items:center;gap:16px;padding:16px 18px;border-radius:12px;background:rgba(0,0,0,.32);border:1px solid rgba(111,179,208,.45);animation:inL .4s calc(2.6s * var(--spd,1)) ease-out both}
+.fchest .fchestbtn{flex:none;width:72px;height:64px;padding:0;border:0;background:transparent;cursor:pointer;color:inherit}
+.fchest .fchestbtn svg{width:72px;height:64px}
+.fchest[data-state="closed"] .fchestbtn{animation:wob 1.2s calc(3.4s * var(--spd,1)) ease-in-out 2}
+.fchest[data-state="opening"] .fchestbtn,.fchest[data-state="open"] .fchestbtn{animation:none}
+.fchest-txt{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;color:var(--parch)}
+.fchest-txt b{font:400 20px var(--f-disp);color:var(--parch)}
+.fchest .pop{animation:pop .5s cubic-bezier(.2,.8,.3,1.2) both}
+.fchest-pop{display:flex;align-items:center;justify-content:center;flex:none;width:72px;height:64px;border-radius:12px;background:radial-gradient(circle at 35% 30%,#fff2c4,#b78c33 90%)}
+.fchest-pop .coin{width:38px;height:38px}
+.ftag.c{color:#b9a27f}.ftag.r{color:#6fb3d0}.ftag.l{color:#ead08a}
+.fcoins{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;background:rgba(201,161,74,.14);border:1px solid rgba(234,208,138,.3);align-self:flex-start;animation:inL .4s calc(2.8s * var(--spd,1)) ease-out both;font-size:14px}
+.fcoins b{color:var(--brass2)}
+@keyframes wob{0%,100%{transform:rotate(0)}20%{transform:rotate(-6deg)}40%{transform:rotate(5deg)}60%{transform:rotate(-3deg)}}
+@keyframes pop{0%{opacity:0;transform:scale(.6) rotate(-8deg)}70%{transform:scale(1.08)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.fchest .fchestbtn,.fchest .pop{animation:none!important}}
