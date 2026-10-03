@@ -1,5 +1,8 @@
 // Agrandissement d'une carte : survol prolongé à la souris, appui long au doigt, focus au clavier (cartes de la main).
-// Les faces font 252 × 352 px : en grand, le texte des cartes spéciales devient lisible.
+// Les faces font 252 × 352 px : en grand (300 px de large), le texte des cartes spéciales devient lisible et, pour les
+// cartes illustrées « Cartes-v3 », on affiche à côté une fiche parchemin avec le nom et la règle.
+import { esc } from './util';
+
 let installed = false;
 /** Pastille sous la carte agrandie (maquette Main : « Prendrait le pli »…), fournie par la table. */
 type Note = { text: string; ink: string } | null;
@@ -15,8 +18,10 @@ export function installCardZoom() {
   const show = (card: HTMLElement) => {
     const face = card.querySelector('.face'); if (!face || !card.isConnected) return;
     const tag = card.querySelector('.tag'), note = noteFor?.(card) ?? null;
-    pv.innerHTML = `<div class="card zc">${face.outerHTML}${tag ? tag.outerHTML : ''}</div>`;
-    if (note) { const s = document.createElement('span'); s.className = 'znote'; s.style.color = note.ink; s.textContent = note.text; pv.append(s); }
+    const name = card.dataset.artName, rule = card.dataset.artRule;
+    const info = name ? `<div class="zinfo"><b>${esc(name)}</b>${rule ? `<p>${esc(rule)}</p>` : ''}</div>` : '';
+    pv.innerHTML = `<div class="zcol"><div class="card zc">${face.outerHTML}${tag ? tag.outerHTML : ''}</div>${note ? `<span class="znote" style="color:${esc(note.ink)}">${esc(note.text)}</span>` : ''}</div>${info}`;
+    pv.classList.toggle('with-info', !!info);
     pv.hidden = false; shownFor = card;
     const r = card.getBoundingClientRect(), w = pv.offsetWidth, h = pv.offsetHeight, m = 10;
     // au-dessus de la carte si possible, sinon à côté
