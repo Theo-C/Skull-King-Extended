@@ -10,6 +10,10 @@ import { historyPage } from './pages/history';
 import { leaderboardPage } from './pages/leaderboard';
 import { salonByCode } from './pages/salon';
 import { rulesPage } from './pages/rules';
+import { installArtFallback } from './cards';
+
+// une illustration de carte qui ne se charge pas laisse place à l'ancienne face, sur toutes les pages
+installArtFallback();
 import { homePage } from './pages/home';
 import { joinPage } from './pages/join';
 import { gamePage } from './pages/game';

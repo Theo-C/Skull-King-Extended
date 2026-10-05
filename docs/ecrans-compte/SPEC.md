@@ -1,6 +1,6 @@
 # Écrans du compte : spécification
 
-Maquettes de référence dans `maquettes/`. Ces fichiers `.dc.html` viennent de l'outil de design : on les lit pour la mise en page, les textes, les couleurs et les données d'exemple, mais on ne les copie pas tels quels. La logique d'affichage se trouve dans le `<script type="text/x-dc">` en bas de chaque fichier.
+Maquettes de référence dans `docs/maquettes/`. Ces fichiers `.dc.html` viennent de l'outil de design : on les lit pour la mise en page, les textes, les couleurs et les données d'exemple, mais on ne les copie pas tels quels. La logique d'affichage se trouve dans le `<script type="text/x-dc">` en bas de chaque fichier.
 
 ## Repères visuels (communs à toutes les pages)
 
@@ -36,7 +36,7 @@ Maquettes de référence dans `maquettes/`. Ces fichiers `.dc.html` viennent de 
 Le composant `Avatar(v, letter, color, size, ring)` sert partout : à la table, dans les listes et dans le classement.
 
 - `v = -1` : initiale sur fond de couleur (valeur par défaut d'un nouveau compte).
-- `v = 0..7` : silhouettes de pirate en SVG. Les tracés sont dans `maquettes/Avatar.dc.html` : tricorne, bandana, chapeau à plume, bicorne, bandana + bandeau, couronne, cheveux longs + tricorne, tricorne + perroquet.
+- `v = 0..7` : silhouettes de pirate en SVG. Les tracés sont dans `docs/maquettes/Avatar.dc.html` : tricorne, bandana, chapeau à plume, bicorne, bandana + bandeau, couronne, cheveux longs + tricorne, tricorne + perroquet.
 - **Photo** : téléversée dans Supabase Storage. Côté client, on la recadre en carré, on la réduit à 256 × 256 et on la convertit en WebP. Taille maximale : 5 Mo.
 - **Couleur du médaillon** : elle sert aussi de couleur du joueur à la table. Palette fixe de 8 couleurs : `#d9b25a #c8644b #7ab874 #5c9db6 #a982c4 #e0954a #c9c0ae #d77fa1`.
 
@@ -104,3 +104,72 @@ L'Élo mesure le niveau (il monte et descend) ; l'XP mesure l'assiduité (elle n
 - DetailPartie : Élo après et variation sous le podium ;
 - FinPartie : avant → après et détail par adversaire ;
 - Classement.
+
+## Avatar composé et garde-robe
+
+L'avatar devient un personnage en couches SVG (voir `docs/maquettes/Avatar.dc.html`). Ordre d'empilement : décor → cheveux arrière → buste (manteau = couleur du joueur) → cou → tête → yeux et bouche → pilosité → cheveux avant → accessoire de visage → cou → chapeau → compagnon → cadre.
+
+**Base gratuite, modifiable à tout moment** (aucun choix lié au genre) :
+- teint : 6 nuances ;
+- coiffure : court, mèche, long, bouclé, chignon, tresse, queue, rasé ;
+- cheveux : 6 couleurs ;
+- pilosité : aucune, moustache, barbe courte, grande barbe ;
+- manteau : 8 couleurs (c'est aussi la couleur du joueur à la table).
+
+**Objets à gagner**, répartis en 6 emplacements : chapeau, yeux et visage, cou, compagnon d'épaule, décor, cadre. Chaque objet a une rareté (Commun, Rare, Épique, Légendaire) et parfois des variantes de couleur (bandana, foulard, perroquet…). Le catalogue de départ est dans la logique de `Profil.dc.html` (constante `CAT`).
+
+**Comment on les obtient :**
+
+| Source | Ce qu'elle donne |
+|---|---|
+| Coffre de victoire (1 par victoire en ligne) | objet tiré au sort : Commun 62 %, Rare 26 %, Épique 9 %, Légendaire 3 % |
+| Passage d'un titre | objet garanti : Gabier → tricorne, Bosco → chapeau à plume, Capitaine → bicorne, Amiral → chapeau d'amiral, Légende → salle au trésor |
+| Haut fait | objet unique et non achetable : Pari du Kraken → cadre Tentacules, Chasseur de sirènes → perles, Fil-de-Soie → médaillon, 10 victoires → couronne, Fosse insondable → poulpe |
+| Classement | cadre d'or pour le top 3 du mois (gardé à vie) |
+| Échoppe du port | 3 objets communs ou rares par jour, payés en pièces |
+
+**Pièces :**
+- +10 par partie terminée, +5 par mise tenue ;
+- un objet déjà possédé, tiré d'un coffre, est converti en pièces (Commun 30, Rare 80, Épique 140, Légendaire 200).
+
+Rien ne s'achète en argent réel. Les objets sont purement cosmétiques et visibles partout : à la table, dans les listes, au classement.
+
+**Écrans concernés :**
+- Profil, section Garde-robe : aperçu en grand et aperçu « à la table », onglets Visage / Chapeaux / Yeux et visage / Cou / Compagnons / Décor / Cadre. Les objets verrouillés apparaissent en silhouette, avec leur condition d'obtention. On y trouve aussi l'ouverture des coffres, l'échoppe et un bouton « Au hasard ».
+- FinPartie : le coffre de victoire s'ouvre au clic et l'objet obtenu se porte directement ; l'objet du haut fait est affiché à côté.
+
+**Données :**
+- `profiles.look jsonb` : `{skin, hair, hc, beard, hat, htc, face, neck, nkc, pet, ptc, bg, frame}` ;
+- `cosmetics (id, slot, value, rarity, variants jsonb, source)` ;
+- `user_cosmetics (user_id, cosmetic_id, variant, obtained_at, source)` ;
+- `user_wallet (user_id, coins, chests)`.
+
+Le serveur vérifie qu'un `look` n'utilise que des objets possédés avant de l'enregistrer.
+
+## Ouverture de coffre
+
+Maquette de référence : `docs/maquettes/Coffre.dc.html`. Les objets sont dessinés seuls, sans cadre de carte (voir `docs/maquettes/Objet.dc.html`).
+
+**Raretés :**
+
+| Rareté | Couleur de la lueur | Probabilité |
+|---|---|---|
+| Commun | `#d6dde4` | 62 % |
+| Rare | `#4fa8ff` | 26 % |
+| Épique | `#c27dff` | 9 % |
+| Légendaire | `#ffc94a` | 3 % |
+
+**Déroulé :**
+1. **Repos** : le coffre flotte doucement sur son socle. Bouton « Ouvrir le coffre », avec les probabilités affichées dessous.
+2. **Secousse** (0,9 s) : le coffre tremble deux fois et une fine lueur blanche apparaît sous le couvercle.
+3. **Lueur blanche** : le couvercle s'entrouvre, la fente s'illumine en **blanc** et des rayons blancs tournent derrière le coffre. Ce moment dure plus longtemps quand l'objet est plus rare (1,5 s pour un commun, 2,5 s pour un légendaire) : l'attente fait partie du suspense.
+4. **Changement de teinte** (1,3 s) : la lueur, le halo et les rayons passent en douceur du blanc à la couleur de rareté (transition CSS d'1 s).
+5. **Ouverture** : le couvercle s'ouvre en grand, avec un éclat de lumière et une vingtaine d'étincelles de la couleur de rareté.
+6. **Objet** : il sort du coffre et flotte au-dessus, entouré de la lueur. Le coffre s'assombrit. Dessous apparaissent la rareté (1 à 4 étoiles), le nom et l'emplacement.
+7. **Doublon** : l'objet fond en pièces qui volent vers le compteur.
+8. **Boutons** : Ouvrir le suivant / Équiper. « Passer » est visible pendant toute l'animation.
+
+**Règles :**
+- Le serveur tire le résultat avant l'animation.
+- Avec `prefers-reduced-motion`, on affiche directement le résultat.
+- Sons courts : grincement de la secousse, souffle de la lueur, accord au changement de teinte (plus riche pour Épique et Légendaire), ouverture. Tous sont coupés si l'option Sons est désactivée.

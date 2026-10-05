@@ -16,13 +16,13 @@ Dans la table de jeu, les cartes de « Votre main » sont trop petites par rappo
 5. Sur mobile (moins de 720 px), applique la même règle, sans limite minimale de hauteur.
 6. Contrôle en lançant la partie d'entraînement : avec 1, 4, 7 et 10 cartes, à 1366 × 768, 1920 × 1080 et 390 × 844, les cartes doivent remplir le bloc en hauteur sans être coupées.
 
-Repère visuel : `docs/ecrans-compte/maquettes/Main.dc.html`. Le bloc mesure 204 px de haut, les cartes 140 × 196 px, et l'écart est calculé de la même façon (voir la fonction `renderVals`, variable `step`).
+Repère visuel : `docs/maquettes/Main.dc.html`. Le bloc mesure 204 px de haut, les cartes 140 × 196 px, et l'écart est calculé de la même façon (voir la fonction `renderVals`, variable `step`).
 
 ---
 
 # Prompt 2 : écrans du compte (accueil, profil, historique, détail, classement, salon, fin de partie)
 
-Lis d'abord `docs/ecrans-compte/SPEC.md`, puis les maquettes dans `docs/ecrans-compte/maquettes/`. Ouvre chaque `.dc.html` comme du HTML ; les données d'exemple et la logique sont dans le `<script type="text/x-dc">` en bas de chaque fichier. Reproduis la mise en page, les textes et les couleurs dans notre site Vite + TypeScript sans framework (`web/src/pages/*`, routage par hash), en réutilisant les classes et variables CSS existantes quand c'est possible. Ne reprends pas le format `.dc.html` (`sc-for`, `dc-import`) : c'est un format de maquette.
+Lis d'abord `docs/ecrans-compte/SPEC.md`, puis les maquettes dans `docs/maquettes/`. Ouvre chaque `.dc.html` comme du HTML ; les données d'exemple et la logique sont dans le `<script type="text/x-dc">` en bas de chaque fichier. Reproduis la mise en page, les textes et les couleurs dans notre site Vite + TypeScript sans framework (`web/src/pages/*`, routage par hash), en réutilisant les classes et variables CSS existantes quand c'est possible. Ne reprends pas le format `.dc.html` (`sc-for`, `dc-import`) : c'est un format de maquette.
 
 ## Base de données
 
@@ -73,7 +73,7 @@ Crée une nouvelle migration `supabase/migrations/20261003000000_profiles_xp.sql
 
 ## Site
 
-- `web/src/avatar.ts` : `avatarHTML({kind, art, url, letter, color}, size, ring?)`. Recopie les tracés SVG de `maquettes/Avatar.dc.html`. Utilise-le partout : en-tête, table de jeu (remplace les initiales des pods), listes, classement.
+- `web/src/avatar.ts` : `avatarHTML({kind, art, url, letter, color}, size, ring?)`. Recopie les tracés SVG de `docs/maquettes/Avatar.dc.html`. Utilise-le partout : en-tête, table de jeu (remplace les initiales des pods), listes, classement.
 - `web/src/xp.ts` : `levelFor(xp)` → `{ level, title, inLevel, need }`. La formule est dans SPEC.md. Ajoute un test unitaire.
 - **Profil**, éditeur d'image avec trois onglets :
   - Pirate illustré : grille de 8 avatars + couleur ;
@@ -98,3 +98,28 @@ Crée une nouvelle migration `supabase/migrations/20261003000000_profiles_xp.sql
    2. vérifier l'XP, l'Élo (fin de partie, profil, historique), le détail et le classement ;
    3. changer d'avatar (illustré puis photo) et vérifier qu'il apparaît à la table chez l'autre joueur.
 4. Fais un commit par étape : migration, serveur, puis une page à la fois.
+
+---
+
+# Prompt 3 : avatar composé et garde-robe
+
+Lis la section « Avatar composé et garde-robe » de `docs/ecrans-compte/SPEC.md`, puis `docs/maquettes/Avatar.dc.html`, `docs/maquettes/Profil.dc.html` (section Garde-robe) et `docs/maquettes/FinPartie.dc.html` (coffre).
+
+1. Remplace `web/src/avatar.ts` par un rendu SVG en couches qui reprend exactement les tracés de la maquette, avec la signature `avatarSVG(look, color, size)`. Garde le mode « initiale » pour les comptes qui n'ont encore rien choisi.
+2. Migration :
+   - colonne `profiles.look jsonb` ;
+   - tables `cosmetics` (catalogue en données de départ, depuis la constante `CAT` de la maquette), `user_cosmetics` et `user_wallet` ;
+   - règles RLS : lecture publique du catalogue et des looks, écriture uniquement par l'Edge Function.
+3. Serveur :
+   - à la fin d'une partie (dans `settleGame`), ajoute : 1 coffre au gagnant humain, les pièces, l'objet du titre et ceux des hauts faits ;
+   - nouvelles actions : `chest.open` (tirage 62/26/9/3, conversion d'un doublon en pièces), `shop.list` (3 objets par jour, choisis de façon déterministe à partir de la date) et `shop.buy` ;
+   - `profile.update` refuse un `look` qui contient un objet non possédé.
+4. Pages :
+   - Profil : garde-robe interactive (onglets, objets verrouillés en silhouette avec leur condition, variantes de couleur, Au hasard / Annuler / Enregistrer) ;
+   - FinPartie : coffre cliquable avec l'animation d'ouverture ;
+   - avatars partout (table, listes, classement) à partir de `look`.
+5. Ajoute des tests :
+   - le tirage d'un coffre suit les probabilités (graine fixe) ;
+   - un doublon est converti en pièces ;
+   - un `look` invalide est refusé ;
+   - les récompenses ne sont pas distribuées deux fois si `settle` est rappelé.

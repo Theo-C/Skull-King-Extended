@@ -8,7 +8,7 @@ const BASE: [keyof Opts, string, string][] = [
   ['powers', 'Pouvoirs des pirates', 'Règle avancée.'],
 ];
 const EXP: [keyof Opts, string, string][] = [
-  ['con', 'Corbin, le Second', 'Bat les Pirates, perd contre Sirènes et Barbe-Cendre.'],
+  ['con', 'Con le belliqueux', 'Bat les Pirates, perd contre Sirènes et Skull King.'],
   ['volley', 'Dernière Bordée', 'Rejouez une carte après tout le monde.'],
   ['ray', 'La Raie Étoilée', 'La plus petite carte numérotée gagne.'],
   ['davy', 'La Fosse des Noyés', 'Engloutit les monstres des abysses.'],
@@ -19,7 +19,7 @@ export function optionsHTML(o: Opts = DEFAULT_OPTS, editable = true, prefix = 'o
   const box = ([k, t, s]: [keyof Opts, string, string], cls = '') => `<label class="${cls}"><input type="checkbox" id="${prefix}-${String(k)}" ${(o as any)[k] ? 'checked' : ''} ${dis}><span>${t}<small>${s}</small></span></label>`;
   return `<fieldset><legend>Jeu de base</legend><div class="opts">${BASE.map(x => box(x)).join('')}
       <label style="grid-column:1/-1;align-items:center">Score <select id="${prefix}-score" style="width:auto;margin-left:6px" ${dis}><option value="sk" ${o.score === 'sk' ? 'selected' : ''}>Skull King (classique)</option><option value="rascal" ${o.score === 'rascal' ? 'selected' : ''}>Rascal (équilibré)</option></select></label></div></fieldset>
-    <fieldset><legend>Extension</legend><div class="opts">${box(['exp', "Cartes de base de l'extension", '7 (−5), 8 (+5), 0/14, Grand Quinze, Lise Fil-de-Soie.'])}${EXP.map(x => box(x, 'xo')).join('')}</div></fieldset>`;
+    <fieldset><legend>Extension</legend><div class="opts">${box(['exp', "Cartes de base de l'extension", '7 (−5), 8 (+5), 0/14, Grand Quinze, Marie Thorne.'])}${EXP.map(x => box(x, 'xo')).join('')}</div></fieldset>`;
 }
 export function readOptions(root: ParentNode, prefix = 'o'): Opts {
   const g = (k: string) => (root.querySelector(`#${prefix}-${k}`) as HTMLInputElement | null)?.checked ?? false;

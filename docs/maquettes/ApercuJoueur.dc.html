@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Aperçu d'un joueur en partie</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.97)}to{opacity:1;transform:none}}
+.pop{animation:pop .18s ease-out both}
+.pod{cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.lbl{font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#a8987f}
+.k{font-family:'Pirata One',cursive;font-size:24px;line-height:1;color:#f2e7cd}
+.chip{min-height:30px;padding:0 10px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font-weight:800;font-size:12.5px;cursor:pointer}
+.chip.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+@media (prefers-reduced-motion: reduce){.pop{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; background: radial-gradient(ellipse at 38% 40%, #2a1f17 0%, #120e0b 70%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+
+<header style="position: absolute; left: 0; top: 0; width: 1440px; height: 56px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 20px; border-bottom: 1px solid rgba(234,208,138,.16); background: rgba(18,14,11,.85);">
+<span style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">Manche 7</span><span style="font-size: 14px; color: #a8987f;">sur 10 · pli 3 · survolez un joueur</span>
+</header>
+
+<div style="position: absolute; left: 24px; top: 72px; width: 1040px; height: 520px; border-radius: 50%; background: linear-gradient(180deg, #8a5833, #5e381d 55%, #4a2b16); box-shadow: 0 26px 50px rgba(0,0,0,.7);"></div>
+<div style="position: absolute; left: 50px; top: 98px; width: 988px; height: 468px; border-radius: 50%; background: radial-gradient(ellipse at 50% 46%, #2a6066 0%, #1f4c50 42%, #102c31 100%); box-shadow: inset 0 0 50px rgba(0,0,0,.6);"></div>
+
+<sc-for list="{{pods}}" as="p" hint-placeholder-count="4">
+<div class="pod" onMouseEnter="{{p.enter}}" onClick="{{p.enter}}" style="position: absolute; left: {{p.x}}px; top: {{p.y}}px; width: 236px; height: 78px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 10px; border-radius: 40px 14px 14px 40px; background: linear-gradient(180deg, #2c221a, #1a130e); border: 1px solid {{p.bd}}; box-shadow: {{p.sh}}; z-index: 5;">
+<dc-import name="Avatar" v="{{p.v}}" letter="{{p.l}}" color="{{p.c}}" size="{{56}}" ring="0 0 0 2px #1b140e, 0 0 0 4px {{p.c}}" hint-size="56px,56px"></dc-import>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+<span style="font-weight: 800; font-size: 16px; color: #f2e7cd;">{{p.name}}</span>
+<span style="font-size: 13px; color: #a8987f;">{{p.score}} pts · mise {{p.bid}} · plis {{p.won}}</span>
+</div>
+</div>
+</sc-for>
+
+<!-- carte d'aperçu (joueur humain) -->
+<sc-if value="{{showHuman}}" hint-placeholder-val="{{true}}">
+<div class="pop" role="dialog" aria-label="{{h.name}} : aperçu du profil" style="position: absolute; left: {{h.px}}px; top: {{h.py}}px; width: 340px; box-sizing: border-box; border-radius: 16px; background: linear-gradient(180deg, #2a2019, #1a130e); border: 1px solid rgba(234,208,138,.4); box-shadow: 0 22px 50px rgba(0,0,0,.65); z-index: 20;">
+<svg viewBox="0 0 20 12" style="position: absolute; left: {{h.ax}}px; top: {{h.ay}}px; width: 20px; height: 12px; transform: rotate({{h.ar}}deg);" aria-hidden="true"><path d="M0 12L10 0l10 12z" fill="#2a2019" stroke="rgba(234,208,138,.4)"></path></svg>
+<div style="display: flex; gap: 14px; align-items: center; padding: 16px 16px 12px; background: radial-gradient(ellipse at 15% 0%, {{h.glow}}, transparent 70%); border-radius: 16px 16px 0 0;">
+<div style="position: relative; line-height: 0;"><dc-import name="Avatar" v="{{h.v}}" letter="{{h.l}}" color="{{h.c}}" size="{{68}}" ring="0 0 0 3px #1b140e, 0 0 0 5px {{h.c}}" hint-size="68px,68px"></dc-import><span style="position: absolute; right: 0; bottom: 2px; width: 14px; height: 14px; border-radius: 50%; background: #5fd17a; box-shadow: 0 0 0 3px #2a2019;"></span></div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+<div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-family: 'IM Fell English SC', serif; font-size: 26px; line-height: 1; color: #f2e7cd;">{{h.name}}</span><span style="font-size: 12.5px; color: #9bd69f; font-weight: 700;">en ligne</span></div>
+<span style="font-size: 13.5px; color: #d9cdb6;">Niv. {{h.lv}} · {{h.title}}</span>
+<span style="display: inline-flex; align-self: flex-start; align-items: baseline; gap: 6px; padding: 2px 10px; border-radius: 999px; background: #ead08a; color: #2b2117; font-weight: 800; font-size: 13px;">Élo {{h.elo}} <span style="color: {{h.trendInk}};">{{h.trend}}</span></span>
+</div>
+</div>
+
+<div style="padding: 10px 16px; border-top: 1px solid rgba(234,208,138,.12); display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; justify-content: space-between; align-items: baseline;"><span class="lbl">Cette partie</span><span style="font-size: 13.5px; color: #d9cdb6;"><b style="color: #f2e7cd;">{{h.rank}}</b> · {{h.score}} pts</span></div>
+<div style="display: flex; align-items: center; gap: 5px;">
+<sc-for list="{{h.rounds}}" as="r" hint-placeholder-count="10"><span title="{{r.t}}" style="flex: 1; height: 8px; border-radius: 4px; background: {{r.c}}; box-shadow: {{r.sh}};"></span></sc-for>
+</div>
+<span style="font-size: 12.5px; color: #a8987f;">{{h.made}} mises tenues sur {{h.played}} · manche en cours : mise {{h.bid}}, {{h.won}} pli</span>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: rgba(234,208,138,.12); border-top: 1px solid rgba(234,208,138,.12);">
+<sc-for list="{{h.stats}}" as="s" hint-placeholder-count="3"><div style="display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; background: #211913;"><span class="k">{{s.v}}</span><span style="font-size: 12px; color: #a8987f;">{{s.l}}</span></div></sc-for>
+</div>
+
+<div style="padding: 10px 16px 14px; border-top: 1px solid rgba(234,208,138,.12); display: flex; align-items: center; gap: 10px;">
+<div style="display: flex; gap: 6px;"><sc-for list="{{h.badges}}" as="b" hint-placeholder-count="3"><span title="{{b.t}}" style="width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.35); box-shadow: inset 0 0 0 1.5px {{b.c}};"><dc-import name="Objet" item="{{b.item}}" size="{{24}}" hint-size="24px,24px"></dc-import></span></sc-for></div>
+<span style="flex: 1; font-size: 12.5px; color: #a8987f;">Objets rares portés</span>
+<a href="Profil.dc.html" style="font-size: 13px; font-weight: 800; color: #ead08a; text-decoration: none; white-space: nowrap;">Profil ›</a>
+</div>
+</div>
+</sc-if>
+
+<!-- variante : bot -->
+<sc-if value="{{showBot}}" hint-placeholder-val="{{false}}">
+<div class="pop" style="position: absolute; left: {{b.px}}px; top: {{b.py}}px; width: 280px; box-sizing: border-box; padding: 14px 16px; border-radius: 14px; background: linear-gradient(180deg, #2a2019, #1a130e); border: 1px solid rgba(234,208,138,.3); box-shadow: 0 18px 40px rgba(0,0,0,.6); z-index: 20; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; gap: 12px; align-items: center;">
+<dc-import name="Avatar" v="{{b.v}}" letter="B" color="{{b.c}}" size="{{52}}" ring="0 0 0 2px #1b140e, 0 0 0 4px {{b.c}}" hint-size="52px,52px"></dc-import>
+<div style="display: flex; flex-direction: column; gap: 3px;"><span style="font-family: 'IM Fell English SC', serif; font-size: 22px; line-height: 1; color: #f2e7cd;">{{b.name}}</span><span style="display: inline-flex; align-self: flex-start; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.08); font-size: 12px; font-weight: 800; color: #d9cdb6;">Bot · niveau moyen</span></div>
+</div>
+<span style="font-size: 13px; color: #d9cdb6; line-height: 1.4;">Joue en 1 à 2 secondes. Mise d'après la force de sa main, sans tricher : il ne voit pas vos cartes.</span>
+<div style="display: flex; justify-content: space-between; font-size: 13px; color: #a8987f;"><span>Cette partie : <b style="color: #f2e7cd;">{{b.rank}}</b> · {{b.score}} pts</span><span>{{b.made}}</span></div>
+<span style="font-size: 12px; color: #a8987f;">Les parties avec des bots ne comptent pas pour l'Élo.</span>
+</div>
+</sc-if>
+
+<!-- ce qu'on voit : légende du design -->
+<div style="position: absolute; left: 1090px; top: 80px; width: 326px; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">Aperçu au survol</div>
+<div style="font-size: 14px; color: #d9cdb6; line-height: 1.5;">S'ouvre au survol d'un joueur (après 250 ms) ou au toucher sur mobile. Se ferme en quittant la zone ou au clic ailleurs. Ne masque jamais votre main ni le pli en cours.</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{demo}}" as="o" hint-placeholder-count="4"><button class="{{o.cls}}" onClick="{{o.pick}}">{{o.label}}</button></sc-for></div>
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="5">
+<div style="display: flex; gap: 10px;"><span style="flex: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;">{{n.i}}</span><span style="font-size: 13.5px; color: #d9cdb6; line-height: 1.4;"><b style="color: #f2e7cd;">{{n.t}}</b> · {{n.d}}</span></div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 24px; top: 684px; width: 1040px; height: 204px; border-radius: 16px; background: linear-gradient(180deg, #5a3720, #3a2214); box-shadow: inset 0 2px 0 rgba(255,220,170,.15); border: 1px solid #2a170b;"></div>
+<div style="position: absolute; left: 44px; top: 698px; font-family: 'IM Fell English SC', serif; font-size: 17px; color: #f2e7cd;">Votre main</div>
+<sc-for list="{{hand}}" as="c" hint-placeholder-count="5">
+<div style="position: absolute; left: {{c.x}}px; top: {{c.y}}px; transform: rotate({{c.r}}deg); transform-origin: 50% 130%; z-index: {{c.z}};"><dc-import name="Card" card="{{c.card}}" w="{{130}}" hint-size="130px,182px"></dc-import></div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  state = { who: 'left' };
+  renderVals() {
+    var who = this.state.who;
+    var P = {
+      top: { name: 'Corentin', v: 3, l: 'C', c: '#c8644b', score: 85, bid: 0, won: 0, x: 426, y: 61, bot: false },
+      left: { name: 'Maëlle', v: 6, l: 'M', c: '#7ab874', score: 65, bid: 1, won: 1, x: 32, y: 293, bot: false },
+      right: { name: 'Bot Mouette', v: 4, l: 'B', c: '#8d8576', score: 40, bid: 2, won: 0, x: 820, y: 293, bot: true },
+      you: { name: 'Vous', v: 2, l: 'T', c: '#d9b25a', score: 110, bid: 2, won: 1, x: 426, y: 521, bot: false }
+    };
+    var order = ['top', 'left', 'right', 'you'];
+    var pods = order.map(k => { var p = P[k], on = k === who;
+      return { name: p.name, v: p.v, l: p.l, c: p.c, score: p.score, bid: p.bid, won: p.won, x: p.x, y: p.y,
+        bd: on ? '#ead08a' : 'rgba(234,208,138,.3)', sh: on ? '0 0 0 2px #ead08a, 0 0 22px rgba(234,208,138,.4), 0 8px 18px rgba(0,0,0,.55)' : '0 8px 18px rgba(0,0,0,.55)',
+        enter: () => this.setState({ who: k }) }; });
+    var D = {
+      left: { lv: 14, title: 'Second', elo: 163, trend: '▼ 9', trendInk: '#a33a26', rank: '3e', score: 65, made: 4, played: 6, R: [1, 1, 0, 1, 0, 1],
+        stats: [{ v: '31 %', l: 'victoires' }, { v: '66 %', l: 'mises tenues' }, { v: '15', l: 'parties' }],
+        tags: ['Prudente : mise 0 dans 38 % des manches', 'Aime les Sirènes', 'Garde ses atouts pour la fin'],
+        vsYou: 5, vsThem: 3, vsGames: 8, vsNote: 'Dernière rencontre : elle a fini devant vous (jeudi).',
+        badges: [{ item: 'perles', c: '#c27dff', t: 'Perles des sirènes · Épique' }, { item: 'lunettes', c: '#d6dde4', t: 'Lunettes rondes' }, { item: 'medaillon', c: '#ffc94a', t: "Médaillon d'or · Légendaire" }],
+        badgeNote: 'Haut fait récent : Chasseur de sirènes', px: 284, py: 200, ax: -14, ay: 118, ar: -90 },
+      top: { lv: 9, title: 'Quartier-maître', elo: 127, trend: '▲ 5', trendInk: '#2f7a45', rank: '2e', score: 85, made: 5, played: 6, R: [1, 1, 1, 0, 1, 1],
+        stats: [{ v: '27 %', l: 'victoires' }, { v: '64 %', l: 'mises tenues' }, { v: '11', l: 'parties' }],
+        tags: ['Audacieux : grosses mises', 'Joue Barbe-Cendre tôt'], vsYou: 4, vsThem: 4, vsGames: 8, vsNote: 'À égalité : la revanche se joue ce soir.',
+        badges: [{ item: 'tricorne', c: '#d6dde4', t: 'Tricorne' }, { item: 'patch', c: '#4fa8ff', t: 'Cache-œil · Rare' }],
+        badgeNote: 'Série en cours : 3 mises tenues d\'affilée', px: 680, py: 66, ax: -14, ay: 40, ar: -90 },
+      you: { lv: 12, title: 'Bosco', elo: 143, trend: '▲ 10', trendInk: '#2f7a45', rank: '1er', score: 110, made: 5, played: 6, R: [1, 0, 1, 1, 1, 1],
+        stats: [{ v: '30 %', l: 'victoires' }, { v: '68 %', l: 'mises tenues' }, { v: '47', l: 'parties' }],
+        tags: ['Équilibré', 'Aime les pirates'], vsYou: 0, vsThem: 0, vsGames: 0, vsNote: 'C\'est vous.',
+        badges: [{ item: 'monocle', c: '#4fa8ff', t: "Monocle de l'armateur · Rare" }, { item: 'poulpe', c: '#ffc94a', t: 'Poulpe des abysses · Légendaire' }],
+        badgeNote: 'Votre aperçu, tel que les autres le voient', px: 680, py: 300, ax: -14, ay: 250, ar: -90 }
+    };
+    var d = D[who], p = P[who], isBot = p.bot;
+    var h = null, b = null;
+    if (!isBot) {
+      var rounds = []; for (var i = 0; i < 10; i++) { var r = d.R[i];
+        rounds.push(i < d.R.length ? { c: r ? '#5fae6a' : '#b4523f', sh: 'none', t: 'Manche ' + (i + 1) + (r ? ' : mise tenue' : ' : mise ratée') } : i === d.R.length ? { c: 'rgba(234,208,138,.5)', sh: '0 0 0 1.5px #ead08a', t: 'Manche ' + (i + 1) + ' : en cours' } : { c: 'rgba(255,255,255,.08)', sh: 'none', t: 'Manche ' + (i + 1) }); }
+      d = Object.assign({}, d, { tags: d.tags.map(t => ({ t: t })) });
+      h = Object.assign({ name: p.name, v: p.v, l: p.l, c: p.c, bid: p.bid, won: p.won, rounds: rounds, glow: p.c + '33', vsPct: d.vsYou + d.vsThem ? Math.round(d.vsYou / (d.vsYou + d.vsThem) * 100) : 50 }, d);
+    } else b = { name: p.name, v: p.v, c: p.c, rank: '4e', score: p.score, made: '3 mises tenues sur 6', px: 526, py: 258 };
+    var H = [{ k: 'left', label: 'Maëlle' }, { k: 'top', label: 'Corentin' }, { k: 'right', label: 'Bot' }, { k: 'you', label: 'Vous' }];
+    var HAND = [{ kind: 'pirate', name: 'Anne Boussole' }, { kind: 'num', suit: 'black', rank: 12 }, { kind: 'num', suit: 'yellow', rank: 9 }, { kind: 'num', suit: 'purple', rank: 3 }, { kind: 'num', suit: 'green', rank: 13 }];
+    return {
+      pods: pods, showHuman: !isBot, showBot: isBot, h: h || Object.assign({}, D.left, { tags: [], rounds: [], name: '', v: 0, l: '', c: '#000', glow: '#0000', vsPct: 50, bid: 0, won: 0 }), b: b || { name: '', v: 0, c: '#000', rank: '', score: 0, made: '', px: 0, py: 0 },
+      demo: H.map(x => ({ label: x.label, cls: 'chip' + (who === x.k ? ' on' : ''), pick: () => this.setState({ who: x.k }) })),
+      notes: [
+        { i: 1, t: 'Identité', d: 'avatar équipé, niveau, titre, Élo et sa tendance, présence en ligne' },
+        { i: 2, t: 'Cette partie', d: 'place, score et une barre manche par manche (vert tenue, rouge ratée)' },
+        { i: 3, t: 'Statistiques', d: 'victoires, mises tenues, nombre de parties' },
+        { i: 4, t: 'Objets', d: 'les objets rares portés, et un lien vers le profil complet' }
+      ],
+      hand: HAND.map((c, i) => { var dd = i - 2; return { card: c, x: Math.round(544 - (4 * 112 + 130) / 2 + i * 112), y: Math.round(706 + dd * dd * 2), r: (dd * 1.5).toFixed(1), z: i + 1 }; })
+    };
+  }
+}
+</script>
+</body>
+</html>

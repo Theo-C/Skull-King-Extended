@@ -163,11 +163,12 @@ select.tbtn{appearance:auto;padding:6px 8px;background:var(--panel)}
 @media (max-width:720px){.pcard{width:min(340px,92vw);padding:12px 14px}.pc-tile b{font-size:24px}.pc-nm{font-size:21px}}
 
 /* Faces illustrées « Cartes-v3 » : image, médaillon chiffre, sceau bonus, pastille de pouvoir.
-   Tout est positionné en pourcentage de la face 252 × 352 ; les tailles de police sont en px fois .14 / .12
+   L'image (720 × 1024) couvre la face 252 × 352 (object-fit: cover, rognée de 3,2 px en haut et en bas) : les positions du
+   Prompt A, données en % de l'image, sont converties en % de la face (y = (% × 358,4 − 3,2) / 352). Polices en px fois .14 / .12
    (relatives à la face), le transform:scale(var(--s)) de .face les met à la bonne taille à l'écran. */
 .art{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;border-radius:calc(13px)}
-.art>img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-drag:none}
-.art-num{position:absolute;left:80.8%;top:13.2%;transform:translate(-50%,-50%);width:18.9%;text-align:center;
+.art>img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none;-webkit-user-drag:none}
+.art-num{position:absolute;left:80.6%;top:12.53%;transform:translate(-50%,-50%);width:18.9%;text-align:center;
   font:400 1em/1 'Pirata One','Pirata One Fallback',serif;font-size:calc(252px * .14);letter-spacing:0;pointer-events:none}
 .art-num.n2{font-size:calc(252px * .12)}
 .art-num.zf{font-size:calc(252px * .08);letter-spacing:.02em}
@@ -175,19 +176,20 @@ select.tbtn{appearance:auto;padding:6px 8px;background:var(--panel)}
 .art-num.s-purple{color:#2b1838}
 .art-num.s-green{color:#12301a}
 .art-num.s-black{color:#f0d078}
-.art-seal{position:absolute;left:80.8%;top:25%;transform:translate(-50%,-50%);
+.art-seal{position:absolute;left:80.6%;top:24.55%;transform:translate(-50%,-50%);
   width:calc(252px * .11);height:calc(252px * .11);border-radius:50%;
   background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%);
   box-shadow:inset 0 0 0 1.5px rgba(90,60,10,.6),0 2px 3px rgba(0,0,0,.4);
   display:flex;align-items:center;justify-content:center;
   font:400 1em/1 'Pirata One','Pirata One Fallback',serif;font-size:calc(252px * .055);color:#2b1d0c;pointer-events:none}
 .art-seal.neg{background:radial-gradient(circle at 35% 30%,#ffd2c4 0 12%,#e26d4a 40%,#8a2a16 100%);color:#fdeedb;box-shadow:inset 0 0 0 1.5px rgba(90,20,10,.7),0 2px 3px rgba(0,0,0,.4)}
-.art-pw{position:absolute;left:19.2%;top:12.4%;transform:translate(-50%,-50%);
+.art-pw{position:absolute;left:17.8%;top:11.41%;transform:translate(-50%,-50%);
   width:calc(252px * .15);height:calc(252px * .15);border-radius:50%;
   background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%);
   box-shadow:inset 0 0 0 1.5px rgba(90,60,10,.65),0 2px 4px rgba(0,0,0,.4);
   display:flex;align-items:center;justify-content:center;color:#2b1d0c;pointer-events:none}
 .art-pw.svg svg{width:65%;height:65%}
+.art-pw.alt{left:19%} /* Skull King et sirènes : médaillon de la coquille, un peu plus à droite */
 .art-pw.txt{font:400 1em/1 'Pirata One','Pirata One Fallback',serif;font-size:calc(252px * .055)}
 /* Faces : design « Mers Sauvages » (cartes fournies), styles limités à chaque planche */
 .fb0 .x-card{position:relative;width:252px;height:352px;box-sizing:border-box;padding:9px;border-radius:13px;box-shadow:0 10px 24px rgba(0,0,0,.45)}
