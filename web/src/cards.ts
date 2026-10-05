@@ -2,7 +2,7 @@
 // pour toutes les cartes ; seul le dos garde la face « Mers Sauvages », qui sert aussi de repli si une image ne se charge pas.
 // Le médaillon du coin haut-droit des cartes numérotées est vide dans l'image : c'est le code qui écrit le chiffre.
 import { ALT2, ALT2B, NUM2 } from './cardsdata';
-import { cardTitle, cname, DESC, PIRATES, SUIT, type Card, type Entry } from '@engine';
+import { cname, DESC, PIRATES, SUIT, type Card, type Entry } from '@engine';
 import { esc } from './util';
 
 const wrapF = (b: number, h: string) => `<div class="fb${b}">${h}</div>`;
@@ -21,18 +21,7 @@ export const ART: Record<string, string> = Object.fromEntries(Object.entries({
   'suit-yellow': 'suit-yellow', 'suit-purple': 'suit-purple', 'suit-green': 'suit-green', 'suit-black': 'suit-black',
 }).map(([k, f]) => [k, file(f)]));
 
-/** Pastilles de pouvoir (docs/cartes-v3/pastilles.json) : SVG avec stroke="currentColor" ou texte court en Pirata One. Morgane n'en a pas. */
-const PST: Record<string, string> = {
-  rosie: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>',
-  bahij: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7" width="9" height="13" rx="1.5"/><rect x="10.5" y="3" width="9" height="13" rx="1.5"/><path d="M15 6.5v6M12 9.5h6"/></svg>',
-  rascal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.4" fill="currentColor"/></svg>',
-  juanita: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
-  harry: '±1',
-  mary: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3-1 4-5 7-6s5 1 7-2"/><rect x="13.5" y="2.5" width="7" height="9" rx="1.2" transform="rotate(14 17 7)"/></svg>',
-  sk: '+30', mermaid0: '+40', mermaid1: '+40', con: '+30',
-};
-
-/** Clé « canonique » d'une carte pour chercher l'illustration et la pastille. */
+/** Clé « canonique » d'une carte pour chercher l'illustration. */
 export function cardKey(c: Partial<Card>): string {
   if (c.kind === 'pirate') return c.pid!;
   if (c.kind === 'mermaid') return 'mermaid' + (c.v || 0);
@@ -54,12 +43,6 @@ function medallion(c: Partial<Card>): string {
   else if (c.exp && r === 8) seal = '<span class="art-seal">+5</span>';
   return num + seal;
 }
-/** Pastille de pouvoir en haut à gauche (pirates et Con ; Skull King et sirènes un peu plus à droite). */
-function pastille(key: string): string {
-  const s = PST[key]; if (!s) return '';
-  const isSvg = s.startsWith('<svg'), alt = key === 'sk' || key.startsWith('mermaid') ? ' alt' : '';
-  return `<span class="art-pw ${isSvg ? 'svg' : 'txt'}${alt}">${s}</span>`;
-}
 /** Ancienne face « Mers Sauvages » (repli si l'illustration ne se charge pas). */
 function oldFace(c: Partial<Card>): string {
   if (c.kind === 'num') {
@@ -71,11 +54,10 @@ function oldFace(c: Partial<Card>): string {
   const k = c.kind === 'pirate' ? c.pid! : c.kind === 'mermaid' ? 'mermaid' + (c.v || 0) : c.kind as string;
   return wrapF(AB[k], A[k]);
 }
-/** Face illustrée (image + médaillon chiffre + sceau + pastille) ; data-c permet de revenir à l'ancienne face. */
+/** Face illustrée (image + médaillon chiffre + sceau) ; data-c permet de revenir à l'ancienne face. */
 function artFace(c: Partial<Card>, key: string): string {
   let overlays = '';
   if (c.kind === 'num' && !c.wild) overlays += medallion(c);
-  overlays += pastille(key);
   const d = esc(JSON.stringify({ kind: c.kind, suit: c.suit, rank: c.rank, pid: c.pid, v: c.v, zf: c.zf, wild: c.wild, exp: c.exp }));
   return `<div class="art" data-c="${d}"><img src="${ART[key]}" alt="" decoding="async" draggable="false">${overlays}</div>`;
 }
@@ -113,8 +95,9 @@ export function cardHTML(c: Partial<Card>, e?: Partial<Entry> | null, extra = ''
     const name = c.kind === 'pirate' && c.pid ? PIRATES[c.pid].n : cname(c as Card), rule = ruleOf(c);
     dataAttrs = ` data-art-name="${esc(name)}"${rule ? ` data-art-rule="${esc(rule)}"` : ''}`;
   }
-  // nom accessible (le title seul n'est pas fiable pour les lecteurs d'écran) ; la main remplace role et libellé quand la carte devient jouable
-  return `<div class="${cl} ${extra}" data-id="${c.id}" role="img" aria-label="${esc(cname(c as Card, e ?? undefined))}" title="${esc(cardTitle(c as Card))}"${dataAttrs} ${attrs}><div class="face">${faceHTML(c)}</div>${tag ? `<span class="tag">${tag}</span>` : ''}</div>`;
+  // nom accessible pour les lecteurs d'écran ; pas d'attribut title (l'info-bulle native fait doublon avec la fiche de zoom) ;
+  // la main remplace role et libellé quand la carte devient jouable
+  return `<div class="${cl} ${extra}" data-id="${c.id}" role="img" aria-label="${esc(cname(c as Card, e ?? undefined))}"${dataAttrs} ${attrs}><div class="face">${faceHTML(c)}</div>${tag ? `<span class="tag">${tag}</span>` : ''}</div>`;
 }
 export const backFace = () => `<div class="face">${faceOf('back')}</div>`;
 
