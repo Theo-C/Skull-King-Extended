@@ -3,6 +3,8 @@
 // Lancer : npx tsx tests/sql.test.ts
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync, readdirSync } from 'node:fs';
+import { CATALOG } from '../supabase/functions/_shared/cosmetics.ts';
+import { levelFor } from '../supabase/functions/_shared/xp.ts';
 
 const db = new PGlite();
 let fails = 0;
@@ -106,6 +108,16 @@ const hl = (await db.query<any>(`select history_list('${A}') as h`)).rows[0].h;
 ok('historique : une partie avec ses joueurs', hl.length === 1 && hl[0].xp === 175 && hl[0].seats.length === 3, hl);
 ok('détail : refusé à qui n’a pas joué', (await db.query<any>(`select history_get('${C}', '${G}') as d`)).rows[0].d === null);
 ok('détail : accessible au joueur', (await db.query<any>(`select history_get('${B}', '${G}') as d`)).rows[0].d?.results.length === 2);
+
+// ---------- Garde-robe ----------
+const cat = (await db.query<any>('select id, slot, value, name, rarity, source, variants, level, achievement from cosmetics order by sort')).rows;
+const norm = (x: any) => JSON.stringify([x.id, x.slot, x.value, x.name, x.rarity, x.source, x.variants ?? null, x.level ?? null, x.achievement ?? null]);
+ok('catalogue SQL identique à cosmetics.ts', cat.length === CATALOG.length && cat.every((r: any, i: number) => norm(r) === norm(CATALOG[i])), cat.find((r: any, i: number) => norm(r) !== norm(CATALOG[i])));
+const lv = (await db.query<any>(`select x, floor((1 + sqrt(1 + x / 31.25)) / 2 + 1e-9)::int as l from unnest(array[0, 249, 250, 2499, 2500, 3749, 3750, 108750, 108749]) x`)).rows;
+ok('niveau calculé en SQL (objets rétroactifs) = levelFor', lv.every((r: any) => r.l === levelFor(r.x).level), lv);
+const blockedLook = await as(A, `update profiles set look = '{"hat":"couronne"}' where id='${A}'`).then(() => false, () => true);
+ok('look : pas modifiable directement par le joueur', blockedLook);
+ok('porte-monnaie : invisible pour les autres', (await as(B, `select * from user_wallet where user_id='${A}'`)).length === 0);
 
 console.log(fails ? `${fails} échec(s)` : 'Schéma : toutes les vérifications passent.');
 if (fails) process.exit(1);

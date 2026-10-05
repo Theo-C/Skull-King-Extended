@@ -1,6 +1,7 @@
 // Logique serveur des parties, indépendante du stockage (testable en mémoire, branchée sur Supabase dans game/index.ts).
 import * as E from './engine.ts';
 import { settleGame, type SettleInput } from './settle.ts';
+import { BY_ID, SHOP_PRICE, checkLook, drawItem, drawRarity, shopDay, shopFor } from './cosmetics.ts';
 
 export interface GameRow { id: string; code: string; host: string; status: 'lobby' | 'playing' | 'finished'; options: any; state: any; version: number }
 export interface SeatRow { seat: number; user_id: string | null; bot: boolean; name: string; final_score?: number | null; rank?: number | null }
@@ -18,7 +19,8 @@ export interface Store {
   seats(gameId: string): Promise<SeatRow[]>;
   secret(gameId: string): Promise<E.State | null>;
   commit(gameId: string, expectedVersion: number, c: Commit): Promise<number | null>; // null : conflit de version
-  /** Appel d'une fonction SQL réservée au serveur (settle_inputs, game_settle, history_page, history_get, profile_update, unsettled_games, rematch_claim). */
+  /** Appel d'une fonction SQL réservée au serveur (settle_inputs, game_settle, history_page, history_get, profile_update, unsettled_games,
+   *  rematch_claim, chest_open, shop_buy, wardrobe_state). */
   rpc(name: string, args: Record<string, unknown>): Promise<any>;
 }
 export class HttpError extends Error { constructor(public status: number, msg: string) { super(msg); } }
@@ -47,6 +49,9 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'history.list': return historyList(store, uid, body);
     case 'history.get': return historyGet(store, uid, body);
     case 'rematch': return rematch(store, uid, body);
+    case 'chest.open': return chestOpen(store, uid);
+    case 'shop.list': return shopList(store, uid);
+    case 'shop.buy': return shopBuy(store, uid, body);
     default: throw bad('Action inconnue.');
   }
 }
@@ -214,6 +219,15 @@ async function profileUpdate(store: Store, uid: string, body: any) {
       p.avatar_url = u;
     }
   }
+  if (body.look !== undefined) {
+    if (body.look === null) p.look = null;
+    else {
+      const w = await store.rpc('wardrobe_state', { p_user: uid }) as { owned: string[] };
+      const r = checkLook(body.look, new Set(w?.owned ?? []));
+      if (r.error) throw bad(r.error);
+      p.look = r.look;
+    }
+  }
   for (const k of ['public_rank', 'notify_turn', 'sounds']) if (body[k] != null) {
     if (typeof body[k] !== 'boolean') throw bad('Réglage invalide.');
     p[k] = body[k];
@@ -278,3 +292,33 @@ async function rematch(store: Store, uid: string, body: any) {
   if (v == null) throw new HttpError(500, 'Création interrompue.');
   return { id: n.id, code: n.code };
 }
+
+/* ---------- Garde-robe : coffres et échoppe ---------- */
+// Le tirage est fait ici (jamais par le site) ; la fonction SQL retire le coffre et ajoute l'objet (ou les pièces) dans une transaction.
+async function chestOpen(store: Store, uid: string, rand: () => number = Math.random) {
+  const rarity = drawRarity(rand), pick = drawItem(rarity, rand);
+  // drawItem et chest_open choisissent dans la même liste triée : on transmet la position relative de l'objet tiré
+  const r = await store.rpc('chest_open', { p_user: uid, p_rarity: rarity, p_pick: pickIndex(rarity, pick.id) });
+  if (r?.error === 'no_chest') throw bad('Aucun coffre à ouvrir.');
+  if (r?.error) throw new HttpError(500, "Le coffre n'a pas pu être ouvert.");
+  return r;
+}
+function pickIndex(rarity: string, id: string) {
+  const ids = Object.values(BY_ID).filter(x => x.rarity === rarity && (x.source === 'chest' || x.source === 'title')).map(x => x.id).sort();
+  return (ids.indexOf(id) + .5) / ids.length;
+}
+async function shopList(store: Store, uid: string) {
+  const day = shopDay(), w = await store.rpc('wardrobe_state', { p_user: uid }) as { owned: string[]; coins: number; chests: number };
+  const owned = new Set(w?.owned ?? []);
+  return { day, coins: w?.coins ?? 0, chests: w?.chests ?? 0, items: shopFor(day).map(x => ({ id: x.id, slot: x.slot, value: x.value, name: x.name, rarity: x.rarity, price: SHOP_PRICE[x.rarity], owned: owned.has(x.id) })) };
+}
+async function shopBuy(store: Store, uid: string, body: any) {
+  const item = shopFor(shopDay()).find(x => x.id === body?.id);
+  if (!item) throw bad("Cet objet n'est pas en vente aujourd'hui.");
+  const r = await store.rpc('shop_buy', { p_user: uid, p_cosmetic: item.id, p_price: SHOP_PRICE[item.rarity] });
+  if (r?.error === 'owned') throw bad('Vous avez déjà cet objet.');
+  if (r?.error === 'coins') throw bad("Pas assez de pièces.");
+  return r;
+}
+/** Pour les tests : ouverture avec un tirage reproductible. */
+export const _chestOpenWith = chestOpen;

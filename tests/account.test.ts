@@ -4,6 +4,7 @@ import { eloDeltas, expected } from '../supabase/functions/_shared/elo.ts';
 import { levelFor, xpToReach, titleFor } from '../supabase/functions/_shared/xp.ts';
 import { settleGame, type SettleInput } from '../supabase/functions/_shared/settle.ts';
 import * as E from '../supabase/functions/_shared/engine.ts';
+import { BY_ID, CATALOG, RARITY, RARITIES, checkLook, chestPool, drawItem, drawRarity, seeded, shopFor } from '../supabase/functions/_shared/cosmetics.ts';
 
 let fails = 0, passes = 0;
 const ok = (n: string, c: boolean, i?: unknown) => { if (c) passes++; else { fails++; console.error('ÉCHEC', n, i ?? ''); } };
@@ -71,6 +72,37 @@ ok('XP : titres', titleFor(13) === 'Second' && titleFor(29) === 'Amiral' && titl
   // une seule personne : XP oui, Élo non
   const solo = settleGame(S, [seats[0], { ...seats[1], user_id: null, bot: true }, seats[2]], { u0: inputs.u0 });
   ok('un seul humain : XP sans Élo', solo.results[0].elo_delta === null && solo.stats[0].ranked === false && solo.xp.length > 0);
+  // garde-robe : pièces pour tous, coffre pour le gagnant humain seulement, objet du titre franchi
+  const rw = (u: string) => st.rewards.find(r => r.user_id === u)!;
+  ok('récompenses : pièces = 10 + 5 × mises tenues', rw('u0').coins === 10 + 5 * st.results.find(r => r.user_id === 'u0')!.bids_made, st.rewards);
+  ok('récompenses : un coffre au gagnant, aucun au 3e', rw('u0').chests === (st.results[0].place === 1 ? 1 : 0) && rw('u1').chests === 0, st.rewards);
+  const big = settleGame(S, seats, { ...inputs, u0: { ...inputs.u0, xp: 2400 } });
+  const items = big.rewards.find(r => r.user_id === 'u0')!.items;
+  ok('récompenses : le titre Gabier (niveau 5) donne le tricorne, le Pari du Kraken le cadre Tentacules', items.includes('hat:tricorne') && items.includes('frame:tentacules')
+    && big.public.u0.items.length === 2 && big.public.u0.achievements.find((a: any) => a.code === 'kraken_bet')?.item === 'frame:tentacules', big.public.u0);
+  ok('récompenses : aucun objet de titre sans changement de niveau', !rw('u1').items.some(id => BY_ID[id].source === 'title'), rw('u1'));
+}
+
+/* ---------- Garde-robe : tirage, échoppe, look ---------- */
+{
+  const rand = seeded(42), N = 200000, n: Record<string, number> = {};
+  for (let i = 0; i < N; i++) { const r = drawRarity(rand); n[r] = (n[r] || 0) + 1; }
+  ok('coffre : 62 / 26 / 9 / 3 % (graine fixe, 200 000 tirages)', RARITIES.every(r => Math.abs(100 * (n[r] || 0) / N - RARITY[r].weight) < .4), n);
+  ok('coffre : chaque rareté a des objets à tirer', RARITIES.every(r => chestPool(r).length > 0));
+  ok('coffre : les objets de haut fait et le cadre du top 3 ne sortent jamais', RARITIES.every(r => chestPool(r).every(x => x.source === 'chest' || x.source === 'title')));
+  const r2 = seeded(7);
+  ok('coffre : objet tiré dans la bonne rareté', Array.from({ length: 200 }, () => { const r = drawRarity(r2); return drawItem(r, r2).rarity === r; }).every(Boolean));
+  const d1 = shopFor('2026-10-05'), d2 = shopFor('2026-10-05');
+  ok('échoppe : 3 objets distincts, communs ou rares, identiques pour un même jour', d1.length === 3 && new Set(d1.map(x => x.id)).size === 3
+    && d1.every(x => x.rarity === 'commun' || x.rarity === 'rare') && d1.map(x => x.id).join() === d2.map(x => x.id).join(), d1);
+  ok("échoppe : change d'un jour à l'autre", ['2026-10-06', '2026-10-07', '2026-10-08'].some(d => shopFor(d).map(x => x.id).join() !== d1.map(x => x.id).join()));
+  const base = { skin: 2, hair: 'long', hc: 3, beard: 'mous' };
+  ok('look : base seule acceptée', !!checkLook({ ...base, bg: 'mer' }, new Set()).look);
+  ok('look : objet non possédé refusé', !!checkLook({ ...base, hat: 'bicorne' }, new Set()).error);
+  ok('look : objet possédé accepté, couleur ramenée aux variantes', checkLook({ ...base, hat: 'bandana', htc: '#ffffff' }, new Set(['hat:bandana'])).look?.htc === '#9e2a22');
+  ok('look : objet inconnu ou base invalide refusés', !!checkLook({ ...base, pet: 'dragon' }, new Set()).error && !!checkLook({ ...base, skin: 9 }, new Set()).error
+    && !!checkLook({ ...base, hair: '<svg>' }, new Set()).error);
+  ok('catalogue : identifiants uniques', new Set(CATALOG.map(x => x.id)).size === CATALOG.length && Object.keys(BY_ID).length === CATALOG.length);
 }
 
 console.log(`Compte : ${passes} vérifications réussies, ${fails} échec(s).`);

@@ -4,6 +4,7 @@
 import * as E from './engine.ts';
 import { eloDeltas } from './elo.ts';
 import { XP, levelFor } from './xp.ts';
+import { CATALOG, COINS } from './cosmetics.ts';
 
 export const ACHIEVEMENTS: Record<string, { name: string; description: string }> = {
   first_game: { name: 'Premier abordage', description: 'Terminer une partie' },
@@ -30,6 +31,8 @@ export interface Settlement {
   xp: { user_id: string; reason: string; amount: number }[];
   achievements: { user_id: string; code: string }[];
   stats: { user_id: string; win: number; bids_made: number; bids_total: number; score: number; sirens: number; zero_bids_made: number; ranked: boolean; elo_after: number }[];
+  /** Garde-robe : pièces, coffre du gagnant, objets des titres franchis et des nouveaux hauts faits. */
+  rewards: { user_id: string; coins: number; chests: number; items: string[] }[];
   /** Résumé par utilisateur, publié dans games.state.settled pour l'écran de fin de partie. */
   public: Record<string, any>;
 }
@@ -39,7 +42,7 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
   const humans = seats.filter(s => s.user_id && !s.bot && inputs[s.user_id]);
   const ranked = humans.length >= 2;
   const elo = ranked ? eloDeltas(humans.map(s => ({ id: s.user_id!, elo: Number(inputs[s.user_id!].elo), games: inputs[s.user_id!].ranked_games, place: ranks[s.seat] }))) : [];
-  const out: Settlement = { results: [], xp: [], achievements: [], stats: [], public: {} };
+  const out: Settlement = { results: [], xp: [], achievements: [], stats: [], rewards: [], public: {} };
   const nameOf = (uid: string) => humans.find(h => h.user_id === uid)?.name ?? '?';
 
   for (const s of humans) {
@@ -69,6 +72,12 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
     for (const c of fresh) lines.push({ reason: 'ach:' + c, amount: XP.achievement });
     const gain = lines.reduce((a, x) => a + x.amount, 0);
 
+    // garde-robe : +10 pièces par partie, +5 par mise tenue ; un coffre pour le gagnant humain ; objets des titres franchis et des hauts faits obtenus
+    const lvBefore = levelFor(inp.xp).level, lvAfter = levelFor(inp.xp + gain).level;
+    const items = CATALOG.filter(x => (x.source === 'title' && x.level! > lvBefore && x.level! <= lvAfter) || (x.source === 'achievement' && fresh.includes(x.achievement!)));
+    const coins = COINS.game + COINS.bid * made, chests = win;
+    out.rewards.push({ user_id: uid, coins, chests, items: items.map(x => x.id) });
+
     const e = elo.find(x => x.id === uid);
     out.results.push({ user_id: uid, place, score: p.score, bids_made: made, rounds: hist.length, players: seats.length,
       elo_before: Number(inp.elo), elo_after: e ? e.after : null, elo_delta: e ? e.delta : null, ranked_before: inp.ranked_games, games_before: inp.games });
@@ -79,7 +88,8 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
       place, score: p.score, bidsMade: made, rounds: hist.length,
       xp: lines, xpTotal: gain, xpBefore: inp.xp, xpAfter: inp.xp + gain,
       levelBefore: levelFor(inp.xp).level, levelAfter: levelFor(inp.xp + gain).level,
-      achievements: fresh.map(code => ({ code, ...ACHIEVEMENTS[code] })),
+      achievements: fresh.map(code => ({ code, ...ACHIEVEMENTS[code], item: CATALOG.find(x => x.achievement === code)?.id ?? null })),
+      coins, chests, items: items.map(x => ({ id: x.id, slot: x.slot, value: x.value, name: x.name, rarity: x.rarity, source: x.source })),
       elo: e ? { before: e.before, after: e.after, delta: e.delta, vs: e.vs.map(v => ({ ...v, name: nameOf(v.id) })) } : null,
     };
   }

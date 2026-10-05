@@ -140,6 +140,44 @@ ok('règlement rejoué : « already »', await settleFinished(store, G, S_end!, 
 const xpAfter = (await db.query<any>('select xp from profiles where id = any($1::uuid[])', [users])).rows.map((x: any) => x.xp);
 ok('règlement rejoué : XP inchangée', xpAfter.sort().join() === xpBefore.split(',').sort().join());
 
+// ---------- Garde-robe : récompenses, coffres, doublons, échoppe, look ----------
+const wallet = async (u: string) => (await db.query<any>('select coins, chests from user_wallet where user_id=$1', [u])).rows[0] ?? { coins: 0, chests: 0 };
+const winners = res.filter((r: any) => r.place === 1).map((r: any) => r.user_id), loser = res.find((r: any) => r.place > 1).user_id;
+const w0 = await wallet(winners[0]);
+ok('récompenses : un coffre pour le gagnant, des pièces pour tous', w0.chests === 1 && (await wallet(loser)).chests === 0
+  && (await Promise.all(users.map(wallet))).every((w: any) => w.coins >= 10), { w0, all: await Promise.all(users.map(wallet)) });
+await settleFinished(store, G, S_end!, await store.seats(G));
+ok('récompenses : pas distribuées deux fois si le règlement est rappelé', (await wallet(winners[0])).chests === 1 && (await wallet(winners[0])).coins === w0.coins);
+await expectErr('coffre : refusé sans coffre', handle(store, loser, { action: 'chest.open' }), 400);
+const op = await handle(store, winners[0], { action: 'chest.open' });
+ok('coffre : un objet tiré, le coffre est consommé', !!op.item?.id && op.chests === 0 && typeof op.duplicate === 'boolean', op);
+ok('coffre : objet ajouté à la garde-robe', op.duplicate || (await db.query<any>('select 1 from user_cosmetics where user_id=$1 and cosmetic_id=$2', [winners[0], op.item.id])).rows.length === 1);
+await expectErr('coffre : impossible de l’ouvrir deux fois', handle(store, winners[0], { action: 'chest.open' }), 400);
+// doublon : tous les objets déjà possédés → converti en pièces selon la rareté
+await db.exec(`insert into user_cosmetics (user_id, cosmetic_id, source) select '${loser}', id, 'test' from cosmetics on conflict do nothing;
+  insert into user_wallet (user_id, chests) values ('${loser}', 2) on conflict (user_id) do update set chests = 2;`);
+const cBefore = (await wallet(loser)).coins, dup = await handle(store, loser, { action: 'chest.open' });
+const DUP: Record<string, number> = { commun: 30, rare: 80, epique: 140, legendaire: 200 };
+ok('coffre : un doublon devient des pièces (30 / 80 / 140 / 200)', dup.duplicate === true && dup.coinsGained === DUP[dup.item.rarity] && dup.coins === cBefore + dup.coinsGained && dup.chests === 1, dup);
+// look : uniquement des objets possédés
+const fresh = users.find(u => u !== loser)!;
+const owned = (await db.query<any>('select cosmetic_id from user_cosmetics where user_id=$1', [fresh])).rows.map((r: any) => r.cosmetic_id);
+const notOwned = ['hat:amiral', 'hat:bicorne', 'pet:singe'].find(id => !owned.includes(id))!;
+await expectErr('look : objet non possédé refusé', handle(store, fresh, { action: 'profile.update', look: { skin: 1, hair: 'court', hc: 1, beard: 'none', [notOwned.split(':')[0]]: notOwned.split(':')[1] } }), 400);
+await expectErr('look : base invalide refusée', handle(store, fresh, { action: 'profile.update', look: { skin: 1, hair: '<script>', hc: 1, beard: 'none' } }), 400);
+await handle(store, loser, { action: 'profile.update', look: { skin: 2, hair: 'long', hc: 3, beard: 'mous', hat: 'bandana', htc: '#2f5f8a', pet: 'perroquet', bg: 'nuit' } });
+const lk = (await as(U.eve, 'select look from profiles where id=$1', [loser]))[0].look;
+ok('look : enregistré et visible des autres joueurs', lk?.hat === 'bandana' && lk.htc === '#2f5f8a' && lk.pet === 'perroquet' && lk.ptc === '#3e8e4e', lk);
+// échoppe : 3 objets du jour, achat avec des pièces
+await db.exec(`insert into user_wallet (user_id, coins) values ('${U.eve}', 500) on conflict (user_id) do update set coins = 500;`);
+const shop = await handle(store, U.eve, { action: 'shop.list' });
+ok('échoppe : 3 objets du jour avec leur prix', shop.items.length === 3 && shop.items.every((x: any) => x.price > 0) && shop.coins === 500, shop);
+const buy = await handle(store, U.eve, { action: 'shop.buy', id: shop.items[0].id });
+ok('échoppe : achat payé et objet ajouté', buy.coins === 500 - shop.items[0].price && (await db.query<any>('select 1 from user_cosmetics where user_id=$1 and cosmetic_id=$2', [U.eve, shop.items[0].id])).rows.length === 1, buy);
+await expectErr('échoppe : pas deux fois le même objet', handle(store, U.eve, { action: 'shop.buy', id: shop.items[0].id }), 400);
+await expectErr('échoppe : objet hors vente refusé', handle(store, U.eve, { action: 'shop.buy', id: 'hat:couronne' }), 400);
+ok('garde-robe : un joueur ne voit pas les objets des autres', (await as(U.eve, 'select * from user_cosmetics where user_id=$1', [loser])).length === 0);
+
 // ---------- Historique, détail, revanche, profil ----------
 const hist = await handle(store, U.alice, { action: 'history.list' });
 ok('historique : la partie terminée', hist.items.length === 1 && hist.items[0].id === G && hist.next === null, hist);
