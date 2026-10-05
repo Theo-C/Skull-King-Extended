@@ -1388,8 +1388,9 @@ function coupDeLaManche(ps: PublicView['players']): string | null {
 }
 /**
  * Cartes de la main proportionnelles au bloc (docs/table-v2/PROMPT-claude-code.md, prompt 1) :
- * hauteur = hauteur disponible, largeur = hauteur / 1,4, écart = min(0,96 × largeur, place restante / (n − 1)) ;
- * si l'écart passe sous 0,38 × largeur, on réduit les cartes. La partie visible d'une carte reste d'au moins 44 px.
+ * hauteur = hauteur disponible, largeur = hauteur / 1,4. Chevauchement voulu : chaque carte avance de
+ * (0,96 → 0,45) × largeur selon n (léger aux premières manches, serré en main 10 pour l'effet éventail).
+ * On garde l'écart au-dessus de 0,38 × largeur ; sinon on réduit les cartes. Partie visible ≥ 44 px.
  */
 function handLayout(Wbox: number, Hbox: number, n: number) {
   // marges : 8 px en haut et en bas, plus la descente des cartes du bord de l'éventail (d² px) ; un peu de largeur pour la rotation
@@ -1398,8 +1399,10 @@ function handLayout(Wbox: number, Hbox: number, n: number) {
   const H = Math.max(40, H0 / (1 + Math.sin((n - 1) / 2 * Math.PI / 180) / 1.4));
   let cardH = H, cardW = cardH / 1.4;
   if (cardW > W) { cardW = W; cardH = cardW * 1.4; }
-  // écart entre deux cartes : au plus 0,96 × largeur (prompt 1), et limité par la largeur disponible
-  let step = n > 1 ? Math.min(cardW * .96, (W - cardW) / (n - 1)) : cardW;
+  // écart voulu : décroît avec n (0,96 à n=1, ~0,61 à n=7, 0,45 à n=10) pour que la main s'éventaille
+  // au fil de la partie, puis limité par la place disponible
+  const ideal = cardW * Math.max(.45, .96 - .058 * (n - 1));
+  let step = n > 1 ? Math.min(ideal, (W - cardW) / (n - 1)) : cardW;
   // trop de cartes : on les réduit jusqu'à ce que l'écart vaille 0,38 × largeur
   if (n > 1 && step < cardW * .38) { cardW = W / (1 + .38 * (n - 1)); cardH = cardW * 1.4; step = cardW * .38; }
   // la partie visible (cliquable) d'une carte fait au moins 44 px, quand la largeur le permet
