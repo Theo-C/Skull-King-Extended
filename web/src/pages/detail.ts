@@ -115,7 +115,7 @@ export async function detailPage(root: HTMLElement, id: string, uid: string) {
   // partager / revanche
   $('#share', root).onclick = async () => {
     const txt = `${title} · ${order.map(({ p }, k) => `${k + 1}. ${p.name} ${p.score}`).join(' · ')}`;
-    if ((navigator as any).share) { (navigator as any).share({ title: 'Le Pli des Pirates', text: txt }).catch(() => { }); return; }
+    if ((navigator as any).share) { (navigator as any).share({ title: 'Skull King Extended', text: txt }).catch(() => { }); return; }
     if (await copyText(txt)) toast('Résultat copié.'); else toast(txt);
   };
   $('#rematch', root).onclick = async () => {

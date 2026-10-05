@@ -1,4 +1,4 @@
-// Moteur de règles du Pli des Pirates (règles Skull King + extension).
+// Moteur de règles de Skull King Extended (règles Skull King + extension).
 // Module sans dépendance : utilisé par la fonction serveur (Deno) et par le site (navigateur).
 // L'état complet (mains, pioche) ne quitte jamais le serveur : le site ne reçoit que publicView() et privateView().
 

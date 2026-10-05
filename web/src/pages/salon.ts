@@ -119,7 +119,7 @@ function build(root: HTMLElement, g: any, host: boolean, sync: () => Promise<voi
     else { ($('#link', box) as HTMLInputElement).select(); toast('Sélectionnez le lien pour le copier.'); } // repli : sélection manuelle
   };
   const sh = box.querySelector('#share') as HTMLElement | null;
-  if (sh) sh.onclick = () => (navigator as any).share({ title: 'Le Pli des Pirates', text: 'Rejoins ma table !', url: link }).catch(() => { });
+  if (sh) sh.onclick = () => (navigator as any).share({ title: 'Skull King Extended', text: 'Rejoins ma table !', url: link }).catch(() => { });
   $('#qr', box).onclick = () => modal(`<h2>QR code d'invitation</h2><p class="sub">À scanner avec l'appareil photo d'un téléphone. Code : <b>${esc(g.code)}</b></p><div class="qrbox">${qrSVG(link, 260)}</div>`);
   if (!host) {
     $('#leave', box).onclick = async () => { try { await callGame('leave', { id: g.id }); go('#/'); } catch (e: any) { toast(e.message, 'err'); } };

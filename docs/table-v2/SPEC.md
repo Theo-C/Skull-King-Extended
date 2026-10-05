@@ -1,6 +1,6 @@
 # Table de jeu v2 — cahier des charges
 
-Refonte de la table de jeu du Pli des Pirates (`web/src/table.ts`, `web/src/game.css`, `web/src/app.css`, `web/src/pages/game.ts`).
+Refonte de la table de jeu de Skull King Extended (`web/src/table.ts`, `web/src/game.css`, `web/src/app.css`, `web/src/pages/game.ts`).
 Objectif : que chaque joueur voie d'un coup d'œil **où il en est de sa mise**, **qui gagne le pli** et **à qui c'est le tour**, avec des animations
 qui racontent chaque coup. Public visé : parties entre amis à 3 ou 4 joueurs, sur ordinateur et téléphone.
 

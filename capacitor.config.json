@@ -1,6 +1,6 @@
 {
   "appId": "fr.plidespirates.app",
-  "appName": "Le Pli des Pirates",
+  "appName": "Skull King Extended",
   "webDir": "dist",
   "android": { "allowMixedContent": false }
 }

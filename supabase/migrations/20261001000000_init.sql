@@ -1,4 +1,4 @@
--- Le Pli des Pirates — schéma initial (projet Supabase dédié)
+-- Skull King Extended — schéma initial (projet Supabase dédié)
 -- Principe : les joueurs lisent ce qui les concerne via RLS ; toute écriture de partie passe par l'Edge Function « game »
 -- (clé service), qui arbitre les règles. Les mains et la pioche ne sont jamais lisibles par les autres joueurs.
 

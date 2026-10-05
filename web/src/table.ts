@@ -1439,7 +1439,7 @@ function handSummary(hand: Card[]) {
 function notifyTurn() {
   try {
     if (localStorage.getItem('pli-notify') === '0' || !('Notification' in window) || Notification.permission !== 'granted') return;
-    new Notification('À vous de jouer', { body: 'Le Pli des Pirates : la table vous attend.', icon: './icon.svg', tag: 'pli-tour' });
+    new Notification('À vous de jouer', { body: 'Skull King Extended : la table vous attend.', icon: './icon.svg', tag: 'pli-tour' });
   } catch { /* notifications indisponibles */ }
 }
 const ACH_STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z"/></svg>';

@@ -2,7 +2,7 @@
 project_id = "pli-des-pirates"
 
 [auth]
-site_url = "https://pli-des-pirates.vercel.app"
+site_url = "https://skull-king-extended.vercel.app"
 additional_redirect_urls = ["http://localhost:5173/", "fr.plidespirates.app://connexion"]
 enable_signup = true
 

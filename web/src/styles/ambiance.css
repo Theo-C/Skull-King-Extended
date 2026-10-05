@@ -14,7 +14,7 @@ body.at-table .tablepage:not(.sobre){position:relative;isolation:isolate;
   background:repeating-linear-gradient(90deg,rgba(0,0,0,0) 0 116px,rgba(0,0,0,.35) 116px 119px,rgba(255,220,170,.03) 119px 120px),linear-gradient(180deg,#2a1d14,#1a120c 60%,#120c08)}
 body.at-table .tablepage:not(.sobre)::before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
   background:radial-gradient(ellipse 620px 520px at 120px 120px,rgba(255,170,80,.20),transparent 70%),radial-gradient(ellipse 900px 700px at 40% 40%,rgba(255,190,110,.07),transparent 70%);
-  animation:flicker 4.2s ease-in-out infinite}
+  animation:flicker 2.4s ease-in-out infinite}
 body.at-table .tablepage:not(.sobre)::after{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 45% 45%,transparent 55%,rgba(0,0,0,.55) 100%)}
 
 /* 2. Rebord : bois veiné ; clous et corde (SVG .amb-rim) */
@@ -29,15 +29,15 @@ body.at-table .tablepage:not(.sobre)::after{content:'';position:absolute;inset:0
 /* 4. Accessoires des coins (hors zone de jeu) */
 .amb-prop{position:absolute;z-index:1;pointer-events:none}
 .amb-prop[hidden]{display:none}
-.amb-lantern{transform-origin:50% 0;animation:sway 6s ease-in-out infinite}
+.amb-lantern{transform-origin:50% 0;animation:sway 3s ease-in-out infinite}
 .amb-lantern svg{position:relative;z-index:1;width:100%;height:100%;display:block}
-.amb-lantern .amb-flame{transform-origin:50% 100%;transform-box:fill-box;animation:flame 1.6s ease-in-out infinite}
-.amb-lantern .amb-halo{position:absolute;left:-40px;top:30px;width:140px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(255,200,110,.35),transparent 65%);animation:flicker 4.2s ease-in-out infinite}
+.amb-lantern .amb-flame{transform-origin:50% 100%;transform-box:fill-box;animation:flame 1.1s ease-in-out infinite}
+.amb-lantern .amb-halo{position:absolute;left:-40px;top:30px;width:140px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(255,200,110,.35),transparent 65%);animation:flicker 2.4s ease-in-out infinite}
 .amb-porthole{border-radius:50%;overflow:hidden;background:linear-gradient(180deg,#0c1a33 0%,#1a2f55 55%,#0e2a3a 56%,#081a24 100%);
   box-shadow:0 0 0 7px #b08a4a,0 0 0 9px #5e4422,inset 0 0 18px rgba(0,0,0,.7)}
 .amb-porthole .amb-moon{position:absolute;left:62px;top:16px;width:18px;height:18px;border-radius:50%;background:#f3e8cf;box-shadow:0 0 16px rgba(243,232,207,.7)}
-.amb-porthole .amb-swell{position:absolute;left:0;top:54px;width:180px;height:14px;animation:swell 7s linear infinite}
-.amb-porthole .amb-swell2{position:absolute;left:-60px;top:66px;width:180px;height:12px;animation:swell2 9s linear infinite}
+.amb-porthole .amb-swell{position:absolute;left:0;top:54px;width:180px;height:14px;animation:swell 3s linear infinite}
+.amb-porthole .amb-swell2{position:absolute;left:-60px;top:66px;width:180px;height:12px;animation:swell2 4s linear infinite}
 .amb-porthole .amb-glass{position:absolute;inset:0;border-radius:50%;background:linear-gradient(135deg,rgba(255,255,255,.12),transparent 45%)}
 .amb-dagger svg{width:100%;height:100%;display:block}
 /* coins masqués sous 1100 px et dans la version téléphone */

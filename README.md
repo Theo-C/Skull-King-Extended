@@ -1,4 +1,4 @@
-# Le Pli des Pirates — site multijoueur
+# Skull King Extended — site multijoueur
 
 Jeu de plis et de paris aux règles de Skull King (base + extension), avec le design de cartes « Mers Sauvages ».
 Comptes par lien magique, parties en direct entre amis via un lien d'invitation, classement, entraînement hors ligne contre des bots.
@@ -40,7 +40,7 @@ des nouveaux événements, de l'état et de la main. Une relecture toutes les 15
    supabase functions deploy game   # déploie l'arbitre
    ```
 3. **Authentication → URL Configuration** :
-   - *Site URL* : l'adresse du site (ex. `https://pli-des-pirates.vercel.app`)
+   - *Site URL* : l'adresse du site (ex. `https://skull-king-extended.vercel.app`)
    - *Redirect URLs* : la même adresse avec `/`, `http://localhost:5173/` pour le développement,
      et `fr.plidespirates.app://connexion` pour l'appli Android.
 4. **Authentication → Providers → Email** : laisser l'e-mail activé (lien magique).
