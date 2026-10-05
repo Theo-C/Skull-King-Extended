@@ -908,6 +908,9 @@ export class TableView {
     const ids = new Set(hand.map(c => c.id));
     for (const [id, c] of this.handEls) if (!ids.has(id)) { detachAnim(c); c.remove(); this.handEls.delete(id); }
     const playing = this.myTurnToPlay() && !this.choice; const legal = new Set(pv.legal);
+    // hors de son tour (mise, attente, tour d'un adversaire) : la main passe en mode inspection,
+    // chaque carte se soulève au survol pour qu'on puisse la lire sans attendre son tour
+    el.classList.toggle('inspect', !playing && !this.pick);
     const m = (len - 1) / 2; const added: HTMLElement[] = [];
     let prev: HTMLElement | null = null;
     hand.forEach((c, j) => {
@@ -929,8 +932,10 @@ export class TableView {
       // carte animée : la vidéo démarre dès que la carte arrive en main (décision 7 de docs/ETAT.md)
       const ak = this.animKey(this.mySeat!, c);
       if (ak) { if (!ce.dataset.anim) attachAnim(ce, ak); } else if (ce.dataset.anim) detachAnim(ce);
-      // pendant votre tour, toutes les cartes se survolent et se focalisent (l'aperçu explique pourquoi une carte est bloquée)
-      if (act || playing) { ce.tabIndex = 0; ce.setAttribute('role', 'button'); } else { ce.removeAttribute('tabindex'); ce.setAttribute('role', 'img'); }
+      // pendant votre tour, toutes les cartes se survolent et se focalisent (l'aperçu explique pourquoi une carte est bloquée) ;
+      // hors tour, elles sont tabulables aussi pour que l'inspection au clavier remonte la carte comme au survol souris
+      ce.tabIndex = 0;
+      ce.setAttribute('role', (act || playing) ? 'button' : 'img');
       if (playing && !legal.has(c.id) && !pick) ce.setAttribute('aria-disabled', 'true'); else ce.removeAttribute('aria-disabled');
       ce.setAttribute('aria-label', (playing && !pick ? (legal.has(c.id) ? 'Jouer ' : 'Bloquée : ') : '') + cname(c));
       // éventail plat : 1° par carte, 1 px × d² de décalage vertical.

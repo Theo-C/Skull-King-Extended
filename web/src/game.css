@@ -884,6 +884,10 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 #hand{flex:1;min-width:0;min-height:0;padding:0;overflow:visible;display:flex;justify-content:center;align-items:center}
 #hand .card + .card{margin-left:var(--hm,-20px)}
 #hand .card.playable:hover,#hand .card.playable:focus-visible,#hand .card.sel{transform:translateY(calc(var(--y,0px) - var(--lift,24px))) rotate(var(--r,0deg))}
+/* Hors tour (mise, attente, tour d'un adversaire) : chaque carte se remonte au survol pour l'inspection ;
+   pas de halo doré (ce n'est pas une action), juste le même soulèvement que les cartes jouables. */
+#hand.inspect .card:hover,#hand.inspect .card:focus-visible{transform:translateY(calc(var(--y,0px) - var(--lift,24px))) rotate(var(--r,0deg));z-index:30}
+#hand.inspect .card{cursor:default}
 .zoom .card{--s:1.1905}
 /* téléphone : pas de hauteur minimale, réactions sous la main, marge basse de la zone sûre (encoche, barre de gestes) */
 @media (max-width:719px){.rail{height:auto;flex:1;flex-direction:column;gap:0;padding:6px 12px calc(8px + env(safe-area-inset-bottom,0px))}.handhead{display:none}.zoom .card{--s:1.1905}}
