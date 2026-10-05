@@ -16,9 +16,9 @@ ok('atout noir bat la couleur demandée', win([N('yellow', 14, 0), N('black', 1,
 ok('couleur non demandée perd', win([N('yellow', 2, 0), N('green', 14, 1)]) === 0);
 ok('Sirène bat les chiffres', win([N('black', 14, 0), S_('mermaid', 1)]) === 1);
 ok('Pirate bat Sirène', win([S_('mermaid', 0), S_('pirate', 1, { pid: 'rosie' })]) === 1);
-ok('Barbe-Cendre bat Pirate', win([S_('pirate', 0, { pid: 'rosie' }), S_('sk', 1)]) === 1);
-ok('Sirène capture Barbe-Cendre', win([S_('sk', 0), S_('mermaid', 1)]) === 1);
-ok('Pirate + Barbe-Cendre + Sirène : Sirène', win([S_('pirate', 0, { pid: 'rosie' }), S_('sk', 1), S_('mermaid', 2)]) === 2);
+ok('Skull King bat Pirate', win([S_('pirate', 0, { pid: 'rosie' }), S_('sk', 1)]) === 1);
+ok('Sirène capture Skull King', win([S_('sk', 0), S_('mermaid', 1)]) === 1);
+ok('Pirate + Skull King + Sirène : Sirène', win([S_('pirate', 0, { pid: 'rosie' }), S_('sk', 1), S_('mermaid', 2)]) === 2);
 ok('premier Pirate gagne', win([S_('pirate', 0, { pid: 'rosie' }), S_('pirate', 1, { pid: 'harry' })]) === 0);
 ok('Fuites seules : la première', win([S_('escape', 0), S_('escape', 1)]) === 0);
 ok('Kraken : défaussé, gagnant virtuel entame', win([N('green', 3, 0), N('green', 9, 1), S_('kraken', 2)]) === 'd1');
@@ -28,9 +28,9 @@ ok('dernier monstre joué décide', win([N('green', 9, 0), N('yellow', 2, 1), S_
 ok('Fosse détruit le Kraken', win([S_('kraken', 0), N('green', 9, 1), S_('davy', 2)]) === 1);
 ok('spéciales non gagnantes seules : défaussé', win([S_('davy', 0), S_('stingray', 1), S_('plank', 2)]) === 'd0');
 ok('Fuites + Bordée : 1re Fuite', win([S_('escape', 0), S_('volley', 1), S_('escape', 2)]) === 0);
-ok('Second bat Pirate', win([S_('pirate', 0, { pid: 'rosie' }), S_('con', 1)]) === 1);
-ok('Pirate + Sirène + Second : Sirène', win([S_('pirate', 0, { pid: 'rosie' }), S_('mermaid', 1), S_('con', 2)]) === 1);
-ok('Barbe-Cendre bat Second', win([S_('con', 0), S_('sk', 1)]) === 1);
+ok('Con bat Pirate', win([S_('pirate', 0, { pid: 'rosie' }), S_('con', 1)]) === 1);
+ok('Pirate + Sirène + Con : Sirène', win([S_('pirate', 0, { pid: 'rosie' }), S_('mermaid', 1), S_('con', 2)]) === 1);
+ok('Skull King bat Con', win([S_('con', 0), S_('sk', 1)]) === 1);
 ok('Grand Quinze jaune bat 14 jaune', win([W(0, 'yellow'), N('yellow', 14, 1)]) === 0);
 ok('Grand Quinze coupé par le noir', win([N('yellow', 3, 0), W(1, 'yellow'), N('black', 2, 2)]) === 2);
 ok('noir demandé : Grand Quinze perd', win([N('black', 1, 0), W(1, null)]) === 0);
@@ -88,9 +88,9 @@ for (let g = 0; g < 60; g++) {
   ok('aucune main dans la vue publique', !pub.includes('"hand"') && !pub.includes('"deck"'));
   ok('mise des autres cachée avant révélation', E.publicView(S).players.every(p => p.bid === null)); }
 
-// Lise Fil-de-Soie : carte choisie face cachée
+// Marie Thorne : carte choisie face cachée
 {
-  // on cherche une vraie situation de jeu où un humain doit utiliser Lise
+  // on cherche une vraie situation de jeu où un humain doit utiliser Marie Thorne
   let S: E.State | null = null;
   for (let g = 0; g < 400 && !S; g++) {
     let T = E.newGame(['A', 'B', 'C', 'D'].map(name => ({ name, bot: false })), { powers: true, exp: true }, 5000 + g);
@@ -102,7 +102,7 @@ for (let g = 0; g < 60; g++) {
       E.apply(T, w[0], a); E.takeEvents(T);
     }
   }
-  ok('situation Lise trouvée', !!S);
+  ok('situation Marie Thorne trouvée', !!S);
   if (S) {
     const pd = S.pending[0], by = pd.seat, pub = E.publicView(S);
     const opts = pub.pending!.opts as any[];

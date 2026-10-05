@@ -41,7 +41,7 @@ export interface TableBackend {
 export const EMOTES = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
 const PCOL = ['#d9b25a', '#c8644b', '#5c9db6', '#7ab874', '#a982c4', '#e0954a', '#cfc6b0', '#6f8fd0', '#d47fa6'];
 // Pauses entre deux événements rejoués (ms, multipliées par la vitesse choisie) : assez longues pour suivre ce que font les bots.
-/** Durée de la révélation du pouvoir de Lise (× vitesse). */
+/** Durée de la révélation du pouvoir de Marie Thorne (× vitesse). */
 const LISE_MS = 2600;
 const DELAY: Record<string, number> = { play: 1250, trick: 2400, trickEnd: 700, bids: 2000, deal: 700, round: 600, end: 0, lise: LISE_MS };
 const ICON = {
@@ -52,7 +52,7 @@ const ICON = {
   menu: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h12"/></svg>',
   soundOff: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8h3l4-3v10l-4-3H3zM13 8l4 4M17 8l-4 4"/></svg>',
 };
-/** Portrait de Lise Fil-de-Soie (maquette Lise : silhouette sur médaillon prune). */
+/** Portrait de Marie Thorne (maquette Marie Thorne : silhouette sur médaillon prune). */
 const LISE_PORTRAIT = '<span class="lport" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M14 100c3-26 18-36 36-36s33 10 36 36z" fill="#15110E"/><ellipse cx="50" cy="48" rx="14" ry="17" fill="#15110E"/><path d="M24 40c8-16 44-16 52 0-9 3-43 3-52 0z" fill="#15110E"/><path d="M25 40c11 3 39 3 50 0" stroke="#C9A24A" stroke-width="2.5" fill="none"/></svg></span>';
 const SEAL = '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 4l3 13 13 3-13 3-3 13-3-13-13-3 13-3z" fill="#c9a14a"/></svg>';
 /** Plateau dessiné en 1040 × 520 (comme la maquette) puis mis à l'échelle. */
@@ -227,7 +227,7 @@ export class TableView {
     this.latest = { pub, priv };
     if (this.finEl) this.fillSettled();
     if (!this.running && !this.queue.length) this.applyLatest();
-    // révélation de Lise en cours : la main qui porte la carte imposée vient d'arriver, on la montre sans attendre la fin de la file
+    // révélation de Marie Thorne en cours : la main qui porte la carte imposée vient d'arriver, on la montre sans attendre la fin de la file
     else if (this.running && this.evk === 'lise' && this.liseNow()) { this.renderHand(); this.renderAction(); }
   }
   push(events: any[]) { if (!events.length) return; this.queue.push(...events); this.run(); }
@@ -316,7 +316,7 @@ export class TableView {
   private colorOf(i: number) { return this.avatars[i]?.color || PCOL[i % 9]; }
   private avatar(i: number, name: string, size: number) { return avatarHTML({ ...(this.avatars[i] || {}), letter: name, color: this.colorOf(i) }, size, size >= 50 ? `0 0 0 2px #1b140e,0 0 0 4px ${this.colorOf(i)}` : undefined); }
 
-  /* ---------- Lise Fil-de-Soie ---------- */
+  /* ---------- Marie Thorne ---------- */
   private lise: { by: number; seat: number; pos: number; until: number } | null = null;
   private liseTimer: any = 0;
   /** C'est à moi de choisir une carte face cachée. */
@@ -356,7 +356,7 @@ export class TableView {
       if (lf && (me !== lf.seat || me === lf.by)) {
         const count = pb.players[lf.seat].handCount, by = lf.by === me ? 'vous' : pb.players[lf.by].name;
         let backs = '';
-        // maquettes Lise / LiseAutres : « Imposée » chez celui qui a choisi, « Choisie par Théo » chez les autres
+        // maquettes Marie Thorne / LiseAutres : « Imposée » chez celui qui a choisi, « Choisie par Théo » chez les autres
         for (let j = 0; j < count; j++) backs += `<div class="bk2 ${j === lf.pos ? 'pick' : 'off'}">${backFace()}${j === lf.pos ? `<span class="listag">${lf.by === me ? 'Imposée' : 'Choisie par ' + esc(by)}</span>` : ''}</div>`;
         const cap = lf.seat === me ? 'Vous devrez la jouer' : pb.players[lf.seat].name + ' devra la jouer';
         fans.push(`<div class="lfan done" id="liseFan" role="group" aria-label="${esc(owner(lf.seat))}" style="${place(lf.seat, count)}"><span class="lname">${esc(lf.seat === me ? 'Vous' : pb.players[lf.seat].name)}</span><div class="lbacks">${backs}</div><span class="lcap">${esc(cap)}</span></div>`);
@@ -364,7 +364,7 @@ export class TableView {
     }
     setHTML(box, fans.join('')); box.hidden = !fans.length;
   }
-  /** Centre de la table pendant le pouvoir de Lise (maquettes Lise, LiseAutres, LiseCible) : portrait, titre, explication. */
+  /** Centre de la table pendant le pouvoir de Marie Thorne (maquettes Marie Thorne, LiseAutres, LiseCible) : portrait, titre, explication. */
   private liseMid(): string | null {
     const pb = this.pub!, me = this.mySeat, pd = pb.pending, lf = this.liseNow();
     const nm = (i: number) => pb.players[i]?.name ?? '?';
@@ -723,7 +723,7 @@ export class TableView {
     $('#handTitle', this.root).innerHTML = '<b>Votre main</b>';
     const bid = this.bidOf(this.mySeat), won = pb.players[this.mySeat].won, stake = pb.players[this.mySeat].rascal;
     const st = !bid.wait && pb.bidsRevealed ? (won === Number(bid.txt) ? 'ok' : won > Number(bid.txt) ? 'ko' : '') : '';
-    // maquette Main : « 7 cartes » puis « Mise 2 · plis 0 » (l'enjeu de Lazare à part)
+    // maquette Main : « 7 cartes » puis « Mise 2 · plis 0 » (l'enjeu de Rascal à part)
     // phase de mise (maquette Bid) : « 2 atouts · 1 pirate · 1 sirène » à la place de « Mise · plis »
     const tags = [`<span><b>${hand.length}</b> carte${hand.length > 1 ? 's' : ''}</span>`];
     if (pb.phase === 'bid') { const s = handSummary(hand); if (s) tags.push(`<span>${s}</span>`); }
@@ -866,7 +866,7 @@ export class TableView {
     const name = (i: number) => esc(pb.players[i]?.name ?? '?');
     if (!this.live && this.evk === 'lise' && this.liseNow()) {
       const lf = this.liseNow()!;
-      // maquettes LiseCible (la cible), Lise (celui qui choisit), LiseAutres (les autres joueurs)
+      // maquettes LiseCible (la cible), Marie Thorne (celui qui choisit), LiseAutres (les autres joueurs)
       if (lf.seat === me) {
         const id = this.liseCard(), c = (this.latest?.priv ?? pv)?.hand.find(x => x.id === id);
         const carte = c ? 'votre ' + esc(cname(c)) : 'une carte';
@@ -899,7 +899,7 @@ export class TableView {
         case 'plank': return this.setAction('La Planche : quel pirate faites-vous marcher sur la planche ?', btns(opts));
         case 'rosie': return this.setAction(`${PIRATES.rosie.n} : qui entame le prochain pli ?`, btns(opts));
         case 'mary': {
-          // maquette Lise : petite étiquette « Au hasard » puis un bouton par joueur
+          // maquette Marie Thorne : petite étiquette « Au hasard » puis un bouton par joueur
           this.setAction(`Cliquez une carte face cachée chez un joueur, vous compris<small>${PIRATES.mary.n} : les cartes sont mélangées, leur place ne dit rien de leur valeur</small>`,
             opts.map(o => ({ label: o.v === me ? 'Vous' : pb.players[o.v].name, aria: `Au hasard dans ${o.v === me ? 'votre main' : 'la main ' + de(pb.players[o.v].name)}`, cls: 'alt', on: () => this.send({ t: 'choose', v: o.v }) })));
           this.root.querySelector('#action .btns')?.insertAdjacentHTML('afterbegin', '<span class="rndlbl" aria-hidden="true">Au hasard</span>');
@@ -938,7 +938,7 @@ export class TableView {
     // Kraken, pli défaussé : le message dit déjà qui entame
     if (!res || res.discarded) return title;
     if (pb.trickNo >= pb.cards) return `${title}<small>Dernier pli de la manche</small>`;
-    // Anne Boussole choisira qui entame : on ne l'annonce pas
+    // Rosie la douce choisira qui entame : on ne l'annonce pas
     const rosie = we?.card.kind === 'pirate' && we.card.pid === 'rosie' && pb.opts?.powers, next = res.next as number | null;
     const lead = rosie || next == null ? '' : ` · ${next === me ? 'vous entamez' : esc(pb.players[next].name) + ' entame'}`;
     return `${title}<small>Pli ${pb.trickNo + 1} sur ${pb.cards}${lead}</small>`;
@@ -1227,7 +1227,7 @@ function handLayout(Wbox: number, Hbox: number, n: number) {
 function handSummary(hand: Card[]) {
   const n = (f: (c: Card) => boolean) => hand.filter(f).length;
   const parts: [number, string, string][] = [
-    [n(c => c.kind === 'num' && c.suit === 'black'), 'atout', 'atouts'], [n(c => c.kind === 'sk'), 'Barbe-Cendre', 'Barbe-Cendre'],
+    [n(c => c.kind === 'num' && c.suit === 'black'), 'atout', 'atouts'], [n(c => c.kind === 'sk'), 'Skull King', 'Skull King'],
     [n(c => c.kind === 'pirate'), 'pirate', 'pirates'], [n(c => c.kind === 'tigress'), 'Morgane', 'Morgane'], [n(c => c.kind === 'mermaid'), 'sirène', 'sirènes']];
   return parts.filter(p => p[0]).map(([k, s, p]) => `${k} ${k > 1 ? p : s}`).join(' · ');
 }
@@ -1256,7 +1256,7 @@ function stakeLines(b: number, cards: number, rascal: boolean): [string, number]
 const VERBS: Record<string, string> = { joue: 'jouez', remporte: 'remportez', entame: 'entamez', mise: 'misez', fait: 'faites', choisit: 'choisissez', pioche: 'piochez', consulte: 'consultez', décide: 'décidez', garde: 'gardez', prend: 'prenez', tire: 'tirez' };
 /** « Vous remporte le pli » (texte du moteur) → « Vous remportez le pli ». */
 const vous = (t: string) => t.replace(/^Paris : /, 'Mises : ').replace(/^Vous (change|garde) son pari\b/, 'Vous $1z votre mise').replace(/(change|garde) son pari\b/, '$1 sa mise').replace(/la main de Vous\b/g, 'votre main').replace(/\bVous (\p{L}+)/gu, (m, v) => VERBS[v] ? 'Vous ' + VERBS[v] : m);
-/** Ligne du journal. Les bonus (« +30 pour Maëlle : Pirate capturé par Barbe-Cendre ») ont leur propre mise en forme : pastille de points, « Joueur · raison ». */
+/** Ligne du journal. Les bonus (« +30 pour Maëlle : Pirate capturé par Skull King ») ont leur propre mise en forme : pastille de points, « Joueur · raison ». */
 function logLine(l: { s: LogSeg[]; cls?: string }, me?: string) {
   if (l.cls === 'bonus' || l.cls === 'malus') {
     const m = /^([+−-]\d+) pour (.+?) : (.+)$/.exec(l.s.map(x => typeof x === 'string' ? x : cname(x.c, x.e)).join(''));

@@ -17,10 +17,10 @@ export const HIST_BACK = 'sk.histBack';
 /** « de Théo » / « d'Aurore » (élision devant une voyelle). */
 export const de = (n: string) => (/^[aeiouyàâäéèêëîïôöùûüœæ]/i.test(n.trim()) ? "d'" : 'de ') + n;
 
-/** « Extension complète », « Extension · variante Lazare » ou « Règles de base ». */
+/** « Extension complète », « Extension · variante Rascal » ou « Règles de base ». */
 export function modeLabel(o: any) {
-  if (!o?.exp) return o?.score === 'rascal' ? 'Règles de base · variante Lazare' : 'Règles de base';
-  return o.score === 'rascal' ? 'Extension · variante Lazare' : 'Extension complète';
+  if (!o?.exp) return o?.score === 'rascal' ? 'Règles de base · variante Rascal' : 'Règles de base';
+  return o.score === 'rascal' ? 'Extension · variante Rascal' : 'Extension complète';
 }
 const when = (iso: string) => `${relDay(iso)} · ${new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ')}`;
 

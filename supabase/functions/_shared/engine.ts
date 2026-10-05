@@ -19,7 +19,7 @@ export interface Pending { t: string; seat: number; data?: any }
 export interface Player {
   name: string; bot: boolean; uid?: string | null; score: number; hist: any[];
   bid: number | null; won: number; bonus: [number, string][]; rascal: number; hand: Card[];
-  /** Compteurs pour les hauts faits (jamais dans la vue publique) : sirènes capturées, plis gagnés avec le Grand Quinze ou la carte imposée par Lise, monstres engloutis par la Fosse, Barbe-Cendre capturé par une Sirène. */
+  /** Compteurs pour les hauts faits (jamais dans la vue publique) : sirènes capturées, plis gagnés avec le Grand Quinze ou la carte imposée par Marie Thorne, monstres engloutis par la Fosse, Skull King capturé par une Sirène. */
   feats?: Feats;
 }
 export interface Feats { sirens: number; wild: number; silk: number; abyss: number; mermaidKing: number }
@@ -27,9 +27,9 @@ export interface State {
   v: number; opts: Opts; n: number; players: Player[]; round: number; cards: number; dealer: number; leader: number;
   phase: 'bid' | 'play' | 'end'; bidsRevealed: boolean; trickNo: number; deck: Card[];
   trick: null | { entries: Entry[]; order: number[]; pos: number; volleyQ: number[]; vpos: number; stage: 'main' | 'volley' | 'plank' | 'powers'; removals: number[]; res: any };
-  forced: Record<number, number>; /** qui a imposé la carte (Lise Fil-de-Soie), pour le haut fait */ forcedBy?: Record<number, number>; alliances: [number, number][]; pending: Pending[]; rosieNext: number | null;
+  forced: Record<number, number>; /** qui a imposé la carte (Marie Thorne), pour le haut fait */ forcedBy?: Record<number, number>; alliances: [number, number][]; pending: Pending[]; rosieNext: number | null;
   lastTrick: any; log: LogLine[]; ev?: any[]; rng?: number;
-  /** Dernier pouvoir de Lise Fil-de-Soie : qui a choisi, dans quelle main, à quelle position de l'éventail face cachée. */
+  /** Dernier pouvoir de Marie Thorne : qui a choisi, dans quelle main, à quelle position de l'éventail face cachée. */
   lastLise?: LiseInfo | null;
 }
 export interface LiseInfo { by: number; seat: number; pos: number; round: number; trickNo: number }
@@ -38,28 +38,28 @@ export interface LiseInfo { by: number; seat: number; pos: number; round: number
 export const SUIT_ORDER: Suit[] = ['black', 'yellow', 'purple', 'green'];
 export const SUIT: Record<string, { n: string }> = { yellow: { n: 'Doublon' }, purple: { n: 'Carte marine' }, green: { n: 'Perroquet' }, black: { n: 'Pavillon noir' } };
 export const PIRATES: Record<string, { n: string; s: string; pw: string }> = {
-  rosie: { n: 'Anne Boussole', s: 'Anne', pw: 'choisit qui entame le prochain pli' },
-  bahij: { n: 'Gaspard Main-Leste', s: 'Gaspard', pw: 'pioche 2 cartes non distribuées puis en défausse 2' },
-  rascal: { n: 'Lazare le Parieur', s: 'Lazare', pw: 'mise 0, 10 ou 20 points sur la réussite de son pari' },
-  juanita: { n: 'Isaure Œil-de-Verre', s: 'Isaure', pw: 'consulte en secret les cartes non distribuées' },
-  harry: { n: 'Bastien Tonnerre', s: 'Bastien', pw: 'peut modifier son pari de +1 ou −1' },
-  mary: { n: 'Lise Fil-de-Soie', s: 'Lise', pw: "tire au hasard une carte dans la main d'un joueur, lui compris : il devra la jouer au pli suivant" },
+  rosie: { n: 'Rosie la douce', s: 'Rosie', pw: 'choisit qui entame le prochain pli' },
+  bahij: { n: 'Bendt le Ripate', s: 'Bendt', pw: 'pioche 2 cartes non distribuées puis en défausse 2' },
+  rascal: { n: 'Rascal le Flambeur', s: 'Rascal', pw: 'mise 0, 10 ou 20 points sur la réussite de son pari' },
+  juanita: { n: 'Juanita Jade', s: 'Juanita', pw: 'consulte en secret les cartes non distribuées' },
+  harry: { n: 'Harry le géant', s: 'Harry', pw: 'peut modifier son pari de +1 ou −1' },
+  mary: { n: 'Marie Thorne', s: 'Marie', pw: "tire au hasard une carte dans la main d'un joueur, lui compris : il devra la jouer au pli suivant" },
 };
 export const SPECIAL: Record<string, string> = {
-  escape: 'Drapeau blanc', tigress: 'Morgane la Louve', sk: 'Barbe-Cendre', mermaid: 'Sirène', kraken: 'Le Kraken',
-  whale: 'La Baleine Fantôme', loot: 'Pacte de Butin', con: 'Corbin, le Second', volley: 'Dernière Bordée',
+  escape: 'Drapeau blanc', tigress: 'Morgane la Louve', sk: 'Skull King', mermaid: 'Sirène', kraken: 'Le Kraken',
+  whale: 'La Baleine Fantôme', loot: 'Pacte de Butin', con: 'Con le belliqueux', volley: 'Dernière Bordée',
   stingray: 'La Raie Étoilée', davy: 'La Fosse des Noyés', plank: 'La Planche',
 };
 export const DESC: Record<string, string> = {
   escape: "Drapeau blanc (Fuite) : perd contre toutes les autres cartes. Si le pli ne contient que des Fuites, la première jouée l'emporte.",
   tigress: 'Morgane la Louve : annoncez en la jouant si elle compte comme un Pirate ou comme une Fuite.',
-  sk: 'Barbe-Cendre, Roi des Pirates : bat les cartes numérotées et tous les Pirates (+30 par Pirate capturé). Perd contre les Sirènes.',
-  mermaid: 'Sirène : bat les cartes numérotées et capture Barbe-Cendre (+40). Perd contre les Pirates.',
+  sk: 'Skull King, roi des pirates : bat les cartes numérotées et tous les Pirates (+30 par Pirate capturé). Perd contre les Sirènes.',
+  mermaid: 'Sirène : bat les cartes numérotées et capture Skull King (+40). Perd contre les Pirates.',
   pirate: 'Pirate : bat les cartes numérotées et les Sirènes (+20 par Sirène capturée).',
   kraken: "Le Kraken : le pli est détruit, personne ne le remporte. Le joueur qui l'aurait gagné entame le suivant.",
   whale: "La Baleine Fantôme : les cartes spéciales du pli perdent leur effet, la plus haute carte numérotée l'emporte, toutes couleurs confondues.",
   loot: 'Pacte de Butin : se joue comme une Fuite. Vous vous alliez au joueur qui remporte le pli : +20 chacun si vous réussissez tous deux votre mise.',
-  con: 'Corbin, le Second : bat toutes les cartes sauf Barbe-Cendre et les Sirènes. Le gagnant utilise les pouvoirs des Pirates capturés ; qui le capture gagne +30.',
+  con: 'Con le belliqueux : bat toutes les cartes sauf Skull King et les Sirènes. Le gagnant utilise les pouvoirs des Pirates capturés ; qui le capture gagne +30.',
   volley: 'Dernière Bordée : ne gagne pas. Une fois que tout le monde a joué, vous jouez une carte de plus dans ce pli.',
   stingray: "La Raie Étoilée : les cartes spéciales perdent leur effet, la plus petite carte numérotée l'emporte.",
   davy: 'La Fosse des Noyés : ne gagne pas. Engloutit tous les monstres des abysses du pli (+20 par monstre pour vous).',
@@ -116,7 +116,7 @@ export function cname(c: Card, e?: Partial<Entry>): string {
     return `${c.rank} ${s}` + (c.mod ? (c.mod > 0 ? ' (+5)' : ' (−5)') : '');
   }
   if (c.kind === 'pirate') return PIRATES[c.pid!].n;
-  if (c.kind === 'mermaid') return c.v ? 'Néréa' : 'Ondine';
+  if (c.kind === 'mermaid') return c.v ? 'Circé' : 'Alyra';
   if (c.kind === 'tigress') return 'Morgane la Louve' + (e && e.as ? (e.as === 'pirate' ? ' (pirate)' : ' (fuite)') : '');
   return SPECIAL[c.kind];
 }
@@ -156,11 +156,11 @@ function normalWinner(es: Entry[]): { w: Entry | null; b: [number, string][] } {
   const sk = es.find(e => e.card.kind === 'sk'), con = es.find(e => e.card.kind === 'con');
   const mer = es.filter(e => e.card.kind === 'mermaid'), pir = es.filter(isPir); const b: [number, string][] = [];
   if (mer.length && (sk || con)) {
-    if (sk) b.push([40, 'Barbe-Cendre capturé par une Sirène']);
-    if (con) b.push([30, 'Corbin capturé']);
+    if (sk) b.push([40, 'Skull King capturé par une Sirène']);
+    if (con) b.push([30, 'Con capturé']);
     return { w: mer[0], b };
   }
-  if (sk) { pir.forEach(() => b.push([30, 'Pirate capturé par Barbe-Cendre'])); if (con) b.push([30, 'Corbin capturé']); return { w: sk, b }; }
+  if (sk) { pir.forEach(() => b.push([30, 'Pirate capturé par Skull King'])); if (con) b.push([30, 'Con capturé']); return { w: sk, b }; }
   if (con) return { w: con, b };
   if (pir.length) { mer.forEach(() => b.push([20, 'Sirène capturée par un pirate'])); return { w: pir[0], b }; }
   if (mer.length) return { w: mer[0], b };
@@ -385,13 +385,13 @@ function resolveTrick(S: State) {
   t.res = { winner: idx(R.winner), discarded: R.discarded, next: R.next, mode: R.mode, removed: R.removed.map(idx), msg };
   log(S, R.winner ? [msg + ' avec ', { c: R.winner.card, e: R.winner }] : [msg], 'win');
   emit(S, 'trick', { msg });
-  // chaque bonus gagné a sa ligne de journal (cls 'bonus', ou 'malus' si négatif) : « +30 pour Maëlle : Pirate capturé par Barbe-Cendre »
+  // chaque bonus gagné a sa ligne de journal (cls 'bonus', ou 'malus' si négatif) : « +30 pour Maëlle : Pirate capturé par Skull King »
   const feats = (i: number) => (S.players[i].feats ??= { sirens: 0, wild: 0, silk: 0, abyss: 0, mermaidKing: 0 });
   if (R.davy && R.davy.n) feats(R.davy.p).abyss += R.davy.n;
   if (R.winner) {
     const f = feats(R.winner.p), wc = R.winner.card;
     if (wc.wild) f.wild++;
-    // Fil-de-Soie : le haut fait revient à celui qui a imposé la carte gagnante avec Lise
+    // Fil-de-Soie : le haut fait revient à celui qui a imposé la carte gagnante avec Marie Thorne
     if (R.winner.imposed) feats(R.winner.imposedBy ?? R.winner.p).silk++;
     if (!R.mode) {
       if (wc.kind === 'mermaid' && R.captured.some(e => e.card.kind === 'sk')) f.mermaidKing++;
@@ -437,7 +437,7 @@ function endRound(S: State) {
       items.push(...p.bonus);
       for (const [a, b] of S.alliances) if ((a === i || b === i) && made[a] && made[b]) items.push([20, 'Pacte de Butin']);
     }
-    if (p.rascal) items.push([made[i] ? p.rascal : -p.rascal, 'Mise de Lazare']);
+    if (p.rascal) items.push([made[i] ? p.rascal : -p.rascal, 'Mise de Rascal']);
     const bonus = items.reduce((s, x) => s + x[0], 0);
     p.score += base + bonus;
     p.hist.push({ r: S.round, cards: S.cards, bid: p.bid, won: p.won, base, bonus, items, tot: base + bonus, score: p.score });

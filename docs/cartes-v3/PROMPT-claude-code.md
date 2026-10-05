@@ -8,16 +8,16 @@ Les fichiers `web/public/cards/*.webp` sont de nouvelles faces de cartes illustr
 
 | Fichier | Carte | Nom affiché (déjà écrit sur la carte) |
 |---|---|---|
-| rosie.webp | pirate `rosie` | Anne Boussole |
-| bahij.webp | pirate `bahij` | Gaspard Main-Leste |
-| rascal.webp | pirate `rascal` | Lazare le Parieur |
-| juanita.webp | pirate `juanita` | Isaure Œil-de-Verre |
-| harry.webp | pirate `harry` | Bastien Tonnerre |
-| mary.webp | pirate `mary` (extension) | Lise Fil-de-Soie |
-| con.webp | `con` (extension) | Corbin le Second |
-| sk.webp | `sk` | Barbe-Cendre |
-| mermaid0.webp | `mermaid`, `v: 0` | Ondine |
-| mermaid1.webp | `mermaid`, `v: 1` | Néréa |
+| rosie.webp | pirate `rosie` | Rosie la douce |
+| bahij.webp | pirate `bahij` | Bendt le Ripate |
+| rascal.webp | pirate `rascal` | Rascal le Flambeur |
+| juanita.webp | pirate `juanita` | Juanita Jade |
+| harry.webp | pirate `harry` | Harry le géant |
+| mary.webp | pirate `mary` (extension) | Marie Thorne |
+| con.webp | `con` (extension) | Con le belliqueux |
+| sk.webp | `sk` | Skull King |
+| mermaid0.webp | `mermaid`, `v: 0` | Alyra |
+| mermaid1.webp | `mermaid`, `v: 1` | Circé |
 | tigress.webp | `tigress` | Morgane la Louve |
 | kraken.webp | `kraken` | Le Kraken (pas de nom écrit) |
 | whale.webp | `whale` | La Baleine Fantôme (pas de nom écrit) |
@@ -36,6 +36,8 @@ Les fichiers `web/public/cards/*.webp` sont de nouvelles faces de cartes illustr
 Toutes les cartes du jeu ont maintenant une illustration. Seul le dos garde sa face actuelle « Mers Sauvages » ; garde aussi les anciennes faces dans le code, comme solution de secours si une image ne se charge pas.
 
 Les cartes spéciales sans personnage (Kraken, Baleine, Drapeau blanc, Butin, Bordée, Raie, Planche, Fosse des Noyés, Grand Quinze) ont leur symbole dans le médaillon en haut à droite et pas de nom écrit. Le nom s'affiche au survol et dans le zoom.
+
+**Noms** : les noms écrits sur les illustrations (Rosie la douce, Bendt le Ripate, Rascal le Flambeur, Juanita Jade, Harry le géant, Marie Thorne, Con le belliqueux, Skull King, Alyra, Circé, Morgane la Louve) sont les noms officiels voulus. Mets à jour les noms affichés par le moteur (`PIRATES`, `SPECIAL`, `DESC`, noms des sirènes, règles, journal, zoom) pour qu'ils correspondent exactement à ceux des cartes.
 
 ## Ce qu'il faut faire
 

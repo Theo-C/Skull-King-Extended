@@ -8,7 +8,7 @@ const wrapF = (b: number, h: string) => `<div class="fb${b}">${h}</div>`;
 const A = ALT2 as Record<string, string>, AB = ALT2B as Record<string, number>, NUM = NUM2 as Record<string, any>;
 const PAST = PASTILLES as Record<string, string>;
 
-/** Clé d'illustration → fichier de web/public/cards (con.webp s'appelle corbin.webp : « CON » est un nom réservé sous Windows). */
+/** Clé d'illustration → fichier de web/public/cards (con.webp est livré sous le nom corbin.webp : « CON » est un nom réservé sous Windows). */
 export const ART: Record<string, string> = {
   rosie: 'rosie', bahij: 'bahij', rascal: 'rascal', juanita: 'juanita', harry: 'harry', mary: 'mary', con: 'corbin',
   sk: 'sk', mermaid0: 'mermaid0', mermaid1: 'mermaid1', tigress: 'tigress', kraken: 'kraken', whale: 'whale', escape: 'escape',
@@ -18,6 +18,9 @@ export const ART: Record<string, string> = {
 // couleur du chiffre dans le médaillon, selon la couleur de la carte
 const INK: Record<string, string> = { yellow: '#2b1d0c', purple: '#2b1838', green: '#12301a', black: '#f0d078' };
 
+/** Version des illustrations, ajoutée aux URL : un nouveau jeu de cartes est rechargé sans vider le cache à la main. */
+export const ART_VERSION = 3;
+const artURL = (f: string) => `cards/${f}.webp?v=${ART_VERSION}`;
 /** Clé de l'ancienne face et de l'illustration. */
 function keyOf(c: Partial<Card>) {
   if (c.kind === 'num') return c.wild ? 'wild' : c.suit as string;
@@ -58,7 +61,7 @@ export function faceHTML(c: Partial<Card>): string {
   if (!f) return oldFace(c);
   // la description de la carte permet de revenir à l'ancienne face si l'image manque (voir installArtFallback)
   const d = esc(JSON.stringify({ kind: c.kind, suit: c.suit, rank: c.rank, pid: c.pid, v: c.v, mod: c.mod, zf: c.zf, wild: c.wild, exp: c.exp }));
-  return `<div class="art" data-c="${d}"><img src="cards/${f}.webp" alt="" decoding="async" draggable="false">${numOverlay(c)}${pastille(k)}</div>`;
+  return `<div class="art" data-c="${d}"><img src="${artURL(f)}" alt="" decoding="async" draggable="false">${numOverlay(c)}${pastille(k)}</div>`;
 }
 /** Règle d'une carte en toutes lettres, pour la fiche du zoom (les illustrations n'ont plus de texte). */
 export function ruleOf(c: Partial<Card>): string {
@@ -69,7 +72,7 @@ export function ruleOf(c: Partial<Card>): string {
   }
   if (c.kind === 'num' && c.mod) return `Capturée, elle rapporte ${c.mod > 0 ? '+5' : '−5'} points si la mise est tenue.`;
   // les descriptions du moteur commencent souvent par le nom (« Dernière Bordée : ne gagne pas… ») : la fiche l'affiche déjà en titre
-  // (ou une variante : « 0/14 : », « Barbe-Cendre, Roi des Pirates : », « Drapeau blanc (Fuite) : »)
+  // (ou une variante : « 0/14 : », « Skull King, roi des pirates : », « Drapeau blanc (Fuite) : »)
   const t = cardTitle(c as Card) || DESC[c.kind as string] || '', n = cname(c as Card), i = t.indexOf(' : '), pre = t.slice(0, i);
   return i > 0 && i < 45 && (pre.startsWith(n) || n.startsWith(pre)) ? t.charAt(i + 3).toUpperCase() + t.slice(i + 4) : t;
 }
@@ -91,7 +94,7 @@ export const backFace = () => `<div class="face">${faceOf('back')}</div>`;
 let preloaded = false;
 export function preloadArt() {
   if (preloaded) return; preloaded = true;
-  for (const f of new Set(Object.values(ART))) { const i = new Image(); i.decoding = 'async'; i.src = `cards/${f}.webp`; }
+  for (const f of new Set(Object.values(ART))) { const i = new Image(); i.decoding = 'async'; i.src = artURL(f); }
 }
 /** Une illustration qui ne se charge pas est remplacée par l'ancienne face. */
 let fallback = false;
