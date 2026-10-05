@@ -2,7 +2,7 @@
 import { $, esc } from '../util';
 import * as E from '@engine';
 import { TableView } from '../table';
-import { optionsHTML, readOptions, wireOptions } from '../options';
+import { optionsHTML, readOptions, wireOptions, paintRanked } from '../options';
 import { go, setCleanup } from '../main';
 
 export function practicePage(root: HTMLElement) {
@@ -10,7 +10,7 @@ export function practicePage(root: HTMLElement) {
     <h1>Entraînement</h1><p class="lead">Une partie hors ligne contre des bots, sans compte. Rien n'est enregistré.</p>
     <div class="form"><label class="inline">Nombre de joueurs <select id="n">${[3, 4, 5, 6, 7, 8, 9].map(n => `<option ${n === 4 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>${optionsHTML(E.DEFAULT_OPTS, true, 'pr')}</div>
     <div class="foot"><button class="btn gold big" id="go">Lever l'ancre</button></div></div></section>`;
-  wireOptions(root, 'pr');
+  wireOptions(root, 'pr'); paintRanked(root, 'pr', 'practice');
   $('#go', root).onclick = () => {
     const n = Number(($('#n', root) as HTMLSelectElement).value);
     const S = E.newGame(Array.from({ length: n }, (_, i) => ({ name: i === 0 ? 'Vous' : E.BOT_NAMES[i - 1], bot: i > 0 })), readOptions(root, 'pr'));

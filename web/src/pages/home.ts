@@ -3,7 +3,8 @@
 // sous 720 px, variantes « only-mb » / « only-dk » et réordonnancement en CSS (app.css, section Accueil).
 import { sb, callGame } from '../api';
 import { $, esc, toast, relDay, signed, de } from '../util';
-import { optionsHTML, readOptions, wireOptions } from '../options';
+import { optionsHTML, readOptions, wireOptions, paintRanked } from '../options';
+import { roundsOf } from '@engine';
 import { go } from '../main';
 import { myProfile, withLook } from '../account';
 import { avatarHTML, fromProfile } from '../avatar';
@@ -69,7 +70,7 @@ export async function homePage(root: HTMLElement, uid: string) {
 /** Parties en cours et salons, avec le bandeau « À vous de jouer » pour la première où l'on est attendu. */
 async function loadLive(root: HTMLElement, uid: string) {
   const { data, error } = await sb.from('game_players')
-    .select('seat, games!inner(id, code, status, updated_at, host, round:state->round, trickNo:state->trickNo, cards:state->cards, waiting:state->waiting, current:state->current, players:state->players)')
+    .select('seat, games!inner(id, code, status, updated_at, host, options, round:state->round, trickNo:state->trickNo, cards:state->cards, waiting:state->waiting, current:state->current, players:state->players)')
     .eq('user_id', uid).in('games.status', ['lobby', 'playing']);
   if (error) { $('#live', root).innerHTML = '<p class="empty">Impossible de charger vos parties.</p>'; return; }
   const rows = (data || []).map((r: any) => ({ seat: r.seat, ...r.games })).sort((a: any, b: any) => b.updated_at.localeCompare(a.updated_at));
@@ -101,7 +102,7 @@ async function loadLive(root: HTMLElement, uid: string) {
         if (!turn) { turn = { g, mine, rank, title }; mbHide = ' only-dk'; }
       } else badge = g.current != null ? esc(`Tour ${de(nameOf(g, g.current))}`) : 'En cours';
     }
-    let dots = ''; for (let r = 1; r <= 10; r++) dots += `<i class="${g.status === 'lobby' ? '' : r < g.round ? 'd' : r === g.round ? 'n' : ''}"></i>`;
+    let dots = ''; for (let r = 1; r <= roundsOf(g.options); r++) dots += `<i class="${g.status === 'lobby' ? '' : r < g.round ? 'd' : r === g.round ? 'n' : ''}"></i>`;
     return `<a class="gcard${mbHide}" href="#/partie/${g.id}"><span class="stack-av">${who}</span>
       <span class="gm"><span class="gt">${esc(title)}</span><span class="gs">${sub}</span><span class="rdots" aria-hidden="true">${dots}</span></span>
       <span class="badge ${cls}">${badge}</span></a>`;
@@ -114,7 +115,7 @@ async function loadLive(root: HTMLElement, uid: string) {
     const t = turn.title === 'Votre table' ? 'à votre table' : turn.title.replace(/^Table /, 'à la table ');
     const pts = turn.mine?.score ?? 0, trick = turn.g.trickNo ? ` · pli ${turn.g.trickNo}` : '';
     $('#turn', root).innerHTML = `<a class="turnband" href="#/partie/${turn.g.id}"><span class="dot only-dk"></span>
-      <span class="tx only-dk"><b>À vous de jouer ${esc(t)}</b><span>Manche ${turn.g.round} sur 10${trick} · vous êtes ${nth(turn.rank)} avec ${pts} point${Math.abs(pts) > 1 ? 's' : ''}</span></span>
+      <span class="tx only-dk"><b>À vous de jouer ${esc(t)}</b><span>Manche ${turn.g.round} sur ${roundsOf(turn.g.options)}${trick} · vous êtes ${nth(turn.rank)} avec ${pts} point${Math.abs(pts) > 1 ? 's' : ''}</span></span>
       <span class="tx only-mb"><span class="tk"><span class="dot2"></span>À vous de jouer</span><b>${esc(turn.title)}</b><span>Manche ${turn.g.round}${trick} · vous êtes ${nth(turn.rank)} (${pts} pts)</span></span>
       <span class="go only-dk">Reprendre</span></a>`;
   }
@@ -180,9 +181,12 @@ function openCreate(root: HTMLElement) {
     while (types.length < n) types.push(true); types.length = n;
     seatsEl.innerHTML = types.map((bot, i) => i === 0 ? `<div class="seatrow"><span class="sn">1</span><b>Vous (hôte)</b></div>` :
       `<div class="seatrow"><span class="sn">${i + 1}</span><select data-i="${i}" aria-label="Siège ${i + 1}"><option value="h" ${!bot ? 'selected' : ''}>Ami</option><option value="b" ${bot ? 'selected' : ''}>Bot</option></select></div>`).join('');
-    seatsEl.querySelectorAll('select').forEach(s => s.addEventListener('change', () => { types[Number((s as HTMLElement).dataset.i)] = (s as HTMLSelectElement).value === 'b'; }));
+    seatsEl.querySelectorAll('select').forEach(s => s.addEventListener('change', () => { types[Number((s as HTMLElement).dataset.i)] = (s as HTMLSelectElement).value === 'b'; ranked(); }));
+    ranked();
   };
-  $('#n', box).addEventListener('change', draw); draw(); wireOptions(box);
+  // partie classée ou non (Élo) : vous, les sièges « Ami » (encore libres) et les bots
+  const ranked = () => paintRanked(box, 'o', { humans: 1, bots: types.filter(b => b).length, free: types.filter((b, i) => i > 0 && !b).length });
+  $('#n', box).addEventListener('change', draw); draw(); wireOptions(box, 'o', ranked); ranked();
   $('#cancel', box).onclick = () => { box.hidden = true; box.innerHTML = ''; };
   $('#go', box).onclick = async () => {
     const b = $('#go', box) as HTMLButtonElement; b.disabled = true; b.textContent = 'Création…';

@@ -10,7 +10,7 @@ import { objectSVG, itemPreview } from './objects';
 /** Ce que la table sait d'un siège (partie en cours). */
 export interface SeatInfo {
   seat: number; uid: string | null; bot: boolean; me: boolean; name: string; color: string; avatar: AvatarData;
-  place: number; score: number; bid: number | null; won: number; round: number;
+  place: number; score: number; bid: number | null; won: number; round: number; rounds: number;
   hist: { bid: number; won: number }[]; online: boolean | null;
 }
 /** Réponse de l'action player.card. */
@@ -22,7 +22,7 @@ const nth = (r: number) => r === 1 ? '1er' : r + 'e';
 const pct = (a: number, b: number) => b ? Math.round(100 * a / b) + ' %' : '—';
 
 function roundsBar(s: SeatInfo) {
-  return `<div class="pcr" role="img" aria-label="Manche par manche : ${s.hist.filter(h => h.bid === h.won).length} mises tenues sur ${s.hist.length}">${Array.from({ length: 10 }, (_, i) => {
+  return `<div class="pcr" style="grid-template-columns:repeat(${s.rounds},1fr)" role="img" aria-label="Manche par manche : ${s.hist.filter(h => h.bid === h.won).length} mises tenues sur ${s.hist.length}">${Array.from({ length: s.rounds }, (_, i) => {
     const h = s.hist[i];
     if (h) { const ok = h.bid === h.won; return `<span class="${ok ? 'ok' : 'ko'}" title="Manche ${i + 1} : ${ok ? 'mise tenue' : 'mise ratée'}"></span>`; }
     return `<span class="${i === s.hist.length && i < s.round ? 'cur' : ''}" title="Manche ${i + 1}${i === s.hist.length ? ' : en cours' : ''}"></span>`;

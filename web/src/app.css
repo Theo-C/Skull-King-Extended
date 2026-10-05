@@ -539,3 +539,14 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 #pill .cbadge svg{width:14px;height:14px}#pill .cbadge b{font-size:11px;font-weight:800}
 @keyframes cbadge{0%,100%{transform:none}50%{transform:translateY(-2px)}}
 @media (prefers-reduced-motion:reduce){#pill .cbadge{animation:none}}
+/* partie classée ou non (Élo), sous le nombre de manches : visible avant chaque lancement */
+.rnote{margin:8px 0 0;padding:10px 12px;border-radius:10px;font-size:14px;line-height:1.4;border:1px solid}
+.rnote:empty{display:none}
+.rnote.ok{color:#9bd69f;background:rgba(134,201,138,.1);border-color:rgba(134,201,138,.4)}
+.rnote.maybe{color:#ead08a;background:rgba(234,208,138,.08);border-color:rgba(234,208,138,.4)}
+.rnote.no{color:#d9cdb6;background:rgba(0,0,0,.25);border-color:rgba(234,208,138,.2)}
+.rnote::before{font-weight:800;margin-right:6px}
+.rnote.ok::before{content:'✓'}.rnote.maybe::before{content:'!'}.rnote.no::before{content:'○'}
+.sheetlike .rnote.ok{color:#2b6a33;background:rgba(47,122,69,.12);border-color:rgba(47,122,69,.45)}
+.sheetlike .rnote.maybe{color:#7a5208;background:rgba(138,94,14,.12);border-color:rgba(138,94,14,.45)}
+.sheetlike .rnote.no{color:#4a3b2a;background:rgba(43,33,23,.07);border-color:rgba(43,33,23,.3)}

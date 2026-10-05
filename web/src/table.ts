@@ -1,6 +1,6 @@
 // Vue de la table, partagée par le mode en ligne et l'entraînement hors ligne.
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
-import { cname, leadSuitOf, resolve, wildRule, SUIT, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
+import { cname, leadSuitOf, resolve, roundsOf, wildRule, SUIT, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
 import { cardHTML, backFace, preloadArt } from './cards';
 import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
@@ -209,7 +209,7 @@ export class TableView {
     const uid = this.backend.seatUids?.[seat] ?? null, me = seat === this.mySeat;
     return {
       seat, uid, bot: p.bot, me, name: p.name, color: this.colorOf(seat), avatar: { ...(this.avatars[seat] || {}), letter: p.name, color: this.colorOf(seat) },
-      place: 1 + pb.players.filter(q => q.score > p.score).length, score: p.score, won: p.won, round: pb.round,
+      place: 1 + pb.players.filter(q => q.score > p.score).length, score: p.score, won: p.won, round: pb.round, rounds: roundsOf(pb.opts),
       bid: pb.bidsRevealed ? p.bid : me ? this.priv?.bid ?? null : null,
       // manches terminées à l'écran (l'état affiché n'a pas l'historique : il vient du dernier état reçu, sans rien dévoiler d'avance)
       hist: ((this.latest?.pub.players[seat]?.hist ?? p.hist ?? []) as any[]).filter(h => h.r < pb.round || pb.phase === 'end').map(h => ({ bid: h.bid, won: h.won })), online: this.online && uid ? this.online.has(uid) : null,
@@ -284,11 +284,11 @@ export class TableView {
     setHTML($('#gRound', this.root), pb.round ? `Manche ${pb.round}` : 'Partie');
     // téléphone : « Manche 7 · pli 2/7 » ; ordinateur : « sur 10 · 7 cartes · pli 2 sur 7 »
     if (this.mob) { setHTML($('#gSub', this.root), pb.phase === 'play' && pb.trickNo ? `· pli ${pb.trickNo}/${pb.cards}` : pb.phase === 'bid' ? '· mises' : ''); }
-    const parts = ['sur 10']; if (pb.cards) parts.push(`${pb.cards} carte${pb.cards > 1 ? 's' : ''}`);
+    const parts = [`sur ${roundsOf(pb.opts)}`]; if (pb.cards) parts.push(`${pb.cards} carte${pb.cards > 1 ? 's' : ''}`);
     if (pb.phase === 'bid') parts.push('mises'); else if (pb.phase === 'play' && pb.trickNo) parts.push(`pli ${pb.trickNo} sur ${pb.cards}`);
     else if (pb.phase === 'end') parts.splice(0, parts.length, 'partie terminée');
     if (!this.mob) setHTML($('#gSub', this.root), parts.join(' · '));
-    let h = ''; for (let r = 1; r <= 10; r++) h += `<i class="${r < pb.round || pb.phase === 'end' ? 'done' : r === pb.round ? 'now' : ''}" title="Manche ${r}"></i>`;
+    let h = ''; for (let r = 1; r <= roundsOf(pb.opts); r++) h += `<i class="${r < pb.round || pb.phase === 'end' ? 'done' : r === pb.round ? 'now' : ''}" title="Manche ${r}"></i>`;
     setHTML($('#gDots', this.root), h);
   }
   /** Met le plateau (1040 × 520) à l'échelle de la place disponible ; l'action et la main prennent la même largeur. */
@@ -992,7 +992,7 @@ export class TableView {
   private roundEnd(snap: PublicView): Promise<void> {
     const h = snap.players[0]?.hist; if (!h || !h.length) return Promise.resolve();
     const r = h.at(-1).r; if (r <= this.shownRound) return Promise.resolve(); this.shownRound = r;
-    if (snap.phase === 'end' && r === 10) return Promise.resolve(); // la fenêtre finale prend le relais
+    if (snap.phase === 'end' && r === roundsOf(snap.opts)) return Promise.resolve(); // la fenêtre finale prend le relais
     const ps = snap.players, cards = h.at(-1).cards;
     const rankOf = (scores: number[]) => scores.map(s => 1 + scores.filter(o => o > s).length);
     const now = rankOf(ps.map(p => p.score)), before = rankOf(ps.map(p => p.score - (p.hist!.at(-1).tot)));
@@ -1014,7 +1014,7 @@ export class TableView {
     const ov = document.createElement('div'); ov.className = 'roverlay'; this.copySpd(ov);
     const back = document.activeElement as HTMLElement | null;
     ov.innerHTML = `<div class="rsheet" role="dialog" aria-modal="true" aria-labelledby="rTitle">
-      <div class="rhead"><div><div class="rsub">Manche ${r} sur 10 · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">Fin de la manche</h2></div>
+      <div class="rhead"><div><div class="rsub">Manche ${r} sur ${roundsOf((this.latest?.pub ?? this.pub)?.opts)} · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">Fin de la manche</h2></div>
         <div class="rready"><span id="rCount"></span><div class="rbar"><i style="animation-duration:${READY_S}s"></i></div></div></div>
       <div class="rcols"><span>#</span><span>Pirate</span><span>Mise → plis</span><span>Points</span><span>Bonus</span><span class="r">Manche</span><span class="r">Total</span></div>
       <div class="rrows">${rows}</div>
@@ -1137,7 +1137,7 @@ export class TableView {
       ${elo ? `<div class="fbox fxl" style="animation-delay:calc(2.3s * var(--spd,1))"><span class="ftag">Élo</span>
         <span class="felo"><span class="o">${Math.round(elo.before)}</span><span class="o">→</span><span class="n">${Math.round(elo.after)}</span><b class="${elo.delta >= 0 ? 'pos' : 'neg'}">${signed(Math.round(elo.delta))}</b></span>
         ${((elo.vs || []) as any[]).map(v => `<div class="fvs"><span>${vsLabel(v)}</span><b class="${v.delta >= 0 ? 'pos' : 'neg'}">${signedOne(v.delta)}</b></div>`).join('')}</div>`
-        : '<div class="fbox"><span class="ftag">Élo</span><span class="lbl">Partie non classée : il faut au moins deux joueurs humains.</span></div>'}
+        : `<div class="fbox"><span class="ftag">Élo</span><span class="lbl">Partie non classée : ${UNRANKED[s.unranked] ?? UNRANKED.solo}.</span></div>`}
       ${this.rewardsHTML(s, me) || (ach ? `<div class="fach"><span class="medal2">${ACH_STAR}</span><span><span class="ftag dark">Haut fait débloqué</span><b>${esc(ach.name)}</b><span>${esc(ach.description)}${s.achievements.length > 1 ? ` · et ${s.achievements.length - 1} autre${s.achievements.length > 2 ? 's' : ''}` : ''}</span></span></div>` : '')}`;
     this.wireChest(grid);
     // place et Élo de chacun sous le podium
@@ -1183,12 +1183,14 @@ export class TableView {
   scoreSheet() {
     const ps = this.latest?.pub.players || this.pub?.players || []; if (!ps.length) return;
     let h = `<h2>Feuille de scores</h2><p class="sub">Mise / plis remportés, puis points de la manche.</p><div class="scroll"><table class="st"><tr><th>Manche</th>${ps.map(p => `<th>${esc(p.name)}</th>`).join('')}</tr>`;
-    for (let r = 1; r <= 10; r++) h += `<tr><td>${r}</td>` + ps.map(p => { const x = p.hist?.[r - 1]; return `<td>${x ? `${x.bid}/${x.won} · ${sgn(x.tot)}` : '—'}</td>`; }).join('') + '</tr>';
+    for (let r = 1; r <= roundsOf((this.latest?.pub ?? this.pub)?.opts); r++) h += `<tr><td>${r}</td>` + ps.map(p => { const x = p.hist?.[r - 1]; return `<td>${x ? `${x.bid}/${x.won} · ${sgn(x.tot)}` : '—'}</td>`; }).join('') + '</tr>';
     h += `<tr class="tot"><td>Total</td>${ps.map(p => `<td>${p.score}</td>`).join('')}</tr></table></div>`;
     modal(h);
   }
 }
 const CHEST_SVG = '<svg viewBox="0 0 72 64" aria-hidden="true"><rect x="8" y="28" width="56" height="30" rx="3" fill="#6b4226" stroke="#2a170b" stroke-width="2"/><path d="M8 28c0-12 10-18 28-18s28 6 28 18z" fill="#7d4f2c" stroke="#2a170b" stroke-width="2"/><path d="M8 28h56M20 12v46M52 12v46" stroke="#c9a14a" stroke-width="3"/><rect x="31" y="30" width="10" height="12" rx="2" fill="#e3c47a" stroke="#8a6620"/></svg>';
+/** Raison d'une partie non classée (settle.ts). */
+const UNRANKED: Record<string, string> = { solo: 'il faut au moins deux joueurs humains', bots: 'des bots étaient à la table', rounds: 'elle comptait moins de 10 manches' };
 const sgn = (v: number) => `<span class="${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${v}</span>`;
 /** Points de base d'une mise selon le barème du moteur (même calcul que endRound dans engine.ts : classique ou Rascal). */
 /** « Coup de la manche » : le plus beau cas simple (mise 0 tenue avec beaucoup de cartes, plus gros bonus, plus grosse mise tenue). */
