@@ -43,14 +43,15 @@ export const DAGGER_SVG = `<svg viewBox="0 0 170 110" aria-hidden="true">
   <g><ellipse cx="112" cy="86" rx="13" ry="5" fill="#8a6620"/><ellipse cx="112" cy="83" rx="13" ry="5" fill="#e2bd62"/><ellipse cx="130" cy="92" rx="13" ry="5" fill="#8a6620"/><ellipse cx="130" cy="89" rx="13" ry="5" fill="#f0cf72"/>
   <ellipse cx="121" cy="78" rx="13" ry="5" fill="#8a6620"/><ellipse cx="121" cy="75" rx="13" ry="5" fill="#e8c766"/><circle cx="121" cy="75" r="5" fill="none" stroke="#a77b22" stroke-width="1"/></g></svg>`;
 
-/** Accessoires des coins, dans le repère du plateau (x, y, largeur, hauteur) : la table masque ceux qui toucheraient une plaque. */
-export const PROPS: { cls: string; html: string; box: [number, number, number, number] }[] = [
+/** Accessoires des coins, dans le repère du plateau (x, y, largeur, hauteur) : la table masque ceux qui toucheraient une plaque.
+ *  margin optionnelle : réduit la zone de collision avec les plaques (défaut 8 px autour) pour autoriser un chevauchement
+ *  léger dans le padding de la plaque — utile pour un décor rond qui tient dans un coin serré. */
+export const PROPS: { cls: string; html: string; box: [number, number, number, number]; margin?: number }[] = [
   { cls: 'amb-lantern', html: `${LANTERN_SVG}<span class="amb-halo"></span>`, box: [40, 0, 60, 120] },
-  // position choisie pour rester visible dans toutes les configurations de 3 à 9 joueurs (fitProps masque un prop qui
-   // touche une plaque) : y+h = 100, pile au-dessus du bord supérieur de la plaque haute-droite en 6 et 9 joueurs ;
-   // x > 929 pour passer à droite de la plaque de 8 joueurs. Déborde un peu en haut du plateau comme un vrai hublot
-   // fixé sur la paroi.
-  { cls: 'amb-porthole', html: PORTHOLE_HTML, box: [930, -25, 125, 125] },
+  // hublot entièrement sous le haut du plateau (y >= 0) pour ne pas déborder sur le header de la page ;
+  // en 6/9 joueurs la plaque haute-droite (866, 147) a son bord haut à 108, donc y+h <= 108 avec marge 0.
+  // margin: 0 permet de garder un hublot un peu plus grand que l'original tout en restant visible 3 → 9 joueurs.
+  { cls: 'amb-porthole', html: PORTHOLE_HTML, box: [921, 0, 108, 108], margin: 0 },
   { cls: 'amb-dagger', html: DAGGER_SVG, box: [12, 404, 170, 110] },
 ];
 
@@ -78,7 +79,7 @@ export function mountAmbiance(tableEl: HTMLElement) {
 /** Masque les accessoires qui toucheraient une plaque (positions des plaques en px du plateau, plaques de 236 × 78). */
 export function fitProps(tableEl: HTMLElement, pods: { px: number; py: number }[]) {
   tableEl.querySelectorAll<HTMLElement>('.amb-prop').forEach((el, i) => {
-    const [x, y, w, h] = PROPS[i].box, m = 8;
+    const [x, y, w, h] = PROPS[i].box, m = PROPS[i].margin ?? 8;
     el.hidden = pods.some(p => x - m < p.px + 118 && x + w + m > p.px - 118 && y - m < p.py + 39 && y + h + m > p.py - 39);
   });
 }
