@@ -1,7 +1,7 @@
 // Vue de la table, partagée par le mode en ligne et l'entraînement hors ligne.
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
 import { cname, leadSuitOf, resolve, wildRule, SUIT, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
-import { cardHTML, backFace } from './cards';
+import { cardHTML, backFace, preloadArt } from './cards';
 import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
@@ -162,7 +162,7 @@ export class TableView {
     const bs = $('#bSound', root);
     const paintSound = () => { bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff; bs.setAttribute('aria-label', soundOn() ? 'Couper le son' : 'Activer le son'); bs.title = bs.getAttribute('aria-label')!; };
     paintSound(); bs.onclick = () => { setSound(!soundOn()); paintSound(); if (soundOn()) sfx.coin(); };
-    installCardZoom(); setZoomNote(card => this.zoomNote(card));
+    installCardZoom(); setZoomNote(card => this.zoomNote(card)); preloadArt();
     $('#bRules', root).onclick = () => modal(rulesHTML());
     $('#bExit', root).onclick = () => this.onExit();
     $('#layer', root).addEventListener('click', ev => {

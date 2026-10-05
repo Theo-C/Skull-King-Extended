@@ -817,3 +817,30 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .zoom{display:flex;flex-direction:column;align-items:center;gap:8px}
 .zoom .znote{padding:4px 12px;border-radius:999px;background:rgba(10,8,6,.85);font-size:13px;font-weight:800;white-space:nowrap}
 @media (max-width:719px){.lisemid{width:260px}.lisemid .lport{width:48px;height:48px}.lisemid b{font-size:18px}.lisemid span{font-size:13px}}
+
+/* Cartes illustrées (docs/cartes-v3) : image 720 × 1024 posée en « cover » sur la face de 252 × 352 (rognée de 3,2 px en haut et en bas).
+   Positions du prompt converties dans ce repère : y = % × 358,4 − 3,2 ; tailles en % de la largeur (252). */
+.face>.art{position:absolute;inset:0;border-radius:13px;overflow:hidden}
+.face>.art img{display:block;width:100%;height:100%;object-fit:cover}
+.art .anum{position:absolute;left:203px;top:44px;width:48px;height:48px;transform:translate(-50%,-50%);display:grid;place-items:center;font:400 35px/1 'Pirata One',var(--f-disp)}
+.art .anum.two{font-size:30px}
+.art .anum.zf{font-size:18px;letter-spacing:-.02em}
+.art .aseal{position:absolute;left:203px;top:86px;width:28px;height:28px;transform:translate(-50%,-50%);border-radius:50%;display:grid;place-items:center;
+  font:400 13px/1 'Pirata One',var(--f-disp);color:#2b1d0c;background:radial-gradient(circle at 35% 30%,#fff2c4,#e2bd62 58%,#a77b22);box-shadow:0 0 0 1px rgba(43,29,12,.65),0 1px 2px rgba(0,0,0,.4)}
+.art .aseal.neg{background:radial-gradient(circle at 35% 30%,#f7c2b2,#c8644b 58%,#7e2f1f);color:#fff3e8;box-shadow:0 0 0 1px rgba(60,16,8,.7),0 1px 2px rgba(0,0,0,.4)}
+.art .apow{position:absolute;left:45px;top:40px;width:38px;height:38px;transform:translate(-50%,-50%);border-radius:50%;display:grid;place-items:center;color:#2b1d0c;
+  background:radial-gradient(circle at 35% 30%,#fff2c4,#e2bd62 55%,#a77b22);box-shadow:0 0 0 1.5px rgba(43,29,12,.75),0 1px 3px rgba(0,0,0,.45)}
+.art .apow.alt{left:48px}
+.art .apow svg{width:64%;height:64%}
+.art .apow.txt{font:400 16px/1 'Pirata One',var(--f-disp);letter-spacing:-.02em}
+/* zoom : carte (et pastille de verdict) à gauche, fiche parchemin avec le nom et la règle à droite */
+.zoom{flex-direction:row;align-items:center;gap:12px}
+.zoom .zcol{display:flex;flex-direction:column;align-items:center;gap:8px}
+.zoom .zfiche{width:210px;padding:12px 14px;border-radius:10px;background:linear-gradient(180deg,#f6ecd4,#eadbb7);color:var(--ink,#2b2117);
+  border-top:2px solid #c9a96a;border-bottom:2px solid #c9a96a;box-shadow:0 10px 24px rgba(0,0,0,.5)}
+.zoom .zfiche b{display:block;font:400 19px/1.15 var(--f-disp);color:#2b2117;margin-bottom:6px}
+.zoom .zfiche p{margin:0;font-size:14px;line-height:1.4;color:#4a3b2a}
+@media (max-width:719px){
+  .zoom{flex-direction:column;gap:8px}.zoom .card{--s:.95}
+  .zoom .zfiche{width:min(300px,calc(100vw - 32px))}
+}

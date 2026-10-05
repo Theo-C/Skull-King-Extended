@@ -1,5 +1,5 @@
 // Agrandissement d'une carte : survol prolongé à la souris, appui long au doigt, focus au clavier (cartes de la main).
-// Les faces font 252 × 352 px : en grand, le texte des cartes spéciales devient lisible.
+// La carte s'affiche sur 300 px de large, avec à côté une fiche parchemin : nom et règle (les illustrations n'ont plus de texte).
 let installed = false;
 /** Pastille sous la carte agrandie (maquette Main : « Prendrait le pli »…), fournie par la table. */
 type Note = { text: string; ink: string } | null;
@@ -15,8 +15,11 @@ export function installCardZoom() {
   const show = (card: HTMLElement) => {
     const face = card.querySelector('.face'); if (!face || !card.isConnected) return;
     const tag = card.querySelector('.tag'), note = noteFor?.(card) ?? null;
-    pv.innerHTML = `<div class="card zc">${face.outerHTML}${tag ? tag.outerHTML : ''}</div>`;
-    if (note) { const s = document.createElement('span'); s.className = 'znote'; s.style.color = note.ink; s.textContent = note.text; pv.append(s); }
+    pv.innerHTML = `<div class="zcol"><div class="card zc">${face.outerHTML}${tag ? tag.outerHTML : ''}</div></div>`;
+    const col = pv.firstElementChild as HTMLElement;
+    if (note) { const s = document.createElement('span'); s.className = 'znote'; s.style.color = note.ink; s.textContent = note.text; col.append(s); }
+    const name = card.dataset.n, rule = card.dataset.r;
+    if (name) { const f = document.createElement('div'); f.className = 'zfiche'; const b = document.createElement('b'); b.textContent = name; f.append(b); if (rule) { const p = document.createElement('p'); p.textContent = rule; f.append(p); } pv.append(f); }
     pv.hidden = false; shownFor = card;
     const r = card.getBoundingClientRect(), w = pv.offsetWidth, h = pv.offsetHeight, m = 10;
     // au-dessus de la carte si possible, sinon à côté
@@ -30,7 +33,7 @@ export function installCardZoom() {
   document.addEventListener('pointerover', ev => {
     if (ev.pointerType !== 'mouse') return;
     const c = cardAt(ev.target); if (c === shownFor || (c && c === pending)) return;
-    hide(); pending = c; if (c) timer = setTimeout(() => show(c), 420);
+    hide(); pending = c; if (c) timer = setTimeout(() => show(c), 450);
   });
   document.addEventListener('pointerdown', ev => {
     if (ev.pointerType === 'mouse') { hide(); return; }
