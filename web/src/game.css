@@ -173,7 +173,7 @@ select.tbtn{appearance:auto;padding:6px 8px;background:var(--panel)}
 .art>img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none;-webkit-user-drag:none}
 /* cartes animées (animatedCards.ts) : vidéo masquée par l'image de la carte, cadre seul par-dessus */
 .art>video.anim,.art>img.cadre{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-.art>video.anim{object-fit:fill;-webkit-mask-image:var(--mask);mask-image:var(--mask);-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.art>video.anim{object-fit:fill;-webkit-mask-size:100% 100%;mask-size:100% 100%}
 .tslot .tcw.anim-go{animation:animPop 1.2s cubic-bezier(.2,.9,.3,1.2) both}
 .tslot .tcw.anim-go::before{content:'';position:absolute;left:-30%;top:-22%;width:160%;height:144%;border-radius:50%;background:radial-gradient(closest-side,var(--halo),transparent);animation:animHalo 1.2s ease-out both;pointer-events:none;z-index:-1}
 @keyframes animPop{0%{transform:scale(1)}25%{transform:scale(1.06)}100%{transform:scale(1)}}

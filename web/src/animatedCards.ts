@@ -56,7 +56,9 @@ export function attachAnim(cardEl: HTMLElement, key: string): boolean {
   const v = document.createElement('video');
   v.className = 'anim'; v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'none'; v.poster = ART[key];
   v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('aria-hidden', 'true');
-  v.style.setProperty('--mask', `url("${ART[key]}")`);
+  // mask posé en inline (pas via --mask) pour que l'URL soit résolue contre le document, pas contre la feuille /assets/*.css
+  const maskUrl = `url("${ART[key]}")`;
+  v.style.webkitMaskImage = maskUrl; v.style.maskImage = maskUrl;
   v.innerHTML = `<source src="cards/anim/${a.file}.webm" type="video/webm"><source src="cards/anim/${a.file}.mp4" type="video/mp4">`;
   const frame = document.createElement('img');
   frame.className = 'cadre'; frame.alt = ''; frame.draggable = false; frame.src = `cards/anim/${a.file}-cadre.webp`;
