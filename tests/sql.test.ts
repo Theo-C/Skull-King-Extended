@@ -107,5 +107,9 @@ ok('historique : une partie avec ses joueurs', hl.length === 1 && hl[0].xp === 1
 ok('détail : refusé à qui n’a pas joué', (await db.query<any>(`select history_get('${C}', '${G}') as d`)).rows[0].d === null);
 ok('détail : accessible au joueur', (await db.query<any>(`select history_get('${B}', '${G}') as d`)).rows[0].d?.results.length === 2);
 
+// noms officiels des cartes (B6) dans les descriptions des hauts faits
+const oldNames = (await db.query<any>("select code from achievements where description ~ '(Lise|Barbe-Cendre)'")).rows;
+ok("hauts faits : plus d'anciens noms de cartes", oldNames.length === 0, oldNames);
+
 console.log(fails ? `${fails} échec(s)` : 'Schéma : toutes les vérifications passent.');
 if (fails) process.exit(1);

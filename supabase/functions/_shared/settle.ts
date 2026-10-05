@@ -12,10 +12,10 @@ export const ACHIEVEMENTS: Record<string, { name: string; description: string }>
   kraken_bet: { name: 'Pari du Kraken', description: 'Tenir une mise de 0 à la manche 10' },
   siren_hunter: { name: 'Chasseur de sirènes', description: 'Capturer 10 sirènes au total' },
   grand_quinze: { name: 'Grand Quinze', description: 'Remporter un pli avec le Grand Quinze' },
-  silk_thread: { name: 'Fil-de-Soie', description: 'Imposer avec Lise une carte qui remporte le pli' },
+  silk_thread: { name: 'Fil-de-Soie', description: 'Imposer avec Marie Thorne une carte qui remporte le pli' },
   captain: { name: 'Capitaine des mers', description: 'Gagner 10 parties' },
   abyss: { name: 'Fosse insondable', description: 'Engloutir un monstre avec la Fosse des Noyés' }, // la Fosse ne remporte jamais de pli (règle)
-  mermaid_king: { name: 'La Sirène et le Roi', description: 'Capturer Barbe-Cendre avec une sirène' },
+  mermaid_king: { name: 'La Sirène et le Roi', description: 'Capturer Skull King avec une sirène' },
   velvet: { name: 'Main de velours', description: 'Tenir 5 mises à 0 au total' },
 };
 

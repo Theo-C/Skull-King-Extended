@@ -1,6 +1,6 @@
 // Vue de la table, partagée par le mode en ligne et l'entraînement hors ligne.
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
-import { cname, leadSuitOf, resolve, roundsOf, wildRule, SUIT, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
+import { cname, leadSuitOf, resolve, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
 import { cardHTML, backFace, preloadArt } from './cards';
 import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
@@ -1019,7 +1019,7 @@ export class TableView {
         case 'rascal': return this.setAction(`${PIRATES.rascal.n} : combien de points engagez-vous sur votre mise ?<small>Gagnés si la mise est tenue, perdus sinon.</small>`, btns(opts));
         case 'harry': return this.setAction(`${PIRATES.harry.n} : votre mise est de ${pv.bid}. La modifier ?`, btns(opts));
         case 'juanita': return this.setAction(`${PIRATES.juanita.n} : vous pouvez consulter les cartes non distribuées.`, [{ label: 'Voir la pioche', cls: 'gold', on: () => this.showDeck() }]);
-        case 'conpick': return this.setAction('Con le Second : quel pouvoir volez-vous ?<small>Un seul pouvoir parmi les pirates capturés.</small>', btns(opts));
+        case 'conpick': return this.setAction(`${SPECIAL.con} : quel pouvoir volez-vous ?<small>Un seul pouvoir parmi les pirates capturés.</small>`, btns(opts));
         case 'bahij': {
           const k = pv.pendingData?.k ?? 2; if (!this.pick || this.pick.k !== k) { this.pick = { k, sel: new Set() }; this.renderHand(); }
           return this.setAction(`${PIRATES.bahij.n} : vous avez pioché ${k} carte${k > 1 ? 's' : ''}. Défaussez-en ${k}.<small>${this.pick.sel.size} / ${k} sélectionnée(s)</small>`,

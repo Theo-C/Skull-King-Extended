@@ -12,7 +12,7 @@ Légende :
 | Section | Fait | Partiel | À faire |
 |---|---|---|---|
 | A. Table | A1, A2, A3, A4, A8 | A5, A6, A7, A9 | – |
-| B. Cartes | B1 à B5 | B6 | – |
+| B. Cartes | B1 à B6 | – | – |
 | C. Compte | C1 à C4 | C5 | – |
 | D. Garde-robe et coffre | D1, D2, D9 | D3, D4, D5, D6, D7, D8, D10 | D11 |
 
@@ -39,7 +39,7 @@ Légende :
 | B3 | **Fait** | – Pastilles de `pastilles.json`, aucune sur Morgane, positions distinctes pour les pirates et Con d'un côté, Skull King et les sirènes de l'autre. | `web/src/cards.ts`, `web/src/game.css` |
 | B4 | **Fait** | – Coins de 13 px et ombre ; si l'image ne se charge pas, l'ancienne face prend le relais (vérifié) ; le dos est inchangé. | `web/src/cards.ts`, `web/src/main.ts` |
 | B5 | **Fait** | – Aucun chiffre n'est ajouté sur le Grand Quinze. | `web/src/cards.ts` |
-| B6 | **Partiel** | Trois restes visibles par les joueurs. 1. « Con le Second : quel pouvoir volez-vous ? » pendant la partie. 2. La description « Imposer avec Lise… » (haut fait Fil-de-Soie). 3. La description « Capturer Barbe-Cendre avec une sirène ». Les points 2 et 3 sont stockés à deux endroits : dans `settle.ts` et dans la table `achievements`, ce qui demande une nouvelle migration. Le nom du haut fait « Fil-de-Soie » n'est pas un nom de carte, il est conservé. | `web/src/table.ts`, `supabase/functions/_shared/settle.ts`, nouvelle migration |
+| B6 | **Fait** | – Noms officiels partout ; derniers restes corrigés au lot 2 : la question de Con (« Con le belliqueux : quel pouvoir volez-vous ? ») et les descriptions des hauts faits Fil-de-Soie (Marie Thorne) et La Sirène et le Roi (Skull King), dans `settle.ts` et en base (migration `20261008000000_noms_officiels.sql`). Le nom du haut fait « Fil-de-Soie » est conservé. | `web/src/table.ts`, `supabase/functions/_shared/settle.ts`, migration |
 
 ## C. Compte et progression
 
@@ -77,6 +77,7 @@ La mention « à faire en entier » du prompt n'est plus vraie : D1 à D10 exist
 4. **Catalogue** (raretés, noms, prix) : inchangé. Une passe dédiée définira plus tard l'ensemble des objets et leurs raretés. Cela vaut aussi pour les objets de haut fait dans les coffres (D4) : pas de changement pour l'instant.
 5. **Réglages pendant la partie** : le son, l'ambiance (pirate / sobre) et les cartes animées se règlent à tout moment, à la table comme dans le profil.
 6. **Suppression de compte** : traitée plus tard.
+7. **Carte animée en main** : la vidéo démarre dès que la carte arrive dans la main, et non au survol. Pour ménager l'appareil : une seule lecture par vidéo, pause quand l'onglet est masqué, image fixe sous `prefers-reduced-motion`, en économie de données ou avec le réglage « aucune ».
 
 ## Ordre des lots
 
