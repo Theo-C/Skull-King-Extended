@@ -84,6 +84,15 @@ export const CATALOG = (() => {
 })();
 export type CosmeticItem = typeof CATALOG['all'][number];
 
+/** Apparence avec un objet porté : son emplacement, et sa couleur ramenée à sa première variante
+ *  (sinon la couleur de l'objet précédent resterait, et le serveur la refuserait). */
+export function withItem(look: Look, cosmeticId: string): Look {
+  const it = CATALOG.byId[cosmeticId]; if (!it) return look;
+  const out: Look = { ...look, [it.slot]: it.value };
+  if (it.variantKey && it.variants?.length) (out as any)[it.variantKey] = it.variants[0];
+  return out;
+}
+
 /** Tableau des id de cosmétiques possédés par défaut (libres pour tout le monde). */
 export const defaultOwned = (): string[] => CATALOG.all.filter(c => c.defaultOwned).map(c => c.id);
 

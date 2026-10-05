@@ -35,7 +35,7 @@ export interface TableBackend {
   /** Coffre de victoire : appelle chest.open côté serveur et renvoie le résultat complet pour openChestOverlay (web/src/chest.ts). */
   openChest?(): Promise<ChestResult>;
   /** Équiper un objet gagné (profile.update { look: { ...slot: value } }). */
-  equipItem?(slot: string, value: string): Promise<void>;
+  equipItem?(slot: string, value: string, cosmeticId: string): Promise<void>;
   /** Apparence et couleur du joueur pour le rendu de l'objet en repli (avatar). */
   myLook?: () => { color: string; look: Look | null };
   /** Aperçu d'un joueur (player.card) pour la fenêtre au survol d'un pod. */

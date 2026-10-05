@@ -2,8 +2,8 @@
 // Élo, titres, hauts faits, réglages du compte. Maquette Profil.
 import { sb, callGame } from '../api';
 import { $, esc, toast } from '../util';
-import { myProfile, forgetProfile, shell, applyPrefs, type Profile } from '../account';
-import { avatarHTML, avatarSVG, CATALOG, PALETTE, ART_NAMES, type AvatarData, type Look, type CosmeticItem } from '../avatar';
+import { myProfile, forgetProfile, shell, applyPrefs, chestBadge, type Profile } from '../account';
+import { avatarHTML, avatarSVG, CATALOG, PALETTE, ART_NAMES, withItem, type AvatarData, type Look, type CosmeticItem } from '../avatar';
 import { xpLine, LEVEL_TITLES, xpToReach, fmt } from '../xp';
 import { getAmbiance, setAmbiance } from '../ambiance';
 import { openChestOverlay, type ChestResult } from '../chest';
@@ -453,12 +453,7 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
     }
     return out;
   };
-  const previewLookFor = (base: Look, cosmeticId: string): Look => {
-    const it = CATALOG.byId[cosmeticId]; if (!it) return base;
-    const out: Look = { ...base, [it.slot]: it.value };
-    if (it.variantKey && it.variants?.length) (out as any)[it.variantKey] = it.variants[0];
-    return out;
-  };
+  const previewLookFor = withItem;
 
   async function openChestFlow(btn: HTMLButtonElement) {
     if (st.busy) return; st.busy = true; btn.disabled = true;
@@ -466,14 +461,14 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
       const r = await callGame<ChestResult>('chest.open', {});
       // Après chaque ouverture, on met à jour le porte-monnaie et l'inventaire local, puis on continue l'anim
       const applyResult = (res: ChestResult) => {
-        st.coins = res.coins; st.chests = res.chests;
+        st.coins = res.coins; st.chests = res.chests; chestBadge(res.chests);
         if (!res.duplicate) st.owned.add(res.cosmetic_id);
       };
       applyResult(r);
       openChestOverlay(r, {
         color: st.color,
-        onEquip: async (slot, value) => {
-          (st.look as any)[slot] = value; st.look = fixColors(st.look); st.saved = { ...st.look }; st.savedColor = st.color;
+        onEquip: async (_slot, _value, cosmeticId) => {
+          st.look = withItem(st.look, cosmeticId); st.saved = { ...st.look }; st.savedColor = st.color;
           await callGame('profile.update', { look: st.look });
           onSaved({ look: { ...st.look } });
         },

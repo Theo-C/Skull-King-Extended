@@ -12,7 +12,7 @@ export interface ChestResult {
 }
 export interface ChestCallbacks {
   /** Equiper l'objet (profile.update { look }) ; appelle onDone pour fermer après succès. */
-  onEquip?: (slot: string, value: string) => Promise<void>;
+  onEquip?: (slot: string, value: string, cosmeticId: string) => Promise<void>;
   /** Ouvrir le coffre suivant ; renvoie le nouveau résultat ou null si plus de coffres. */
   onOpenNext?: () => Promise<ChestResult>;
   /** Fermeture (après Équiper, Continuer, ou Échap). */
@@ -232,7 +232,7 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
         const b = (ev.target as HTMLElement).closest('[data-act]') as HTMLButtonElement | null; if (!b || busy) return;
         const a = b.dataset.act;
         if (a === 'close') close();
-        else if (a === 'equip') { busy = true; b.disabled = true; cb.onEquip!(r.slot, r.value).then(close, (e) => { busy = false; b.disabled = false; alert((e as any)?.message || 'Erreur à l\'équipement.'); }); }
+        else if (a === 'equip') { busy = true; b.disabled = true; cb.onEquip!(r.slot, r.value, r.cosmetic_id).then(close, (e) => { busy = false; b.disabled = false; alert((e as any)?.message || 'Erreur à l\'équipement.'); }); }
         else if (a === 'again') { busy = true; b.disabled = true; cb.onOpenNext!().then((n) => { busy = false; render(n); }, (e) => { busy = false; b.disabled = false; alert((e as any)?.message || 'Erreur à l\'ouverture.'); }); }
       };
     };

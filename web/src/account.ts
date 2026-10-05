@@ -46,6 +46,17 @@ const TABS: [string, string, string, string][] = [
   ['profile', 'Profil', '#/profil', 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4-6 8-6s7 2 8 6'],
 ];
 
+/** Badge coffre de l'en-tête : visible quand il reste au moins un coffre à ouvrir ; remis à jour après chaque ouverture. */
+export function chestBadge(n: number) {
+  const nav = document.querySelector('#nav'); if (!nav) return;
+  let b = nav.querySelector('#chestBadge') as HTMLElement | null;
+  if (n <= 0 || !document.body.classList.contains('authed')) { b?.remove(); return; }
+  if (!b) { b = document.createElement('a'); b.id = 'chestBadge'; b.className = 'chbadge'; nav.append(b); }
+  b.setAttribute('href', '#/profil');
+  b.setAttribute('aria-label', `${n} coffre${n > 1 ? 's' : ''} à ouvrir dans votre garde-robe`);
+  b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h18v9H3zM3 10c0-4 3-6 9-6s9 2 9 6M10 12h4v3h-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span class="chn">${n}</span>`;
+}
+
 /** En-tête (navigation + pastille de profil) et barre d'onglets du téléphone.
  *  body.authed : sur téléphone, la barre d'onglets remplace la navigation (seul le lien Règles reste en haut). */
 export function shell(user: { id: string } | null, active: string) {
@@ -65,16 +76,7 @@ export function shell(user: { id: string } | null, active: string) {
       pill.innerHTML = `${avatarHTML(fromProfile(p), 36)}<span><b>${esc(p.pseudo)} <i>· Niv. ${x.level}</i></b><span class="mxp" title="${x.text} XP"><span style="width:${x.pct}%"></span></span></span>`;
     });
     // Badge coffre : visible dans l'en-tête quand on a au moins un coffre non ouvert
-    sb.from('user_wallet').select('chests').eq('user_id', user.id).maybeSingle().then(({ data }) => {
-      const n = Number(data?.chests ?? 0);
-      let b = $('#chestBadge') as HTMLElement | null;
-      if (n > 0) {
-        if (!b) { b = document.createElement('a'); b.id = 'chestBadge'; b.className = 'chbadge'; nav.append(b); }
-        b.setAttribute('href', '#/profil');
-        b.setAttribute('aria-label', `${n} coffre${n > 1 ? 's' : ''} à ouvrir dans votre garde-robe`);
-        b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h18v9H3zM3 10c0-4 3-6 9-6s9 2 9 6M10 12h4v3h-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span class="chn">${n}</span>`;
-      } else if (b) { b.remove(); }
-    });
+    sb.from('user_wallet').select('chests').eq('user_id', user.id).maybeSingle().then(({ data }) => chestBadge(Number(data?.chests ?? 0)));
   } else {
     nav.innerHTML = link('practice', 'Entraînement', '#/entrainement') + link('rules', 'Règles', '#/regles') + link('login', 'Connexion', '#/connexion');
     pill.hidden = true; pill.removeAttribute('aria-current'); tabs.hidden = true; tabs.innerHTML = '';

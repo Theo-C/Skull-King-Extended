@@ -4,8 +4,8 @@ import { sb, callGame, inviteLink } from '../api';
 import { $, esc, toast, copyText } from '../util';
 import { optionsHTML, readOptions, wireOptions } from '../options';
 import { TableView } from '../table';
-import { fromProfile, type Look } from '../avatar';
-import { myProfile, forgetProfile } from '../account';
+import { fromProfile, withItem, type Look } from '../avatar';
+import { myProfile, forgetProfile, chestBadge } from '../account';
 import { detailPage } from './detail';
 import { renderSalon } from './salon';
 import { go, setCleanup } from '../main';
@@ -60,10 +60,10 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       // règlement de fin de partie relu au serveur (il le refait s'il a été interrompu)
       settled: async () => (await callGame<any>('history.get', { id }))?.state?.settled ?? null,
       // coffre de victoire ouvert depuis la superposition de fin de partie
-      openChest: () => callGame<any>('chest.open', {}),
+      openChest: async () => { const r = await callGame<any>('chest.open', {}); chestBadge(r.chests); return r; },
       // équiper l'objet reçu : met à jour profiles.look avec le nouvel emplacement
-      equipItem: async (slot, value) => {
-        const base = await myProfile(uid); const nextLook = { ...(base?.look || {}), [slot]: value };
+      equipItem: async (_slot, _value, cosmeticId) => {
+        const base = await myProfile(uid); const nextLook = withItem(base?.look || {}, cosmeticId);
         await callGame('profile.update', { look: nextLook });
         forgetProfile();
       },
