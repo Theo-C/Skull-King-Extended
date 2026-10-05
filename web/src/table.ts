@@ -835,7 +835,7 @@ export class TableView {
     const [fx, fy] = center(from), [tx, ty] = center(to);
     this.animate(c, mine ? 'fly flyme' : 'fly', {
       '--fx': (fx - tx) / this.k + 'px', '--fy': (fy - ty) / this.k + 'px', '--fs': mine ? (from.width / Math.max(1, to.width)).toFixed(3) : '.45',
-      '--fr': mine ? '-16deg' : r0, '--r0': r0, '--fo': mine ? '1' : '.2',
+      '--fr': mine ? '-16deg' : r0, '--r0': r0, '--fo': '0',
     }, mine ? 550 : 450);
   }
   /** Fin du pli : les cartes filent vers la plaque du gagnant en rétrécissant (600 ms), ou coulent vers le centre (Kraken, pli défaussé). */

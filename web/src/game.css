@@ -740,7 +740,7 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .banner{min-width:300px;text-align:center}
 .banner small{display:block;font:500 13px var(--f-body);color:var(--ink2);margin-top:2px}
 /* Main : distribution depuis le centre, carte piochée, resserrement (transition sur translate) */
-#hand .card{transition:transform .18s cubic-bezier(.25,.8,.3,1),translate calc(.3s * var(--spd,1)) cubic-bezier(.25,.8,.3,1),filter .2s,box-shadow .2s,opacity .2s}
+#hand .card{transition:transform .18s cubic-bezier(.25,.8,.3,1),translate calc(.3s * var(--spd,1)) cubic-bezier(.25,.8,.3,1),filter .2s,box-shadow .2s,opacity calc(.35s * var(--spd,1)) ease-out}
 #hand .card.noanim{transition:none}
 #hand .card.deal{animation:deal calc(420ms * var(--spd,1)) cubic-bezier(.2,.75,.3,1) both}
 @keyframes deal{from{translate:var(--dx) var(--dy);scale:.35;rotate:-160deg;opacity:0}to{translate:0 0;scale:1;rotate:0deg;opacity:1}}
