@@ -82,6 +82,12 @@ ok('XP : titres', titleFor(13) === 'Second' && titleFor(29) === 'Amiral' && titl
   ok('options : nombre de manches borné à 1–10, 10 par défaut', E.normalizeOpts({ rounds: 0 }).rounds === 10 && E.normalizeOpts({ rounds: 12 }).rounds === 10 && E.normalizeOpts({ rounds: 3 }).rounds === 3 && E.normalizeOpts({}).rounds === 10);
   // une seule personne : XP oui, Élo non
   const solo = settleGame(S, [seats[0], { ...seats[1], user_id: null, bot: true }, seats[2]], { u0: inputs.u0 });
+  // objets de titre et de haut fait : donnés une seule fois (déjà possédé → rien, même si le palier ou le haut fait revient)
+  const cosOf = (r: ReturnType<typeof settleGame>, u: string) => r.cosmetics.filter(c => c.user_id === u).map(c => c.cosmetic_id + '<' + c.source).sort().join();
+  const gab = { ...inputs, u0: { ...inputs.u0, xp: 2490 } }; // niveau 4 → 5 (Gabier) pendant la partie
+  ok('objets : tricorne au niveau 5 et cadre du haut fait kraken_bet', cosOf(settleGame(S, seats, gab), 'u0') === 'frame:tentacules<achievement:kraken_bet,hat:tricorne<title:5', cosOf(settleGame(S, seats, gab), 'u0'));
+  ok('objets : rien de redonné quand ils sont déjà possédés', cosOf(settleGame(S, seats, { ...gab, u0: { ...gab.u0, cosmetics: ['hat:tricorne', 'frame:tentacules'] } }), 'u0') === '');
+  ok('objets : un haut fait déjà obtenu ne redonne pas son objet', cosOf(settleGame(S, seats, { ...inputs, u1: { ...inputs.u1, achievements: ['first_game', 'siren_hunter'] } }), 'u1') === '');
   ok('un seul humain : XP sans Élo', solo.results[0].elo_delta === null && solo.stats[0].ranked === false && solo.xp.length > 0);
 }
 

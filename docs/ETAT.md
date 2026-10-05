@@ -14,7 +14,7 @@ Légende :
 | A. Table | A1 à A6, A8, A9 | A7 | – |
 | B. Cartes | B1 à B6 | – | – |
 | C. Compte | C1 à C5 | – | – |
-| D. Garde-robe et coffre | D1, D2, D5, D6, D7, D8, D9 | D3, D4, D10 | D11 |
+| D. Garde-robe et coffre | D1, D2, D5, D6, D7, D8, D9, D10 | D3, D4 | D11 |
 
 ## A. Table de jeu
 
@@ -66,7 +66,7 @@ La mention « à faire en entier » du prompt n'est plus vraie : D1 à D10 exist
 | D7 | **Fait** | Lot 7 : le badge du coffre reste visible sur téléphone, à côté de « Règles ». `chestBadge(n)` (dans `web/src/account.ts`) le remet à jour après chaque ouverture, depuis la garde-robe ou depuis la fin de partie. « Équiper » depuis la fin de partie met aussi la couleur de l'objet sur sa première variante (`withItem`, dans `web/src/avatar.ts`), comme dans la garde-robe. L'objet du haut fait en fin de partie a été fait au lot 4 (C5). | `web/src/account.ts`, `web/src/app.css`, `web/src/pages/game.ts`, `web/src/pages/profile.ts`, `web/src/chest.ts` |
 | D8 | **Fait** | Lot 8 : la condition d'un objet de haut fait affiche le nom du haut fait (« Haut fait · Chasseur de sirènes »), lu dans la table `achievements`. Le bloc « Le porter » (`st.reveal`), jamais affiché depuis l'arrivée de la superposition du coffre, est supprimé avec son CSS. Le reste était déjà en place : 7 onglets, silhouettes avec condition, variantes, « Au hasard », « Annuler », « Enregistrer », échoppe. | `web/src/pages/profile.ts`, `web/src/app.css` |
 | D9 | **Fait** | – Avatars composés à la table, dans les listes, au classement, dans l'en-tête et dans l'aperçu au survol. | pages, `web/src/playercard.ts` |
-| D10 | **Partiel** | Tests manquants : 1. la fréquence de tirage d'un Légendaire ; 2. un test qui passe par l'action `chest.open` elle-même ; 3. l'idempotence des objets de titre et de haut fait ; 4. le refus d'une variante non possédée. | `tests/service.test.ts` |
+| D10 | **Fait** | Lot 10 : ajout de la fréquence de tirage Légendaire (environ 3 %, sur 1 000 graines ; le Poulpe est le seul légendaire du coffre), d'ouvertures par l'action `chest.open` elle-même (un succès, puis un refus sans coffre), et de l'idempotence des objets de titre et de haut fait (`tests/account.test.ts` : tricorne au niveau 5 et cadre de kraken_bet donnés une fois, rien de redonné s'ils sont déjà possédés). Le refus d'une variante non possédée a été couvert au lot 5. Déjà en place : probabilités Commun, Rare et Épique, refus à 0 coffre, doublons, idempotence du règlement. | `tests/service.test.ts`, `tests/account.test.ts` |
 | D11 | **À faire** | Rien dans le code. Ce qu'il faut faire : 1. une rareté Mythique à 1 %, avec un doublon à 400 pièces ; 2. 6 cartes animées ; 3. les vidéos, dans `web/public/cards/anim/` mais pas encore suivies par git (7 Mo) ; 4. l'affichage de la vidéo en main au survol, dans le pli et au zoom ; 5. un réglage « toutes / les miennes / aucune » ; 6. un onglet Cartes dans la garde-robe et une variante de l'animation du coffre. | voir `docs/cartes-animees/` |
 
 ## Décisions (validées le 6 octobre)

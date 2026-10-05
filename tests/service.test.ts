@@ -241,6 +241,20 @@ ok('coffre : fréquence commune autour de 62 %', Math.abs(cC - 310) <= 60, { cC,
 ok('coffre : fréquence rare autour de 26 %', Math.abs(cR - 130) <= 50, { cC, cR, cE, cL });
 ok('coffre : fréquence épique autour de 9 %', Math.abs(cE - 45) <= 30, { cC, cR, cE, cL });
 
+// Légendaire : le Poulpe est le seul légendaire du coffre ; il doit sortir environ 3 fois sur 100
+let leg = 0;
+for (let i = 0; i < 1000; i++) {
+  await db.exec(`update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
+  if ((await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 7_000_000 + i * 7919 }))?.rarity === 'l') leg++;
+}
+ok('coffre : fréquence légendaire autour de 3 %', leg >= 15 && leg <= 50, { leg });
+
+// chest.open par l'action du service (le site passe par là) : un coffre ouvert, puis refus quand il n'y en a plus
+await db.exec(`update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
+const viaAction = await handle(store, nobodyUid, { action: 'chest.open' });
+ok('coffre : action chest.open', viaAction?.ok && typeof viaAction.cosmetic_id === 'string' && viaAction.chests === 0 && (await store.wallet(nobodyUid)).chests === 0, viaAction);
+await expectErr('coffre : action chest.open sans coffre → refus', handle(store, nobodyUid, { action: 'chest.open' }), 400);
+
 // Boutique : 3 objets déterministes à partir de la date, puis achat et refus (prix et pool)
 const shop1 = await store.shopDay('2026-10-03'), shop2 = await store.shopDay('2026-10-03'), shop3 = await store.shopDay('2026-10-04');
 ok('boutique : 3 objets déterministes par jour', shop1.length === 3 && JSON.stringify(shop1) === JSON.stringify(shop2) && shop3.length === 3, { shop1, shop3 });
