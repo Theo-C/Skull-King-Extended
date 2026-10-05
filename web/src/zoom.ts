@@ -35,7 +35,7 @@ export function installCardZoom() {
   document.addEventListener('pointerover', ev => {
     if (ev.pointerType !== 'mouse') return;
     const c = cardAt(ev.target); if (c === shownFor || (c && c === pending)) return;
-    hide(); pending = c; if (c) timer = setTimeout(() => show(c), 420);
+    hide(); pending = c; if (c) timer = setTimeout(() => show(c), 450);
   });
   document.addEventListener('pointerdown', ev => {
     if (ev.pointerType === 'mouse') { hide(); return; }

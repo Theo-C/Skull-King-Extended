@@ -5,6 +5,7 @@ import { $, esc, toast } from '../util';
 import { myProfile, forgetProfile, shell, applyPrefs, type Profile } from '../account';
 import { avatarHTML, avatarSVG, CATALOG, PALETTE, ART_NAMES, type AvatarData, type Look, type CosmeticItem } from '../avatar';
 import { xpLine, LEVEL_TITLES, xpToReach, fmt } from '../xp';
+import { getAmbiance, setAmbiance } from '../ambiance';
 import { openChestOverlay, type ChestResult } from '../chest';
 
 const COLOR_NAMES = ['Or', 'Corail', 'Algue', 'Lagon', 'Améthyste', 'Ambre', 'Écume', 'Corail rose'];
@@ -91,6 +92,7 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
       <div class="prefs">
         ${pref('notify_turn', "Me prévenir quand c'est mon tour", "notification du navigateur ou de l'appli", p.notify_turn)}
         ${pref('sounds', 'Sons de la table', 'cartes, plis gagnés, fin de manche', p.sounds)}
+        ${pref('ambiance', 'Ambiance pirate à la table', 'cabine, lanterne et carte marine ; sinon ambiance sobre (aussi réglable pendant la partie)', getAmbiance() !== 'sobre')}
         ${pref('public_rank', 'Apparaître dans le classement public', 'sinon, visible seulement par vos amis', p.public_rank)}
       </div>
       <div class="acc-foot"><button class="abtn gold" id="bPseudo">Enregistrer le pseudo</button><button class="abtn ghost" id="bOut">Se déconnecter</button></div>
@@ -108,8 +110,10 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
     catch (e: any) { toast(e.message, 'err'); } finally { b.disabled = false; }
   };
   root.querySelectorAll<HTMLButtonElement>('.tg').forEach(t => t.onclick = async () => {
-    const k = t.dataset.k as 'notify_turn' | 'sounds' | 'public_rank', on = t.getAttribute('aria-checked') !== 'true';
+    const k = t.dataset.k as 'notify_turn' | 'sounds' | 'public_rank' | 'ambiance', on = t.getAttribute('aria-checked') !== 'true';
     const set = (v: boolean) => { t.setAttribute('aria-checked', String(v)); t.classList.toggle('on', v); };
+    // ambiance : réglage de ce navigateur (localStorage pli.ambiance), pas du compte
+    if (k === 'ambiance') { setAmbiance(on ? 'pirate' : 'sobre'); set(on); return; }
     if (k === 'notify_turn' && on && 'Notification' in window) {
       if (Notification.permission === 'default') await Notification.requestPermission().catch(() => { });
       if (Notification.permission === 'denied') { set(false); toast('Notifications bloquées par le navigateur : autorisez-les dans les réglages du site.', 'err'); return; }

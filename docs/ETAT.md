@@ -11,7 +11,7 @@ Légende :
 
 | Section | Fait | Partiel | À faire |
 |---|---|---|---|
-| A. Table | A1, A2, A3, A4, A8 | A5, A6, A7, A9 | – |
+| A. Table | A1 à A6, A8, A9 | A7 | – |
 | B. Cartes | B1 à B6 | – | – |
 | C. Compte | C1 à C4 | C5 | – |
 | D. Garde-robe et coffre | D1, D2, D9 | D3, D4, D5, D6, D7, D8, D10 | D11 |
@@ -24,11 +24,11 @@ Légende :
 | A2 | **Fait** | – Pastille dorée pleine, ligne teintée avec bordure gauche de 3 px (maquette Main) ; le Pacte de Butin a sa ligne de bonus « +20 · X · Pacte de Butin avec Y » pour chacun des deux alliés (lot 1). | `web/src/game.css` (`.lbonus`), `supabase/functions/_shared/engine.ts` |
 | A3 | **Fait** | – Les `SIGNED_IN` du même utilisateur sont ignorés ; `shownRound` est conservé d'une table à l'autre pour une même partie en ligne (lot 1). En entraînement, chaque partie repart de zéro. | `web/src/main.ts`, `web/src/table.ts` |
 | A4 | **Fait** | – Éventails face cachée cliquables, « Imposée par … » chez la cible, carte choisie montrée aux autres. Le pirate s'appelle désormais Marie Thorne. | `web/src/table.ts`, `web/src/game.css` |
-| A5 | **Partiel** | L'écart maximal entre les cartes de la main est plafonné à 0,72 × la largeur, au lieu de 0,96 dans le prompt 1. Tout le reste est conforme : ResizeObserver, hauteur du bloc, 0,38, 44 px, éventail, levée de 12 %. | `web/src/table.ts` (`handLayout`) |
-| A6 | **Partiel** | Le délai est de 420 ms au lieu de 450. La largeur de 300 px et la fiche parchemin (nom et règle) sont en place. | `web/src/zoom.ts` |
+| A5 | **Fait** | – Écart maximal entre les cartes : 0,96 × largeur, comme le prompt 1 (lot 3) ; ResizeObserver, hauteur du bloc, 0,38, 44 px, éventail, levée de 12 %. | `web/src/table.ts` (`handLayout`) |
+| A6 | **Fait** | – Zoom après 450 ms de survol (lot 3), carte de 300 px, fiche parchemin avec le nom et la règle. | `web/src/zoom.ts` |
 | A7 | **Partiel** | 1. La mention « en ligne » est affichée en permanence, sans vraie présence. 2. Le lien « Profil » ne fonctionne que pour soi-même, car il n'y a pas de profil public. 3. L'aperçu est absent sur téléphone : le bandeau des adversaires n'y est pas branché. 4. La version bot n'a ni « Bot · niveau moyen » ni « ne comptent pas pour l'Élo ». Le reste est en place : `player.card`, cache, 250 ms, statistiques, objets rares, rien d'interdit. | `web/src/playercard.ts`, `web/src/table.ts`, `supabase/functions/_shared/service.ts` |
 | A8 | **Fait** | – Vérifié à 3, 4, 5 et 6 joueurs et sur téléphone. | `web/src/table.ts`, `web/src/game.css` |
-| A9 | **Partiel** | 1. Défaut : une ancienne règle `.bstage .mat>svg{opacity:.14}` s'applique aussi à la carte marine, qui devient quasi invisible (opacité ≈ 0,01 au lieu de 0,06 à 0,10). 2. L'ancienne rose des vents reste affichée sous la carte marine. 3. Le réglage « Ambiance sobre » n'existe qu'à la table, pas dans les réglages du profil : à trancher. | `web/src/game.css`, `web/src/ambiance.ts`, `web/src/styles/ambiance.css` |
+| A9 | **Fait** | – Carte marine visible (l'opacité réduite de l'ancienne rose ne s'applique plus à elle), ancienne rose masquée en ambiance pirate, réglage pirate / sobre à la table et dans le profil (lot 3). | `web/src/game.css`, `web/src/styles/ambiance.css`, `web/src/pages/profile.ts` |
 
 ## B. Cartes illustrées
 

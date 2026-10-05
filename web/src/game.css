@@ -409,7 +409,7 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .board{position:relative;flex:1;min-height:260px;width:100%}
 .bstage{position:absolute;left:50%;top:0;width:1040px;height:520px;transform-origin:50% 0;transform:translateX(-50%) scale(var(--k,1))}
 .bstage .rim{inset:0}
-.bstage .mat>svg{opacity:.14}
+.bstage .mat>svg:not(.amb-chart){opacity:.14}
 #action,.rail{width:min(100%,var(--bw,1040px))}
 @media (max-width:1100px){
   body.at-table .tablepage{height:auto;min-height:100dvh}

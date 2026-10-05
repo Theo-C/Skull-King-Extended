@@ -1325,9 +1325,8 @@ function handLayout(Wbox: number, Hbox: number, n: number) {
   const H = Math.max(40, H0 / (1 + Math.sin((n - 1) / 2 * Math.PI / 180) / 1.4));
   let cardH = H, cardW = cardH / 1.4;
   if (cardW > W) { cardW = W; cardH = cardW * 1.4; }
-  // Même avec peu de cartes, on garde un chevauchement d'environ 28 % de la largeur de carte (step ≤ 72 %)
-  // pour donner un aspect de « main » plus réaliste. L'étalement maximum reste limité par la largeur disponible.
-  let step = n > 1 ? Math.min(cardW * .72, (W - cardW) / (n - 1)) : cardW;
+  // écart entre deux cartes : au plus 0,96 × largeur (prompt 1), et limité par la largeur disponible
+  let step = n > 1 ? Math.min(cardW * .96, (W - cardW) / (n - 1)) : cardW;
   // trop de cartes : on les réduit jusqu'à ce que l'écart vaille 0,38 × largeur
   if (n > 1 && step < cardW * .38) { cardW = W / (1 + .38 * (n - 1)); cardH = cardW * 1.4; step = cardW * .38; }
   // la partie visible (cliquable) d'une carte fait au moins 44 px, quand la largeur le permet
