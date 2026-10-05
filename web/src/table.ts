@@ -126,6 +126,9 @@ export class TableView {
   /** Pli en ligne : places vides (joueurs qui doivent encore jouer) et flèches entre les places. */
   private tempty = new Map<string, HTMLElement>(); private arrowEls: HTMLElement[] = [];
   private handEls = new Map<number, HTMLElement>(); private handRound = -1;
+  // manche à laquelle correspond this.priv (serveur) : si pb.round la dépasse en relecture, la nouvelle main n'est pas
+  // encore connue — on affiche vide plutôt que les cartes de la manche précédente qui réapparaîtraient brièvement.
+  private privRound = -1;
   private flyFrom: { id: number; rect: DOMRect } | null = null; private sendingId: number | null = null;
   private prevScores: (number | undefined)[] = [];
   private wasMyTurn = false; private baseTitle = document.title; private resizeRaf = 0;
@@ -252,6 +255,8 @@ export class TableView {
   private applyLatest() {
     if (!this.latest) return;
     this.pub = this.latest.pub; this.priv = this.latest.priv; this.evk = null; this.logLines = this.pub.log.slice();
+    // this.priv correspond désormais à cette manche : la relecture d'événements d'une manche plus récente n'affichera plus l'ancienne main
+    this.privRound = this.pub?.round ?? -1;
     this.banner = null; this.render();
     this.maybeFinal();
   }
@@ -875,7 +880,10 @@ export class TableView {
     const pv = this.priv, pb = this.pub!;
     // pendant la relecture, la main connue date d'avant nos coups : on retire toutes les cartes déjà posées dans la manche
     const played = new Set([...this.playedMine, ...(pb.trick?.entries || []).filter(e => e.p === this.mySeat).map(e => e.card.id)]);
-    const hand = this.live ? pv.hand : pv.hand.filter(c => !played.has(c.id));
+    // entre deux manches, les événements 'deal' / 'bids' du serveur arrivent avant que setLatest ait reçu la nouvelle main :
+    // on affiche vide plutôt que de ressortir brièvement les cartes de la manche précédente (bug « cartes fantômes »)
+    const staleRound = !this.live && pb.round > this.privRound;
+    const hand = this.live ? pv.hand : staleRound ? [] : pv.hand.filter(c => !played.has(c.id));
     $('#handTitle', this.root).innerHTML = '<b>Votre main</b>';
     const bid = this.bidOf(this.mySeat), won = pb.players[this.mySeat].won, stake = pb.players[this.mySeat].rascal;
     const st = !bid.wait && pb.bidsRevealed ? (won === Number(bid.txt) ? 'ok' : won > Number(bid.txt) ? 'ko' : '') : '';
@@ -932,8 +940,11 @@ export class TableView {
       const d = j - m; ce.style.setProperty('--r', d.toFixed(2) + 'deg'); ce.style.setProperty('--y', (d * d).toFixed(1) + 'px'); ce.style.zIndex = String(len - j);
     });
     if (!this.animMs) return;
-    // nouvelle donne : les cartes partent du centre de la table, une à une
-    const dealing = added.length > 1 && this.handRound !== pb.round; this.handRound = pb.round;
+    // nouvelle donne : les cartes partent du centre de la table, une à une.
+    // handRound n'est pas mis à jour tant qu'on n'a pas la vraie main (staleRound), pour que l'animation
+    // s'enclenche quand setLatest aura rattrapé la nouvelle manche.
+    const dealing = added.length > 1 && this.handRound !== pb.round;
+    if (!staleRound) this.handRound = pb.round;
     if (dealing) {
       const [cx, cy] = center($('#table', this.root).getBoundingClientRect());
       // distribution : les cartes arrivent une à une depuis le centre de la table (60 ms d'écart)
