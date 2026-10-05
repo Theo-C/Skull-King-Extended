@@ -8,7 +8,7 @@ export interface Commit {
   patch: { status?: string; options?: any; state?: any };
   secret?: E.State; hands?: { user_id: string; seat: number; data: any }[]; events?: any[]; seats?: SeatRow[];
 }
-export interface CosmeticRow { id: string; slot: string; value: string | null; default_owned: boolean; how: string | null }
+export interface CosmeticRow { id: string; slot: string; value: string | null; default_owned: boolean; how: string | null; variants?: string[] | null }
 export interface Store {
   /** Adresse du projet Supabase (https://<ref>.supabase.co) : seule origine acceptée pour les photos de profil. */
   readonly origin: string;
@@ -56,6 +56,7 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'profile.wardrobe': return wardrobe(store, uid);
     case 'player.card': return playerCard(store, body);
     case 'chest.open': return chestOpen(store, uid);
+    case 'shop.list': return { shop: await store.shopDay() };
     case 'shop.buy': return shopBuy(store, uid, body);
     case 'history.list': return historyList(store, uid, body);
     case 'history.get': return historyGet(store, uid, body);
@@ -239,9 +240,21 @@ async function validateLook(store: Store, uid: string, look: any): Promise<Recor
     const v = look[slot]; if (v !== null && typeof v !== 'string') throw bad('Objet invalide.');
     needs.push({ slot, value: v }); out[slot] = v;
   }
-  if (needs.length) {
+  const colors = (['htc', 'nkc', 'ptc'] as const).filter(k => k in out);
+  if (needs.length || colors.length) {
     const cat = await store.cosmetics();
     const ownedExtra = new Set(await store.userCosmetics(uid));
+    // couleur d'un objet : seulement une variante d'une version possédée de l'objet porté (le « Bandana violet » est un objet à part) ;
+    // sans objet, ou pour un objet sans variantes, la couleur est sans effet et acceptée
+    const COLOR_SLOT = { htc: 'hat', nkc: 'neck', ptc: 'pet' } as const;
+    for (const key of colors) {
+      const slot = COLOR_SLOT[key], color = String(out[key]).toLowerCase();
+      if (!(slot in look)) throw bad('Couleur sans objet.');
+      const value = look[slot]; if (value == null) continue;
+      const versions = cat.filter(c => c.slot === slot && c.value === value && (c.variants?.length ?? 0) > 0);
+      if (!versions.length) continue;
+      if (!versions.some(c => (c.default_owned || ownedExtra.has(c.id)) && c.variants!.some(v => v.toLowerCase() === color))) throw bad('Couleur non possédée pour cet objet.');
+    }
     const ownsSlotValue = (slot: string, value: string | null) =>
       cat.some(c => c.slot === slot && c.value === value && (c.default_owned || ownedExtra.has(c.id)));
     for (const { slot, value } of needs) {

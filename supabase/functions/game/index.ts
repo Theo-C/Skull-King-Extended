@@ -64,7 +64,7 @@ const store: Store = {
   async cosmetics() {
     // cache 60 s : le catalogue est en données de départ (migration), il bouge rarement
     if (cosmeticsCache && Date.now() - cosmeticsCache.at < 60_000) return cosmeticsCache.rows;
-    const { data, error } = await admin.from('cosmetics').select('id, slot, value, default_owned, how');
+    const { data, error } = await admin.from('cosmetics').select('id, slot, value, default_owned, how, variants');
     if (error) fail(error, 'catalogue');
     cosmeticsCache = { at: Date.now(), rows: (data ?? []) as CosmeticRow[] };
     return cosmeticsCache.rows;

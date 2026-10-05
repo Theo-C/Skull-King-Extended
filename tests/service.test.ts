@@ -51,7 +51,7 @@ const store: Store = {
     finally { await db.exec('reset role'); }
   },
   async cosmetics() {
-    return (await db.query<any>('select id, slot, value, default_owned, how from cosmetics')).rows;
+    return (await db.query<any>('select id, slot, value, default_owned, how, variants from cosmetics')).rows;
   },
   async userCosmetics(uid) {
     return (await db.query<any>('select cosmetic_id from user_cosmetics where user_id=$1', [uid])).rows.map(r => r.cosmetic_id);
@@ -243,7 +243,8 @@ ok('coffre : fréquence épique autour de 9 %', Math.abs(cE - 45) <= 30, { cC, c
 
 // Boutique : 3 objets déterministes à partir de la date, puis achat et refus (prix et pool)
 const shop1 = await store.shopDay('2026-10-03'), shop2 = await store.shopDay('2026-10-03'), shop3 = await store.shopDay('2026-10-04');
-ok('boutique : 3 objets déterministes par jour', shop1.length === 3 && JSON.stringify(shop1) === JSON.stringify(shop2) && JSON.stringify(shop1) !== JSON.stringify(shop3), { shop1, shop3 });
+ok('boutique : 3 objets déterministes par jour', shop1.length === 3 && JSON.stringify(shop1) === JSON.stringify(shop2) && shop3.length === 3, { shop1, shop3 });
+ok('boutique : jamais deux fois le même objet le même jour', [shop1, shop3].every(sh => new Set(sh.map((x: any) => x.cosmetic_id)).size === sh.length), { shop1, shop3 });
 await expectErr('boutique : objet pas en vente → refus', handle(store, nobodyUid, { action: 'shop.buy', cosmetic_id: 'hat:couronne' }), 400);
 // achat : on crédite assez de pièces, on prend un objet de la boutique du jour
 const todayShop = await store.shopDay();
@@ -260,6 +261,15 @@ await expectErr('look : teint hors plage → refus', handle(store, U.alice, { ac
 await handle(store, U.alice, { action: 'profile.update', look: { skin: 2, hair: 'meche', hc: 1, beard: 'short', hat: 'bandana', htc: '#9e2a22', face: null, neck: 'foulard', nkc: '#2f5f8a', bg: 'nuit' } });
 const look = (await db.query<any>('select look from profiles where id=$1', [U.alice])).rows[0].look;
 ok('look : apparence libre enregistrée', look?.hair === 'meche' && look?.hat === 'bandana' && look?.htc === '#9e2a22' && look?.bg === 'nuit', look);
+// couleurs : seulement une variante possédée de l'objet porté (le bandana violet s'achète à l'échoppe)
+await expectErr('look : variante non possédée (bandana violet) → refus', handle(store, U.alice, { action: 'profile.update', look: { hat: 'bandana', htc: '#5b3a7a' } }), 400);
+await expectErr('look : couleur hors variantes → refus', handle(store, U.alice, { action: 'profile.update', look: { neck: 'foulard', nkc: '#123456' } }), 400);
+await expectErr('look : couleur sans objet indiqué → refus', handle(store, U.alice, { action: 'profile.update', look: { htc: '#9e2a22' } }), 400);
+await db.exec(`insert into user_cosmetics (user_id, cosmetic_id, source) values ('${U.alice}', 'hat:bandana-violet', 'test') on conflict do nothing`);
+await handle(store, U.alice, { action: 'profile.update', look: { hat: 'bandana', htc: '#5b3a7a' } });
+ok('look : variante possédée acceptée', (await db.query<any>('select look from profiles where id=$1', [U.alice])).rows[0].look?.htc === '#5b3a7a');
+const sl = await handle(store, U.alice, { action: 'shop.list' });
+ok('échoppe : action shop.list', Array.isArray(sl.shop) && sl.shop.length === 3, sl);
 
 // profile.wardrobe : résumé pour l'UI (inventaire + porte-monnaie + boutique du jour)
 const wr = await handle(store, winnerUid, { action: 'profile.wardrobe' });

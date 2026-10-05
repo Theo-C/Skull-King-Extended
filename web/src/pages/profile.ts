@@ -440,6 +440,19 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
     $('#wSave', box).onclick = () => doSave();
   };
 
+  /** Couleurs cohérentes avec les objets portés : une couleur qui n'est pas une variante possédée de l'objet porté
+   *  (ex. rouge du bandana gardé sur un tricorne équipé depuis le coffre) revient à la première variante possédée. */
+  const fixColors = (look: Look): Look => {
+    const out: any = { ...look };
+    for (const [slot, key] of [['hat', 'htc'], ['neck', 'nkc'], ['pet', 'ptc']] as const) {
+      const value = out[slot]; if (value == null) continue;
+      const versions = CATALOG.all.filter(c => c.slot === slot && c.value === value && c.variants?.length);
+      if (!versions.length) continue;
+      const owned = versions.filter(c => c.defaultOwned || st.owned.has(c.id)).flatMap(c => c.variants!);
+      if (owned.length && !owned.includes(out[key])) out[key] = owned[0];
+    }
+    return out;
+  };
   const previewLookFor = (base: Look, cosmeticId: string): Look => {
     const it = CATALOG.byId[cosmeticId]; if (!it) return base;
     const out: Look = { ...base, [it.slot]: it.value };
@@ -460,7 +473,7 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
       openChestOverlay(r, {
         color: st.color,
         onEquip: async (slot, value) => {
-          (st.look as any)[slot] = value; st.saved = { ...st.look }; st.savedColor = st.color;
+          (st.look as any)[slot] = value; st.look = fixColors(st.look); st.saved = { ...st.look }; st.savedColor = st.color;
           await callGame('profile.update', { look: st.look });
           onSaved({ look: { ...st.look } });
         },
@@ -483,7 +496,7 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
     const b = $('#wSave', box) as HTMLButtonElement; if (st.busy) return; st.busy = true; b.disabled = true; b.textContent = 'Enregistrement…';
     try {
       // on nettoie look : garde seulement les champs connus
-      const l: Record<string, unknown> = {};
+      const l: Record<string, unknown> = {}; st.look = fixColors(st.look);
       for (const k of ['skin', 'hair', 'hc', 'beard', 'hat', 'htc', 'face', 'neck', 'nkc', 'pet', 'ptc', 'bg', 'frame'] as const) if ((st.look as any)[k] !== undefined) l[k] = (st.look as any)[k];
       await callGame('profile.update', { look: l, color: st.color });
       st.saved = { ...st.look }; st.savedColor = st.color;
