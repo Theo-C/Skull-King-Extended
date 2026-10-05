@@ -206,7 +206,7 @@ export class TableView {
     // Aperçu joueur au survol d'un pod : cache per-partie, évite la main et le centre du plateau à l'affichage
     if (this.backend.playerCard) this.playerCardCtl = new PlayerCardCtl(
       (u) => this.backend.playerCard!(u),
-      () => { location.hash = '#/profil'; },
+      (uid, isMe) => { location.hash = isMe ? '#/profil' : '#/joueur/' + uid; },
       () => {
         const out: HTMLElement[] = [];
         const h = $('#hand', this.root); if (h) out.push(h);
@@ -331,6 +331,9 @@ export class TableView {
   private avatars: (AvatarData | null)[] = [];
   /** Avatars et couleurs des sièges (null : bot ou joueur sans profil, initiale sur la couleur par défaut). */
   setAvatars(list: (AvatarData | null)[]) { this.avatars = list; if (this.pub) this.render(); }
+  /** Joueurs connectés à la partie (présence Realtime), pour l'aperçu au survol. */
+  private online: Set<string> | null = null;
+  setOnline(uids: Set<string>) { this.online = uids; }
   /** Cartes animées possédées, par siège (fichiers : kraken, sk, raie…) : posséder une carte suffit pour qu'elle soit animée. */
   private animOwned: Set<string>[] = [];
   private offAnim: (() => void) | null = null;
@@ -376,8 +379,9 @@ export class TableView {
     const current = (pb.phase === 'play' || pb.phase === 'bid')
       ? { round: pb.round, bid: pb.bidsRevealed ? (p.bid ?? null) : null, won: p.won }
       : null;
+    const uid = this.backend.seatUids?.[i] ?? null;
     return { seat: i, isBot: !!p.bot, isMe: i === this.mySeat, name: p.name, color: this.colorOf(i),
-      placeNow: { place, score: p.score, total: n }, hist, current };
+      placeNow: { place, score: p.score, total: n }, hist, current, online: uid && this.online ? this.online.has(uid) : null };
   }
 
   /* ---------- Marie Thorne ---------- */
@@ -472,6 +476,8 @@ export class TableView {
     for (let rel = 1; rel < n; rel++) {
       const i = (b + rel) % n, p = pb.players[i];
       let el = this.oppEls[i]; if (!el || !el.isConnected) { el = document.createElement('div'); el.className = 'opp'; box.append(el); this.oppEls[i] = el; }
+      // aperçu du joueur au toucher, comme les plaques du plateau sur grand écran
+      this.playerCardCtl?.attach(el, () => ({ snapshot: this.seatSnapshot(i), uid: this.backend.seatUids?.[i] ?? null }));
       el.style.setProperty('--pc', this.colorOf(i)); el.classList.toggle('active', this.isActive(i));
       let st: string;
       if (pb.bidsRevealed && p.bid != null) st = `<b class="og ${p.won > p.bid ? 'over' : p.won === p.bid ? 'ok' : ''}">${p.won}/${p.bid}</b>`;

@@ -574,3 +574,9 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 /* fin de partie : objet gagné (haut fait ou titre), anneau à la couleur de sa rareté */
 .medal2.obj{background:#1b140e;overflow:hidden;box-shadow:0 0 0 2px #1b140e,0 0 0 4px var(--rar,#ead08a),0 6px 14px rgba(0,0,0,.3)}
 .medal2.obj svg,.medal2.obj>span{max-width:56px;max-height:56px}
+/* profil public : objets rares possédés */
+.pobjs{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.pobj{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.25);border:1.5px solid color-mix(in srgb,var(--rar) 55%,transparent)}
+.pobj-v{flex:none;display:grid;place-items:center;width:56px;height:56px}
+.pobj>span:last-child{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.pobj b{font-size:14px;color:var(--parch)}

@@ -2,6 +2,7 @@
 // instantanément au focus clavier ou au toucher. Se ferme en quittant la zone, au clic ailleurs, au scroll ou
 // en pressant Échap. Le positionnement évite la main et le pli en cours.
 import { avatarHTML, CATALOG, type Look } from './avatar';
+import { objectSVG } from './objects';
 import { xpLine } from './xp';
 import { esc } from './util';
 
@@ -23,6 +24,8 @@ export interface SeatSnapshot {
   placeNow: { place: number; score: number; total: number } | null;
   hist: { bid: number; won: number; made: boolean; played: boolean }[]; // une case par manche de la partie
   current: { round: number; bid: number | null; won: number } | null;
+  /** Présence Realtime sur le canal de la partie : null quand on ne sait pas (entraînement). */
+  online?: boolean | null;
 }
 
 const RARITY_INK: Record<string, string> = { r: '#4fa8ff', e: '#c27dff', l: '#ffc94a' };
@@ -40,7 +43,7 @@ export class PlayerCardCtl {
 
   constructor(
     private fetchData: (uid: string) => Promise<PlayerCardData | null>,
-    private goProfile: () => void,
+    private goProfile: (uid: string, isMe: boolean) => void,
     private avoidEls: () => HTMLElement[] = () => [],
   ) {
     this.el = document.createElement('div');
@@ -108,7 +111,7 @@ export class PlayerCardCtl {
       this.el.innerHTML = fullCardHTML(data, snapshot, snapshot.isMe);
       this.show(pod);
       const prof = this.el.querySelector('.pc-prof') as HTMLButtonElement | null;
-      if (prof) prof.onclick = () => { this.close(); this.goProfile(); };
+      if (prof) prof.onclick = () => { this.close(); this.goProfile(uid, snapshot.isMe); };
     } catch { /* on garde l'état de chargement */ }
   }
 
@@ -169,11 +172,14 @@ function loadingCardHTML(s: SeatSnapshot): string {
 function botCardHTML(s: SeatSnapshot): string {
   const bid = s.current?.bid, won = s.current?.won ?? 0;
   const placeStr = s.placeNow ? `${nthShort(s.placeNow.place)} · ${s.placeNow.score} pts` : '';
+  // maquette ApercuJoueur, variante bot
   return `<div class="pc-id">${avatarHTML({ letter: s.name, color: s.color }, 56, ring(s.color))}
-    <div class="pc-idtxt"><div class="pc-row1"><b class="pc-nm">${esc(s.name)}</b><span class="pc-chip bot">Bot</span></div><span class="pc-lvl">adversaire géré par le serveur</span></div></div>
+    <div class="pc-idtxt"><b class="pc-nm">${esc(s.name)}</b><span class="pc-chip bot">Bot · niveau moyen</span></div></div>
+  <span class="pc-sub">Mise d'après la force de sa main, sans tricher : il ne voit pas vos cartes.</span>
   <div class="pc-game"><div class="pc-hdr"><span>Cette partie</span>${placeStr ? `<b>${esc(placeStr)}</b>` : ''}</div>
     ${histHTML(s.hist, s.current)}
-    <span class="pc-sub">${sumHist(s.hist)}${s.current ? ` · manche en cours : mise ${bid == null ? '—' : bid}, ${won} pli${won > 1 ? 's' : ''}` : ''}</span></div>`;
+    <span class="pc-sub">${sumHist(s.hist)}${s.current ? ` · manche en cours : mise ${bid == null ? '—' : bid}, ${won} pli${won > 1 ? 's' : ''}` : ''}</span></div>
+  <span class="pc-sub pc-note">Les parties avec des bots ne comptent pas pour l'Élo.</span>`;
 }
 
 function fullCardHTML(d: PlayerCardData, s: SeatSnapshot, isMe: boolean): string {
@@ -195,7 +201,7 @@ function fullCardHTML(d: PlayerCardData, s: SeatSnapshot, isMe: boolean): string
 
   return `<div class="pc-id">${avatarHTML(avatarD, 68, ring(d.color))}
     <div class="pc-idtxt">
-      <div class="pc-row1"><b class="pc-nm">${esc(d.pseudo)}</b><span class="pc-chip on">en ligne</span></div>
+      <div class="pc-row1"><b class="pc-nm">${esc(d.pseudo)}</b>${s.online == null ? '' : s.online ? '<span class="pc-chip on">en ligne</span>' : '<span class="pc-chip off">hors ligne</span>'}</div>
       <span class="pc-lvl">Niv. ${level.level} · ${esc(level.title)}</span>
       <span class="pc-elo">Élo ${elo}${trendHTML ? ' ' + trendHTML : ''}</span>
     </div></div>
@@ -210,14 +216,14 @@ function fullCardHTML(d: PlayerCardData, s: SeatSnapshot, isMe: boolean): string
   <div class="pc-items">
     ${worn.length ? worn.map(it => itemHTML(it, d.color, (look as any)[it.variantKey ?? ''])).join('') : '<span class="pc-ilbl">Pas encore d\'objet rare porté.</span>'}
     ${worn.length ? '<span class="pc-ilbl">Objets rares portés</span>' : ''}
-    ${isMe ? '<button class="pc-prof" type="button">Profil ›</button>' : ''}
+    <button class="pc-prof" type="button" aria-label="${isMe ? 'Votre profil' : 'Profil de ' + esc(d.pseudo)}">Profil ›</button>
   </div>`;
 }
 
+/** Objet porté, dessiné seul (comme en fin de partie) ; avant, un avatar sans type affichait « ? ». */
 function itemHTML(it: any, color: string, variantColor: string | undefined): string {
-  const o: Record<string, unknown> = { [it.slot]: it.value };
-  if (it.variantKey && it.variants) o[it.variantKey] = variantColor || it.variants[0];
-  return `<span class="pc-item" style="--rar:${RARITY_INK[it.rarity] || '#4fa8ff'}" title="${esc(it.name)} · ${esc(RARITY_LBL[it.rarity] || '')}">${avatarHTML({ look: o as Look, color } as any, 36)}</span>`;
+  const c = it.variantKey && it.variants ? variantColor || it.variants[0] : '#2f5f8a';
+  return `<span class="pc-item" style="--rar:${RARITY_INK[it.rarity] || '#4fa8ff'}" title="${esc(it.name)} · ${esc(RARITY_LBL[it.rarity] || '')}">${objectSVG(it.slot, it.value, 32, c, color)}</span>`;
 }
 
 function histHTML(hist: SeatSnapshot['hist'], current: SeatSnapshot['current']): string {

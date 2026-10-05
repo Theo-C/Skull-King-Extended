@@ -11,7 +11,7 @@ Légende :
 
 | Section | Fait | Partiel | À faire |
 |---|---|---|---|
-| A. Table | A1 à A6, A8, A9 | A7 | – |
+| A. Table | A1 à A9 | – | – |
 | B. Cartes | B1 à B6 | – | – |
 | C. Compte | C1 à C5 | – | – |
 | D. Garde-robe et coffre | D1, D2, D5, D6, D7, D8, D9, D10, D11 | D3, D4 | — |
@@ -26,7 +26,7 @@ Légende :
 | A4 | **Fait** | – Éventails face cachée cliquables, « Imposée par … » chez la cible, carte choisie montrée aux autres. Le pirate s'appelle désormais Marie Thorne. | `web/src/table.ts`, `web/src/game.css` |
 | A5 | **Fait** | – Écart maximal entre les cartes : 0,96 × largeur, comme le prompt 1 (lot 3) ; ResizeObserver, hauteur du bloc, 0,38, 44 px, éventail, levée de 12 %. | `web/src/table.ts` (`handLayout`) |
 | A6 | **Fait** | – Zoom après 450 ms de survol (lot 3), carte de 300 px, fiche parchemin avec le nom et la règle. | `web/src/zoom.ts` |
-| A7 | **Partiel** | 1. La mention « en ligne » est affichée en permanence, sans vraie présence. 2. Le lien « Profil » ne fonctionne que pour soi-même, car il n'y a pas de profil public. 3. L'aperçu est absent sur téléphone : le bandeau des adversaires n'y est pas branché. 4. La version bot n'a ni « Bot · niveau moyen » ni « ne comptent pas pour l'Élo ». Le reste est en place : `player.card`, cache, 250 ms, statistiques, objets rares, rien d'interdit. | `web/src/playercard.ts`, `web/src/table.ts`, `supabase/functions/_shared/service.ts` |
+| A7 | **Fait** | Lot 12 : 1. Vraie présence : Realtime presence sur le canal de la partie, d'où « en ligne » ou « hors ligne », et rien quand l'information manque. 2. « Profil › » pour tous les joueurs : nouvelle page en lecture seule `#/joueur/<id>` (`web/src/pages/player.ts`) avec niveau, Élo, statistiques, hauts faits obtenus et objets rares, sans rien de privé. 3. Sur téléphone, l'aperçu s'ouvre au toucher sur le bandeau des adversaires. 4. Version bot conforme à la maquette : « Bot · niveau moyen », comment il mise, « Les parties avec des bots ne comptent pas pour l'Élo. ». J'ai retiré « Joue en 1 à 2 secondes » de la maquette : c'est faux à la vitesse Rapide. Corrigé au passage : un objet porté s'affichait « ? » (avatar sans type), il est maintenant dessiné. | `web/src/playercard.ts`, `web/src/table.ts`, `web/src/pages/game.ts`, `web/src/pages/player.ts`, `web/src/main.ts` |
 | A8 | **Fait** | – Vérifié à 3, 4, 5 et 6 joueurs et sur téléphone. | `web/src/table.ts`, `web/src/game.css` |
 | A9 | **Fait** | – Carte marine visible (l'opacité réduite de l'ancienne rose ne s'applique plus à elle), ancienne rose masquée en ambiance pirate, réglage pirate / sobre à la table et dans le profil (lot 3). | `web/src/game.css`, `web/src/styles/ambiance.css`, `web/src/pages/profile.ts` |
 

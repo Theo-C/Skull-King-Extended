@@ -96,14 +96,16 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
   const seatOk = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 9;
   // un canal resté ouvert pour cette partie (page reconstruite) serait réutilisé déjà abonné : on le ferme d'abord
   sb.getChannels().filter(c => c.topic === 'realtime:partie-' + id).forEach(c => sb.removeChannel(c));
-  channel = sb.channel('partie-' + id, { config: { broadcast: { self: false } } })
+  // présence : qui a la partie ouverte (aperçu « en ligne » / « hors ligne » au survol d'un joueur)
+  channel = sb.channel('partie-' + id, { config: { broadcast: { self: false }, presence: { key: uid } } })
+    .on('presence', { event: 'sync' }, () => { if (channel) table?.setOnline(new Set(Object.keys(channel.presenceState()))); })
     .on('broadcast', { event: 'emote' }, ({ payload }) => { if (seatOk(payload?.seat) && typeof payload.text === 'string') table?.showEmote(payload.seat, payload.text); })
     .on('broadcast', { event: 'ready' }, ({ payload }) => { if (seatOk(payload?.seat) && Number.isInteger(payload?.round)) table?.markReady(payload.seat, payload.round); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${id}` }, ping)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${id}` }, ping)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_events', filter: `game_id=eq.${id}` }, ping)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hands', filter: `game_id=eq.${id}` }, ping)
-    .subscribe();
+    .subscribe(status => { if (status === 'SUBSCRIBED') channel?.track({ at: Date.now() }).catch(() => { /* présence indisponible */ }); });
   timer = setInterval(sync, 15000); // filet de sécurité si le temps réel décroche
   const onVis = () => { if (!document.hidden) sync(); };
   document.addEventListener('visibilitychange', onVis);
