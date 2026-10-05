@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Table de jeu, ambiance</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible{outline:2px solid #ead08a;outline-offset:3px}
+.btn{min-height:40px;padding:0 16px;border-radius:9px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.35);color:#f2e7cd;font-weight:800;font-size:14px;cursor:pointer}
+.btn.gold{border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117}
+@keyframes drop{from{transform:translateY(-60px) scale(.85);opacity:0}to{transform:none;opacity:1}}
+.drop{animation:drop .35s cubic-bezier(.2,.9,.3,1.1) both}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 2px rgba(234,208,138,.5)}50%{box-shadow:0 0 0 2px #ead08a,0 0 22px rgba(234,208,138,.6)}}
+.next{animation:pulse 1.4s ease-in-out infinite}
+@keyframes crown{from{transform:translateY(-6px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+.crown{animation:crown .3s ease-out both}
+@keyframes flicker{0%,100%{opacity:.92}18%{opacity:.78}22%{opacity:.96}47%{opacity:.84}52%{opacity:1}76%{opacity:.88}}
+.flicker{animation:flicker 4.2s ease-in-out infinite}
+@keyframes flame{0%,100%{transform:scaleY(1) translateX(0)}35%{transform:scaleY(1.12) translateX(-.6px)}70%{transform:scaleY(.94) translateX(.6px)}}
+.flame{transform-origin:50% 100%;animation:flame 1.6s ease-in-out infinite}
+@keyframes swell{from{transform:translateX(0)}to{transform:translateX(-60px)}}
+.swell{animation:swell 7s linear infinite}
+@keyframes swell2{from{transform:translateX(-60px)}to{transform:translateX(0)}}
+.swell2{animation:swell2 9s linear infinite}
+@keyframes sway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+.sway{transform-origin:50% 0;animation:sway 6s ease-in-out infinite}
+.seal{background:radial-gradient(circle at 35% 30%,#c0473a 0 18%,#8e2a22 55%,#5e1714 100%);box-shadow:0 0 0 2px #1b140e,inset 0 0 0 2px rgba(255,180,160,.25);clip-path:polygon(50% 0,62% 6%,76% 4%,84% 15%,96% 22%,95% 37%,100% 50%,95% 63%,96% 78%,84% 85%,76% 96%,62% 94%,50% 100%,38% 94%,24% 96%,16% 85%,4% 78%,5% 63%,0 50%,5% 37%,4% 22%,16% 15%,24% 4%,38% 6%)}
+.knot{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 2px #8a6a3a}
+.knot.on{background:radial-gradient(circle at 35% 30%,#f2d48a,#b78c33 70%);box-shadow:inset 0 0 0 1px #6b4c14,0 0 6px rgba(234,208,138,.5)}
+.knot.cur{background:radial-gradient(circle at 35% 30%,#fff2c4,#e2bd62 70%);box-shadow:0 0 0 2px #ead08a,0 0 10px rgba(234,208,138,.8)}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; background: {{bgWall}}; color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+<sc-if value="{{amb}}" hint-placeholder-val="{{true}}">
+<div class="flicker" style="position: absolute; inset: 0; background: radial-gradient(ellipse 620px 520px at 120px 120px, rgba(255,170,80,.20), transparent 70%), radial-gradient(ellipse 900px 700px at 545px 360px, rgba(255,190,110,.07), transparent 70%); pointer-events: none;"></div>
+<div style="position: absolute; inset: 0; background: radial-gradient(ellipse at 45% 45%, transparent 55%, rgba(0,0,0,.55) 100%); pointer-events: none;"></div>
+</sc-if>
+
+<header style="position: absolute; left: 0; top: 0; width: 1440px; height: 56px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 18px; border-bottom: 1px solid rgba(234,208,138,.16); background: {{hdrBg}}; z-index: 20;">
+<span style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">Manche 5</span><span style="font-size: 14px; color: #a8987f;">sur 10 · pli 2 sur 5</span>
+<sc-if value="{{amb}}" hint-placeholder-val="{{true}}">
+<div title="Manches : 4 jouées, la 5e en cours" style="position: relative; display: flex; align-items: center; gap: 14px; margin-left: 6px; padding: 0 6px;">
+<span style="position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: repeating-linear-gradient(45deg, #8a6a3a 0 3px, #5e4422 3px 6px); border-radius: 2px;"></span>
+<sc-for list="{{knots}}" as="kn" hint-placeholder-count="10"><span class="{{kn}}" style="position: relative;"></span></sc-for>
+</div>
+</sc-if>
+</header>
+
+<div style="position: absolute; left: 24px; top: 72px; width: 1040px; height: 520px; border-radius: 50%; background: {{rimBg}}; box-shadow: 0 26px 50px rgba(0,0,0,.7);"></div>
+<div style="position: absolute; left: 50px; top: 98px; width: 988px; height: 468px; border-radius: 50%; background: radial-gradient(ellipse at 50% 46%, #2a6066 0%, #1f4c50 42%, #102c31 100%); box-shadow: inset 0 0 50px rgba(0,0,0,.6);"></div>
+<sc-if value="{{amb}}" hint-placeholder-val="{{true}}">
+<svg viewBox="0 0 1440 900" style="position: absolute; inset: 0; width: 1440px; height: 900px; pointer-events: none; z-index: 1;" aria-hidden="true">
+<defs><clipPath id="felt"><ellipse cx="544" cy="332" rx="494" ry="234"></ellipse></clipPath></defs>
+<ellipse cx="544" cy="332" rx="507" ry="247" fill="none" stroke="#c9a14a" stroke-width="3.2" stroke-dasharray=".1 21" stroke-linecap="round" opacity=".85"></ellipse>
+<ellipse cx="544" cy="332" rx="497" ry="237" fill="none" stroke="#b08a5a" stroke-width="5" stroke-dasharray="5 3" opacity=".75"></ellipse>
+<ellipse cx="544" cy="332" rx="497" ry="237" fill="none" stroke="#5e4422" stroke-width="1" stroke-dasharray="5 3" stroke-dashoffset="2.5" opacity=".9"></ellipse>
+<g clip-path="url(#felt)" fill="none" stroke="#e8dcc0">
+<g opacity=".07" stroke-width="1"><path d="M50 160h988M50 230h988M50 300h988M50 370h988M50 440h988M50 510h988M150 98v468M270 98v468M390 98v468M510 98v468M630 98v468M750 98v468M870 98v468M990 98v468"></path></g>
+<g opacity=".06" stroke-width="1"><path d="M544 332L50 140M544 332L50 520M544 332L1038 140M544 332L1038 520M544 332L300 98M544 332L790 98M544 332L300 566M544 332L790 566"></path></g>
+<g opacity=".08" transform="translate(544 470)"><circle r="62" stroke-width="1.2"></circle><circle r="48" stroke-width=".8" stroke-dasharray="2 4"></circle><path d="M0 -70L8 -8 0 0-8-8zM0 70L8 8 0 0-8 8zM-70 0L-8-8 0 0-8 8zM70 0L8-8 0 0 8 8z" fill="#e8dcc0" stroke="none"></path><text y="-76" text-anchor="middle" font-size="13" font-family="IM Fell English SC" fill="#e8dcc0" stroke="none">N</text></g>
+<g opacity=".09" stroke-width="1.6" transform="translate(150 430)"><path d="M0 30c20-20 40 10 60-8s34-24 50-4 30 20 48 2"></path><path d="M150 18c8-10 20-10 26-2-6 2-10 6-12 12" ></path><circle cx="168" cy="14" r="1.6" fill="#e8dcc0"></circle><path d="M20 34c0 8 6 12 12 10M70 26c0 8 6 12 12 10M120 20c0 8 6 12 12 10"></path></g>
+<text x="790" y="478" opacity=".10" font-size="18" font-style="italic" font-family="IM Fell English SC" fill="#e8dcc0" stroke="none" transform="rotate(-8 790 478)">Mare Incognitum</text>
+<g opacity=".08" stroke-width="1.2" transform="translate(905 175)"><path d="M0 22c12-3 18-14 30-12s16 12 28 8"></path><path d="M10 34c10-2 16 4 26 2"></path></g>
+<circle cx="780" cy="200" r="44" stroke="#3a2214" stroke-width="7" opacity=".10"></circle>
+</g>
+</svg>
+<!-- accessoires hors de la zone de jeu -->
+<div class="sway" style="position: absolute; left: 70px; top: 56px; width: 60px; height: 120px; z-index: 2; pointer-events: none;">
+<svg viewBox="0 0 60 120" style="width: 60px; height: 120px;" aria-hidden="true"><path d="M30 0v20" stroke="#5e4422" stroke-width="2"></path><circle cx="30" cy="24" r="5" fill="none" stroke="#8a6a3a" stroke-width="2.5"></circle><path d="M14 36h32l-4 8H18z" fill="#3a2a18"></path><path d="M18 44h24v44H18z" fill="rgba(255,200,120,.25)" stroke="#3a2a18" stroke-width="3"></path><path d="M24 44v44M36 44v44" stroke="#3a2a18" stroke-width="1.6"></path><g class="flame"><path d="M30 58c5 6 6 12 0 18-6-6-5-12 0-18z" fill="#ffd27a"></path><path d="M30 64c2 3 3 6 0 9-3-3-2-6 0-9z" fill="#fff6dc"></path></g><path d="M12 88h36l-4 8H16z" fill="#3a2a18"></path></svg>
+<div class="flicker" style="position: absolute; left: -40px; top: 30px; width: 140px; height: 120px; border-radius: 50%; background: radial-gradient(circle, rgba(255,200,110,.35), transparent 65%);"></div>
+</div>
+<div style="position: absolute; left: 930px; top: 84px; width: 104px; height: 104px; border-radius: 50%; z-index: 2; overflow: hidden; background: linear-gradient(180deg, #0c1a33 0%, #1a2f55 55%, #0e2a3a 56%, #081a24 100%); box-shadow: 0 0 0 7px #b08a4a, 0 0 0 9px #5e4422, inset 0 0 18px rgba(0,0,0,.7); pointer-events: none;">
+<div style="position: absolute; left: 62px; top: 16px; width: 18px; height: 18px; border-radius: 50%; background: #f3e8cf; box-shadow: 0 0 16px rgba(243,232,207,.7);"></div>
+<svg class="swell" viewBox="0 0 180 14" style="position: absolute; left: 0; top: 54px; width: 180px; height: 14px;" aria-hidden="true"><path d="M0 5 q15 -5 30 0 t30 0 q15 -5 30 0 t30 0 q15 -5 30 0 t30 0 q15 -5 30 0 t30 0 q15 -5 30 0 t30 0 q15 -5 30 0 t30 0 V14 H0z" fill="#0a2230" opacity=".9"></path><path d="M0 5 q15 -5 30 0 t30 0 q15 -5 30 0 t30 0 q15 -5 30 0 t30 0 q15 -5 30 0 t30 0 q15 -5 30 0 t30 0 q15 -5 30 0 t30 0" fill="none" stroke="rgba(243,232,207,.35)" stroke-width="1.6"></path></svg>
+<svg class="swell2" viewBox="0 0 180 12" style="position: absolute; left: -60px; top: 66px; width: 180px; height: 12px;" aria-hidden="true"><path d="M0 4 q15 -4 30 0 t30 0 q15 -4 30 0 t30 0 q15 -4 30 0 t30 0 q15 -4 30 0 t30 0 q15 -4 30 0 t30 0 q15 -4 30 0 t30 0 V12 H0z" fill="#0a2230" opacity=".9"></path><path d="M0 4 q15 -4 30 0 t30 0 q15 -4 30 0 t30 0 q15 -4 30 0 t30 0 q15 -4 30 0 t30 0 q15 -4 30 0 t30 0 q15 -4 30 0 t30 0" fill="none" stroke="rgba(243,232,207,.2)" stroke-width="1.2"></path></svg>
+<div style="position: absolute; inset: 0; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,.12), transparent 45%);"></div>
+</div>
+<svg viewBox="0 0 170 110" style="position: absolute; left: 40px; top: 476px; width: 170px; height: 110px; z-index: 2; pointer-events: none;" aria-hidden="true">
+<g transform="rotate(-24 85 55)"><path d="M18 52h88l12 3-12 3H18z" fill="#c9d1d8"></path><path d="M18 52h88" stroke="#fff" stroke-width=".8" opacity=".6"></path><rect x="6" y="49" width="14" height="12" rx="2" fill="#6b4226"></rect><path d="M2 46h6v18H2z" fill="#c9a14a"></path><path d="M20 46h4v18h-4z" fill="#c9a14a"></path></g>
+<g><ellipse cx="112" cy="86" rx="13" ry="5" fill="#8a6620"></ellipse><ellipse cx="112" cy="83" rx="13" ry="5" fill="#e2bd62"></ellipse><ellipse cx="130" cy="92" rx="13" ry="5" fill="#8a6620"></ellipse><ellipse cx="130" cy="89" rx="13" ry="5" fill="#f0cf72"></ellipse><ellipse cx="121" cy="78" rx="13" ry="5" fill="#8a6620"></ellipse><ellipse cx="121" cy="75" rx="13" ry="5" fill="#e8c766"></ellipse><circle cx="121" cy="75" r="5" fill="none" stroke="#a77b22" stroke-width="1"></circle></g>
+</svg>
+</sc-if>
+
+<!-- plaques des joueurs, avec leur rang dans le pli -->
+<sc-for list="{{pods}}" as="p" hint-placeholder-count="4">
+<div style="position: absolute; left: {{p.x}}px; top: {{p.y}}px; width: 236px; height: 72px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border-radius: 40px 14px 14px 40px; background: {{podBg}}; border: 1px solid {{p.bd}}; box-shadow: {{p.sh}}; z-index: 5;">
+<sc-if value="{{amb}}" hint-placeholder-val="{{true}}"><span style="position: absolute; right: 7px; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f2d48a, #6b4c14);"></span><span style="position: absolute; right: 7px; bottom: 7px; width: 5px; height: 5px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f2d48a, #6b4c14);"></span></sc-if>
+<div style="position: relative;">
+<div style="width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'IM Fell English SC', serif; font-size: 22px; color: #1b140e; background: {{p.c}}; box-shadow: 0 0 0 2px #1b140e, 0 0 0 4px {{p.c}};">{{p.init}}</div>
+<span class="{{sealCls}}" style="position: absolute; right: -8px; top: -8px; width: 26px; height: 26px; box-sizing: border-box; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-family: 'Pirata One', cursive; font-size: 16px; background: {{p.rankBg}}; color: {{p.rankInk}}; box-shadow: 0 0 0 2px #1b140e;">{{p.order}}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><b style="font-size: 16px; color: #f2e7cd;">{{p.name}}</b><span style="font-size: 13px; color: {{p.subInk}};">{{p.sub}}</span></div>
+</div>
+</sc-for>
+
+<!-- le pli : une ligne, de gauche à droite, dans l'ordre de pose -->
+<div style="position: absolute; left: 196px; top: 150px; width: 696px; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 6;">
+<div style="display: flex; align-items: center; gap: 10px; padding: 5px 14px; border-radius: {{leadRad}}; background: {{leadBg}}; border: 1px solid rgba(234,208,138,.25); font-size: 14px; box-shadow: {{leadSh}};">
+<span style="color: {{leadLblInk}};">Couleur demandée</span>
+<span style="display: inline-flex; align-items: center; gap: 6px; font-weight: 800; color: {{leadInk}};"><span style="width: 12px; height: 12px; border-radius: 50%; background: {{leadDot}};"></span>{{leadLabel}}</span>
+</div>
+<div style="display: flex; align-items: flex-start; gap: 6px;">
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 6px;">
+<sc-if value="{{s.arrow}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 20 20" style="width: 18px; height: 18px; margin-top: 0;" aria-hidden="true"><path d="M4 10h11M11 5l5 5-5 5" fill="none" stroke="rgba(234,208,138,.55)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></sc-if>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 110px;">
+<div style="display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 4px; border-radius: 999px; background: {{s.tagBg}}; border: 1px solid {{s.tagBd}};">
+<span style="width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11.5px; background: {{s.c}}; color: #1b140e;">{{s.n}}</span>
+<span style="font-weight: 800; font-size: 13px; color: {{s.tagInk}}; white-space: nowrap;">{{s.name}}</span>
+</div>
+<div style="position: relative; width: 100px; height: 140px;">
+<sc-if value="{{s.played}}" hint-placeholder-val="{{true}}">
+<div class="{{s.dropCls}}" style="border-radius: 9px; box-shadow: {{s.cardSh}}; filter: {{s.filter}}; transition: box-shadow .3s, filter .3s;"><dc-import name="Card" card="{{s.card}}" w="{{100}}" hint-size="100px,140px"></dc-import></div>
+<sc-if value="{{s.lead}}" hint-placeholder-val="{{false}}"><span style="position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); padding: 2px 8px; border-radius: 999px; background: #1b140e; border: 1px solid rgba(234,208,138,.45); font-size: 11px; font-weight: 800; color: #ead08a; white-space: nowrap;">ouvre</span></sc-if>
+</sc-if>
+<sc-if value="{{s.empty}}" hint-placeholder-val="{{false}}">
+<div class="{{s.emptyCls}}" style="width: 100px; height: 140px; box-sizing: border-box; border-radius: 8px; border: 2px dashed rgba(234,208,138,.35); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 13px; color: #a8987f; padding: 8px;">{{s.wait}}</div>
+</sc-if>
+</div>
+<div style="height: 22px;"><sc-if value="{{s.win}}" hint-placeholder-val="{{false}}"><span class="crown" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;"><svg viewBox="0 0 24 24" style="width: 14px; height: 14px;" aria-hidden="true"><path d="M3 18l2-10 5 4 2-7 2 7 5-4 2 10z" fill="#2b2117"></path></svg>prend le pli</span></sc-if></div>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="font-size: 13.5px; color: #d9cdb6; text-align: center; max-width: 560px; line-height: 1.4;">{{why}}</div>
+</div>
+
+<!-- panneau d'explication -->
+<div style="position: absolute; left: 1090px; top: 80px; width: 326px; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">L'ambiance à bord</div>
+<div style="font-size: 14px; color: #d9cdb6; line-height: 1.5;">Des détails pirates autour du jeu, jamais sur les cartes ni sur les informations. Tout reste dans les marges, discret, et une option « Ambiance sobre » coupe tout.</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;"><button class="btn gold" onClick="{{toggle}}">{{toggleLabel}}</button><button class="btn" onClick="{{step}}">{{stepLabel}}</button></div>
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="5">
+<div style="display: flex; gap: 10px;"><span style="flex: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;">{{n.i}}</span><span style="font-size: 13.5px; color: #d9cdb6; line-height: 1.4;"><b style="color: #f2e7cd;">{{n.t}}</b> · {{n.d}}</span></div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 24px; top: 684px; width: 1040px; height: 204px; border-radius: 16px; background: {{railBg}}; box-shadow: inset 0 2px 0 rgba(255,220,170,.15), 0 -6px 18px rgba(0,0,0,.35); border: 1px solid #2a170b;"></div>
+<sc-if value="{{amb}}" hint-placeholder-val="{{true}}">
+<div style="position: absolute; left: 36px; top: 679px; width: 1016px; height: 9px; border-radius: 5px; background: repeating-linear-gradient(60deg, #b08a5a 0 5px, #7a5a32 5px 9px); box-shadow: 0 2px 3px rgba(0,0,0,.5); z-index: 3;"></div>
+<span style="position: absolute; left: 30px; top: 690px; width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f2d48a, #6b4c14); z-index: 3;"></span>
+<span style="position: absolute; left: 1049px; top: 690px; width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f2d48a, #6b4c14); z-index: 3;"></span>
+</sc-if>
+<div style="position: absolute; left: 44px; top: 698px; font-family: 'IM Fell English SC', serif; font-size: 17px; color: #f2e7cd;">Votre main</div>
+<sc-for list="{{hand}}" as="c" hint-placeholder-count="4">
+<div style="position: absolute; left: {{c.x}}px; top: 712px; z-index: {{c.z}};"><dc-import name="Card" card="{{c.card}}" w="{{124}}" hint-size="124px,174px"></dc-import></div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  state = { k: 3, amb: true };
+  renderVals() {
+    var k = this.state.k, amb = this.state.amb;
+    // ordre de jeu : Maëlle ouvre, puis Corentin, Ysolde, Vous
+    var P = [
+      { id: 'left', name: 'Maëlle', init: 'M', c: '#7ab874', x: 32, y: 293, card: { kind: 'num', suit: 'green', rank: 14 } },
+      { id: 'top', name: 'Corentin', init: 'C', c: '#c8644b', x: 426, y: 64, card: { kind: 'num', suit: 'green', rank: 12 } },
+      { id: 'right', name: 'Ysolde', init: 'Y', c: '#5c9db6', x: 820, y: 293, card: { kind: 'pirate', name: 'Harry le géant' } },
+      { id: 'you', name: 'Vous', init: 'T', c: '#d9b25a', x: 426, y: 522, card: { kind: 'mermaid', name: 'Alyra' } }
+    ];
+    var WIN = [0, 0, 2, 2], WHY = ['', 'Maëlle ouvre au Perroquet avec le 14.', 'Corentin suit la couleur avec un 12 : le 14 reste le plus fort.', 'Ysolde coupe avec un pirate : il bat les cartes numérotées.', 'Votre sirène perd contre le pirate : Ysolde prend le pli.'];
+    var win = k > 0 ? WIN[k - 1] : -1;
+    var slots = P.map((p, i) => { var played = i < k, next = i === k;
+      return { n: i + 1, name: p.name, c: p.c, card: p.card, played: played, empty: !played, arrow: i > 0, lead: i === 0 && played, win: played && i === win,
+        dropCls: played && i === k - 1 ? 'drop' : '', emptyCls: next ? 'next' : '', wait: next ? (p.id === 'you' ? 'À vous de jouer' : p.name + ' réfléchit…') : 'en attente',
+        tagBg: next ? 'rgba(234,208,138,.18)' : 'rgba(0,0,0,.4)', tagBd: next ? '#ead08a' : 'rgba(234,208,138,.2)', tagInk: next ? '#ead08a' : '#efe6d2',
+        cardSh: played && i === win ? '0 0 0 3px #ead08a, 0 0 26px rgba(234,208,138,.65)' : '0 6px 14px rgba(0,0,0,.5)',
+        filter: played && win >= 0 && i !== win ? 'brightness(.82)' : 'none' }; });
+    var pods = P.map((p, i) => { var played = i < k, next = i === k;
+      return { name: p.name, init: p.init, c: p.c, x: p.x, y: p.y, order: i + 1,
+        sub: played ? (i === win ? 'prend le pli' : 'a joué') : next ? 'doit jouer' : 'joue en ' + (i + 1) + 'e',
+        subInk: next || (played && i === win) ? '#ead08a' : '#a8987f',
+        rankBg: played ? p.c : next ? '#ead08a' : '#3a2e22', rankInk: played || next ? '#1b140e' : '#a8987f',
+        bd: next ? '#ead08a' : 'rgba(234,208,138,.3)', sh: next ? '0 0 0 2px #ead08a, 0 0 22px rgba(234,208,138,.45), 0 8px 18px rgba(0,0,0,.55)' : '0 8px 18px rgba(0,0,0,.55)' }; });
+    return {
+      pods: pods, slots: slots, why: WHY[k],
+      leadLabel: 'Perroquet', leadDot: '#3e8e4e', leadInk: amb ? '#2f6f3a' : '#9bd69f',
+      step: () => this.setState({ k: k >= 4 ? 0 : k + 1 }), stepLabel: k >= 4 ? 'Rejouer le pli' : 'Carte suivante', reset: () => this.setState({ k: 0 }),
+      amb: amb, toggle: () => this.setState({ amb: !amb }), toggleLabel: amb ? 'Voir en sobre' : 'Voir avec ambiance',
+      bgWall: amb ? 'repeating-linear-gradient(90deg, rgba(0,0,0,0) 0 116px, rgba(0,0,0,.35) 116px 119px, rgba(255,220,170,.03) 119px 120px), linear-gradient(180deg, #2a1d14, #1a120c 60%, #120c08)' : 'radial-gradient(ellipse at 38% 40%, #2a1f17 0%, #120e0b 70%)',
+      hdrBg: amb ? 'linear-gradient(180deg, #2a1d14, #1a120c)' : 'rgba(18,14,11,.85)',
+      rimBg: amb ? 'repeating-linear-gradient(100deg, rgba(0,0,0,0) 0 22px, rgba(0,0,0,.10) 22px 24px, rgba(255,220,170,.05) 24px 26px), linear-gradient(180deg, #8a5833, #5e381d 55%, #4a2b16)' : 'linear-gradient(180deg, #8a5833, #5e381d 55%, #4a2b16)',
+      podBg: amb ? 'linear-gradient(180deg, #33271c, #1d150f)' : 'linear-gradient(180deg, #2c221a, #1a130e)',
+      railBg: amb ? 'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 38px, rgba(0,0,0,.25) 38px 40px), linear-gradient(180deg, #5a3720, #3a2214)' : 'linear-gradient(180deg, #5a3720, #3a2214)',
+      sealCls: amb ? 'seal' : '',
+      leadBg: amb ? 'linear-gradient(180deg, #f2e4c0, #e0cc9c)' : 'rgba(8,20,22,.6)', leadLblInk: amb ? '#5d4c37' : '#a8987f', leadRad: amb ? '4px' : '999px', leadSh: amb ? '0 4px 10px rgba(0,0,0,.45)' : 'none',
+      knots: [1,2,3,4,5,6,7,8,9,10].map(n => 'knot' + (n < 5 ? ' on' : n === 5 ? ' cur' : '')),
+      notes: [
+        { i: 1, t: 'Cabine de navire', d: 'cloison en planches, table en bois veiné cloutée de laiton, corde tressée autour du tapis' },
+        { i: 2, t: 'Le tapis est une carte marine', d: 'quadrillage, lignes de rhumb, rose des vents, serpent de mer et « Mare Incognitum » à 7-10 % d\'opacité, sous les cartes' },
+        { i: 3, t: 'Lanterne et hublot', d: 'dans les coins vides : la lanterne vacille doucement et éclaire la table, la houle passe dans le hublot sous la lune' },
+        { i: 4, t: 'Informations habillées', d: 'rang du pli en sceau de cire, couleur demandée sur un bout de parchemin, manches en nœuds sur une corde' },
+        { i: 5, t: 'Garde-fous', d: 'rien ne bouge près des cartes, aucun décor sous le pli ni la main, animations coupées si « réduire les animations »' }
+      ],
+      hand: [{ kind: 'num', suit: 'green', rank: 9 }, { kind: 'num', suit: 'yellow', rank: 7 }, { kind: 'pirate', name: 'Rosie la douce' }, { kind: 'num', suit: 'black', rank: 5 }].map((c, i) => ({ card: c, x: 296 + i * 132, z: i + 1 }))
+    };
+  }
+}
+</script>
+</body>
+</html>

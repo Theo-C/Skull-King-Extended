@@ -32,6 +32,7 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
 - [ ] A5. Cartes de la main : leur taille suit la hauteur du bloc (prompt 1 de `docs/ecrans-compte/PROMPT-claude-code.md`), sans agrandir le bloc.
 - [ ] A6. Zoom au survol long (450 ms) : la carte s'affiche sur 300 px de large, avec à côté une fiche parchemin qui donne le nom et la règle.
 - [ ] A8. Pli en ligne : les cartes du pli s'alignent au centre de gauche à droite, dans l'ordre de pose, avec le rang et le nom de chaque joueur, des places vides pour ceux qui doivent encore jouer et la carte qui mène entourée d'or. Détails dans `docs/table-v2/PLI-EN-LIGNE.md`, maquette `PliOrdre`.
+- [ ] A9. Ambiance pirate de la table (maquette `TableAmbiance`, détails dans `docs/table-v2/AMBIANCE.md`) : cabine en planches, table en bois cloutée de laiton, tapis en carte marine très discrète, lanterne et hublot dans les coins vides, rang du pli en sceau de cire, couleur demandée sur parchemin, manches en nœuds de corde. Option « Ambiance sobre » dans les réglages.
 - [ ] A7. Aperçu d'un joueur au survol (maquette `ApercuJoueur`) :
   - contenu : identité, niveau, titre, Élo et tendance, présence en ligne ; barre manche par manche de la partie en cours ; 3 stats (victoires, mises tenues, parties) ; objets rares portés ; lien vers le profil ;
   - comportement : ouverture après 250 ms de survol ou au toucher, une version courte pour les bots ;
@@ -89,7 +90,7 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
 
 ## Ordre conseillé
 
-Commence par l'étape 0. Ensuite : A3 et A2 (corrections rapides), B (cartes), A1 / A4 à A6 / A8, C, D, puis A7 en dernier, car il dépend de l'Élo et des objets.
+Commence par l'étape 0. Ensuite : A3 et A2 (corrections rapides), B (cartes), A1 / A4 à A6 / A8 / A9, C, D, puis A7 en dernier, car il dépend de l'Élo et des objets.
 
 ## Contrôle final
 

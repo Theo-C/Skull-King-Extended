@@ -1,0 +1,90 @@
+/* Ambiance pirate de la table (A9, docs/table-v2/AMBIANCE.md, maquette TableAmbiance).
+   Tout est décoratif : pointer-events: none, jamais sous une carte, la main ou un texte (décors dans les marges et les coins).
+   .sobre (réglage « Ambiance : Sobre ») masque les couches 1, 3 et 4 et rend le style d'origine aux informations.
+   Les animations ne touchent que transform et opacity ; elles sont coupées sous prefers-reduced-motion. */
+@keyframes sway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+@keyframes flicker{0%,100%{opacity:.92}18%{opacity:.78}22%{opacity:.96}47%{opacity:.84}52%{opacity:1}76%{opacity:.88}}
+@keyframes flame{0%,100%{transform:scaleY(1) translateX(0)}35%{transform:scaleY(1.12) translateX(-.6px)}70%{transform:scaleY(.94) translateX(.6px)}}
+@keyframes swell{from{transform:translateX(0)}to{transform:translateX(-60px)}}
+@keyframes swell2{from{transform:translateX(-60px)}to{transform:translateX(0)}}
+
+/* 1. Fond : cloison en planches, halo chaud de lanterne en haut à gauche, vignettage */
+body.at-table .tablepage:not(.sobre){position:relative;isolation:isolate;
+  background:repeating-linear-gradient(90deg,rgba(0,0,0,0) 0 116px,rgba(0,0,0,.35) 116px 119px,rgba(255,220,170,.03) 119px 120px),linear-gradient(180deg,#2a1d14,#1a120c 60%,#120c08)}
+body.at-table .tablepage:not(.sobre)::before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse 620px 520px at 120px 120px,rgba(255,170,80,.20),transparent 70%),radial-gradient(ellipse 900px 700px at 40% 40%,rgba(255,190,110,.07),transparent 70%);
+  animation:flicker 4.2s ease-in-out infinite}
+body.at-table .tablepage:not(.sobre)::after{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 45% 45%,transparent 55%,rgba(0,0,0,.55) 100%)}
+
+/* 2. Rebord : bois veiné ; clous et corde (SVG .amb-rim) */
+.tablepage:not(.sobre) .rim{background:
+   repeating-linear-gradient(100deg,rgba(0,0,0,0) 0 22px,rgba(0,0,0,.10) 22px 24px,rgba(255,220,170,.05) 24px 26px),
+   linear-gradient(180deg,#8a5833,#5e381d 55%,#4a2b16)}
+.amb-rim{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+
+/* 3. Tapis = carte marine, au-dessus du feutre et sous tout le reste */
+.amb-chart{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+
+/* 4. Accessoires des coins (hors zone de jeu) */
+.amb-prop{position:absolute;z-index:1;pointer-events:none}
+.amb-prop[hidden]{display:none}
+.amb-lantern{transform-origin:50% 0;animation:sway 6s ease-in-out infinite}
+.amb-lantern svg{position:relative;z-index:1;width:100%;height:100%;display:block}
+.amb-lantern .amb-flame{transform-origin:50% 100%;transform-box:fill-box;animation:flame 1.6s ease-in-out infinite}
+.amb-lantern .amb-halo{position:absolute;left:-40px;top:30px;width:140px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(255,200,110,.35),transparent 65%);animation:flicker 4.2s ease-in-out infinite}
+.amb-porthole{border-radius:50%;overflow:hidden;background:linear-gradient(180deg,#0c1a33 0%,#1a2f55 55%,#0e2a3a 56%,#081a24 100%);
+  box-shadow:0 0 0 7px #b08a4a,0 0 0 9px #5e4422,inset 0 0 18px rgba(0,0,0,.7)}
+.amb-porthole .amb-moon{position:absolute;left:62px;top:16px;width:18px;height:18px;border-radius:50%;background:#f3e8cf;box-shadow:0 0 16px rgba(243,232,207,.7)}
+.amb-porthole .amb-swell{position:absolute;left:0;top:54px;width:180px;height:14px;animation:swell 7s linear infinite}
+.amb-porthole .amb-swell2{position:absolute;left:-60px;top:66px;width:180px;height:12px;animation:swell2 9s linear infinite}
+.amb-porthole .amb-glass{position:absolute;inset:0;border-radius:50%;background:linear-gradient(135deg,rgba(255,255,255,.12),transparent 45%)}
+.amb-dagger svg{width:100%;height:100%;display:block}
+/* coins masqués sous 1100 px et dans la version téléphone */
+@media (max-width:1099px){.amb-prop{display:none!important}}
+
+/* 5. Informations habillées */
+/* plaques : 2 rivets en laiton */
+.tablepage:not(.sobre) .pod{background:linear-gradient(180deg,#33271c,#1d150f)}
+.tablepage:not(.sobre) .pod::before,.tablepage:not(.sobre) .pod::after{content:'';position:absolute;right:7px;width:5px;height:5px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle at 35% 30%,#f2d48a,#6b4c14)}
+.tablepage:not(.sobre) .pod::before{top:7px}.tablepage:not(.sobre) .pod::after{bottom:7px}
+/* rang du pli : sceau de cire rouge, chiffre en Pirata One */
+.tablepage:not(.sobre) .prank{right:-8px;top:-8px;width:26px;height:26px;min-width:0;padding:0;border-radius:13px;font:400 16px/1 'Pirata One',var(--f-disp);
+  clip-path:polygon(50% 0,62% 6%,76% 4%,84% 15%,96% 22%,95% 37%,100% 50%,95% 63%,96% 78%,84% 85%,76% 96%,62% 94%,50% 100%,38% 94%,24% 96%,16% 85%,4% 78%,5% 63%,0 50%,5% 37%,4% 22%,16% 15%,24% 4%,38% 6%)}
+.tablepage:not(.sobre) .prank:not(.played):not(.next){background:radial-gradient(circle at 35% 30%,#c0473a 0 18%,#8e2a22 55%,#5e1714 100%);color:#f6d9cf;box-shadow:inset 0 0 0 2px rgba(255,180,160,.25)}
+.tablepage:not(.sobre) .prank.played{box-shadow:inset 0 0 0 2px rgba(0,0,0,.25)}
+.tablepage:not(.sobre) .oav .prank{width:18px;height:18px;right:-6px;top:-6px;font-size:12px}
+/* couleur demandée : bout de parchemin, texte encre (contraste ≥ 4,5:1) */
+.tablepage:not(.sobre) .askchip{border-radius:4px;background:linear-gradient(180deg,#f2e4c0,#e0cc9c);border-color:rgba(93,76,55,.35);color:#2b2117;box-shadow:0 4px 10px rgba(0,0,0,.45)}
+.tablepage:not(.sobre) .askchip span,.tablepage:not(.sobre) .askchip.none{color:#5d4c37}
+.tablepage:not(.sobre) .askchip b{color:#2b2117}
+/* en-tête : bois, corde de nœuds pour les manches (passées en doré, manche en cours avec un anneau) */
+.tablepage:not(.sobre) .gbar{background:linear-gradient(180deg,#2a1d14,#1a120c)}
+.tablepage:not(.sobre) .gdots{position:relative;gap:14px;padding:0 6px}
+.tablepage:not(.sobre) .gdots::before{content:'';position:absolute;left:0;right:0;top:50%;height:3px;margin-top:-1.5px;border-radius:2px;pointer-events:none;
+  background:repeating-linear-gradient(45deg,#8a6a3a 0 3px,#5e4422 3px 6px)}
+.tablepage:not(.sobre) .gdots i{position:relative;width:14px;height:14px;background:#1a120c;box-shadow:inset 0 0 0 2px #8a6a3a}
+.tablepage:not(.sobre) .gdots i.done{background:radial-gradient(circle at 35% 30%,#f2d48a,#b78c33 70%);box-shadow:inset 0 0 0 1px #6b4c14,0 0 6px rgba(234,208,138,.5)}
+.tablepage:not(.sobre) .gdots i.now{background:radial-gradient(circle at 35% 30%,#fff2c4,#e2bd62 70%);box-shadow:0 0 0 2px #ead08a,0 0 10px rgba(234,208,138,.8)}
+/* rail de la main : planches, liseré de corde en haut, embouts en laiton */
+.tablepage:not(.sobre) .rail{background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0 38px,rgba(0,0,0,.25) 38px 40px),linear-gradient(180deg,#5a3720,#3a2214)}
+.tablepage:not(.sobre) .rail::before{content:'';position:absolute;left:12px;right:12px;top:-5px;height:9px;border-radius:5px;pointer-events:none;z-index:1;
+  background:repeating-linear-gradient(60deg,#b08a5a 0 5px,#7a5a32 5px 9px);box-shadow:0 2px 3px rgba(0,0,0,.5)}
+.tablepage:not(.sobre) .rail::after{content:'';position:absolute;left:6px;right:6px;top:6px;height:9px;pointer-events:none;z-index:1;
+  background:radial-gradient(circle,#f2d48a,#6b4c14 60%,transparent 66%) left center/9px 9px no-repeat,radial-gradient(circle,#f2d48a,#6b4c14 60%,transparent 66%) right center/9px 9px no-repeat}
+
+/* téléphone : pas de rebord elliptique (table rectangulaire) */
+@media (max-width:719px){.amb-rim{display:none}.tablepage:not(.sobre) .rail::before{left:0;right:0;border-radius:0}.tablepage:not(.sobre) .rail::after{display:none}}
+
+/* Ambiance sobre : couches 1, 3 et 4 masquées */
+.tablepage.sobre .amb-chart,.tablepage.sobre .amb-rim,.tablepage.sobre .amb-prop{display:none}
+@media (prefers-reduced-motion:reduce){
+  .amb-lantern,.amb-lantern .amb-flame,.amb-lantern .amb-halo,.amb-porthole .amb-swell,.amb-porthole .amb-swell2,body.at-table .tablepage::before{animation:none!important}
+}
+
+/* le sélecteur d'ambiance passe dans le menu sur téléphone */
+@media (max-width:719px){#amb{display:none}}
+/* entre 720 et 1099 px, la barre est pleine : le réglage d'ambiance passe dans le menu */
+@media (min-width:720px) and (max-width:1099px){#amb{display:none}.gtools #bMenu{display:inline-flex}}
+@media (max-width:1099px){.tablepage:not(.sobre) .gdots{gap:7px;padding:0 3px}.tablepage:not(.sobre) .gdots i{width:11px;height:11px}}
+@media (max-width:799px){.tablepage:not(.sobre) .gdots{gap:4px;padding:0 2px}.tablepage:not(.sobre) .gdots i{width:10px;height:10px}}

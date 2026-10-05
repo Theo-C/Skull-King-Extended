@@ -7,6 +7,7 @@ import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
 import { installCardZoom, setZoomNote } from './zoom';
 import { avatarHTML, type AvatarData, type Look } from './avatar';
+import { mountAmbiance, fitProps, getAmbiance, setAmbiance } from './ambiance';
 import { levelFor, xpToReach, LEVEL_TITLES, fmt, xpReason as xpLabel } from './xp';
 import { openChestOverlay, type ChestResult } from './chest';
 import { PlayerCardCtl, type PlayerCardData, type SeatSnapshot } from './playercard';
@@ -139,6 +140,7 @@ export class TableView {
       <div class="gsp"></div>
       <div class="gtools">
         <select id="speed" class="tb" aria-label="Vitesse des animations"><option value="1.7">Lente</option><option value="1">Normale</option><option value="0.45">Rapide</option></select>
+        <select id="amb" class="tb" aria-label="Ambiance de la table"><option value="pirate">Ambiance : pirate</option><option value="sobre">Ambiance : sobre</option></select>
         <button class="tb" id="bLast" aria-label="Dernier pli">${ICON.last}<span class="lbl">Dernier pli</span></button>
         <button class="tb" id="bScores" aria-label="Scores">${ICON.scores}<span class="lbl">Scores</span></button>
         <button class="tb" id="bRules" aria-label="Règles">${ICON.rules}<span class="lbl">Règles</span></button>
@@ -170,6 +172,10 @@ export class TableView {
     $('#dClose', root).onclick = () => this.root.classList.remove('drawer');
     $('#dSheet', root).onclick = () => this.scoreSheet();
     $('#bMenu', root).onclick = () => this.menu();
+    // ambiance pirate (décor seulement) ou sobre, retenue dans localStorage pli.ambiance
+    mountAmbiance(root);
+    const amb = $('#amb', root) as HTMLSelectElement; amb.value = getAmbiance();
+    amb.onchange = () => { const v = amb.value === 'sobre' ? 'sobre' : 'pirate'; setAmbiance(v); root.classList.toggle('sobre', v === 'sobre'); };
     $('#bLast', root).onclick = () => this.lastTrickModal();
     const coinN = (ev: Event) => { const b = (ev.target as HTMLElement).closest?.('[data-n]') as HTMLElement | null; return b ? Number(b.dataset.n) : null; };
     $('#action', root).addEventListener('mouseover', ev => { const n = coinN(ev); if (n != null) this.renderStakes(n); });
@@ -443,9 +449,11 @@ export class TableView {
       { label: 'Dernier pli', value: 'last', cls: 'alt' }, { label: 'Règles', value: 'rules', cls: 'alt' },
       { label: soundOn() ? 'Couper le son' : 'Activer le son', value: 'sound', cls: 'alt' },
       { label: `Vitesse : ${this.speed === 1 ? 'normale' : this.speed > 1 ? 'lente' : 'rapide'}`, value: 'speed', cls: 'alt' },
+      { label: `Ambiance : ${getAmbiance()}`, value: 'amb', cls: 'alt' },
       { label: 'Quitter la table', value: 'exit', cls: 'alt' }, { label: 'Fermer', value: null }]);
     if (v === 'last') this.lastTrickModal(); else if (v === 'rules') modal(rulesHTML()); else if (v === 'exit') this.onExit();
     else if (v === 'sound') { ($('#bSound', this.root) as HTMLButtonElement).click(); }
+    else if (v === 'amb') { const a = $('#amb', this.root) as HTMLSelectElement; a.value = getAmbiance() === 'sobre' ? 'pirate' : 'sobre'; a.dispatchEvent(new Event('change')); toast('Ambiance : ' + a.value); }
     else if (v === 'speed') { const sp = $('#speed', this.root) as HTMLSelectElement; const o = ['1', '0.45', '1.7']; sp.value = o[(o.indexOf(sp.value) + 1) % 3]; sp.dispatchEvent(new Event('change')); toast('Vitesse : ' + sp.selectedOptions[0].text.toLowerCase()); }
   }
   /** Joueur dont on attend l'action : celui qui joue (ou choisit), ou vous tant que vous n'avez pas misé. */
@@ -487,6 +495,8 @@ export class TableView {
     const n = pb.players.length, mob = this.mob, b = this.bottom(), geo = mob ? mobileGeometry(n) : geometry(n);
     if (this.seatEls.length && !this.seatEls[0].isConnected) { this.seatEls = []; this.centerEl = null; this.tcards.clear(); this.tempty.clear(); this.arrowEls = []; }
 
+    // accessoires des coins : masqués s'ils toucheraient une plaque (positions selon le nombre de joueurs)
+    if (!mob) fitProps(this.root, geo);
     this.renderOpps();
     this.renderLise(mob ? null : geometry(n), mob);
     pb.players.forEach((p, i) => {
