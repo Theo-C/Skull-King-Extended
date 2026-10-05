@@ -1,106 +1,159 @@
-# Écrans du compte : spécification
+# Table de jeu v2 — cahier des charges
 
-Maquettes de référence dans `maquettes/`. Ces fichiers `.dc.html` viennent de l'outil de design : on les lit pour la mise en page, les textes, les couleurs et les données d'exemple, mais on ne les copie pas tels quels. La logique d'affichage se trouve dans le `<script type="text/x-dc">` en bas de chaque fichier.
+Refonte de la table de jeu du Pli des Pirates (`web/src/table.ts`, `web/src/game.css`, `web/src/app.css`, `web/src/pages/game.ts`).
+Objectif : que chaque joueur voie d'un coup d'œil **où il en est de sa mise**, **qui gagne le pli** et **à qui c'est le tour**, avec des animations
+qui racontent chaque coup. Public visé : parties entre amis à 3 ou 4 joueurs, sur ordinateur et téléphone.
 
-## Repères visuels (communs à toutes les pages)
+La maquette de référence est dans `docs/maquettes/` (fichiers `.dc.html` : HTML + un composant JS dans la balise `<script type="text/x-dc">`).
+Ils servent de **référence visuelle et de valeurs** (positions, couleurs, tailles, timings d'animation). Ce n'est pas du code à copier tel quel :
+le site est en TypeScript sans framework, rendu par chaînes HTML.
 
-- **Couleurs**
-  - fond `#120e0b`, avec un dégradé radial `#2a1f17` en haut à gauche ;
-  - panneaux `linear-gradient(180deg,#2a2019,#1f1813)`, bordure `rgba(234,208,138,.18)`, rayon 14 px ;
-  - or `#c9a14a` et `#ead08a` ;
-  - parchemin `#f6ecd4` → `#eadbb7`, utilisé pour les bandeaux importants ;
-  - encre `#2b2117`, texte atténué `#a8987f` ;
-  - réussite `#9bd69f`, échec `#f0a08b`.
-- **Polices** : IM Fell English SC pour les titres, Alegreya Sans pour le texte, Pirata One pour les gros chiffres (scores, rangs, XP).
-- **Boutons** : principal en or (`.gold`, 46 à 50 px de haut) ; secondaire contour or (`.ghost`).
-- **Mise en page fluide** : `main` à `max-width:1200px`, grilles en `repeat(auto-fit, minmax(min(100%, 340px), 1fr))`. Sur téléphone (moins de 720 px), la barre du haut est remplacée par une barre d'onglets en bas (voir `AccueilMobile`).
-- **Médaillons du podium** : or, argent, bronze (dégradés dans `DetailPartie`).
-- **Animations** : courtes (0,3 à 0,6 s) et désactivées par `prefers-reduced-motion`.
+| Fichier | Contenu |
+|---|---|
+| `Main.dc.html` | Table pendant un pli, avec le parcours complet : survol, carte jouée, résolution, ramassage |
+| `Bid.dc.html` | Phase de mise : mises scellées, révélation simultanée, total misé |
+| `RoundEnd.dc.html` | Fenêtre de fin de manche |
+| `Mobile.dc.html` | Disposition téléphone (390 px de large) |
+| `Card.dc.html` | Carte simplifiée de la maquette. **Ne pas l'utiliser** : le site garde ses vraies cartes (`web/src/cards.ts`, design « Mers Sauvages ») |
 
-## Pages et routes
+## Règles du chantier
 
-| Route | Maquette | Contenu |
+- **Ne pas toucher aux règles ni au serveur** sauf mention explicite ci-dessous : `supabase/functions/_shared/engine.ts` reste la source de vérité
+  et ses tests (`npm test`) doivent continuer de passer.
+- Garder le fonctionnement actuel : file d'événements rejouée par `TableView.push()`, état de référence appliqué par `setLatest()`,
+  mode entraînement hors ligne (`pages/misc.ts`) qui utilise la même `TableView`.
+- Garder les fonctions déjà ajoutées (son, « Dernier pli », vitesse des animations).
+- Toutes les animations respectent `prefers-reduced-motion` et le réglage de vitesse existant.
+- Couleurs, polices et fond restent ceux du jeu (tokens de `game.css`) : IM Fell English SC pour les titres, Alegreya Sans pour le texte,
+  Pirata One pour les chiffres des cartes.
+
+## 1. Barre de partie unique
+
+Pendant une partie (`body.at-table`), l'en-tête du site disparaît et une seule barre de 56 px le remplace :
+- à gauche : logo, « Manche 7 » (IM Fell, doré) puis « sur 10 · 7 cartes · pli 2 sur 7 » (gris), puis 10 points de progression
+  (passés dorés, manche en cours plus clair avec halo, à venir estompés) ;
+- à droite : Dernier pli, Scores, Règles, Son (icône seule avec `aria-label`), Quitter.
+
+## 2. Plaque de joueur
+
+Une plaque par joueur (236 × 78 px), posée sur le bord de la table : en bas (vous), à gauche, en haut, à droite pour 4 joueurs.
+Pour 3 joueurs : vous en bas, les deux autres en haut à gauche et en haut à droite. Au-delà de 4, garder la répartition en ellipse actuelle.
+
+Contenu :
+- avatar rond 56 px à la couleur du joueur, initiale ;
+- nom (16 px, gras), puis « 110 pts · 6 cartes » (13 px, gris) ;
+- étiquette « ENTAME » à côté du nom pour le joueur qui a ouvert le pli ;
+- **jauge « plis / mise »** à droite, chiffres 22 px : c'est l'information principale. Couleurs :
+  - il manque des plis → doré (`#ead08a`, fond `rgba(234,208,138,.1)`) ;
+  - mise tenue (plis = mise, y compris 0/0) → vert (`#9bd69f`, fond `rgba(134,201,138,.14)`) ;
+  - pli(s) de trop → rouge (`#f0a08b`, fond `rgba(232,131,107,.14)`).
+- Avant la révélation des mises : la jauge est remplacée par l'état de mise (voir §6).
+
+Supprimer les éventails de dos de cartes au-dessus des plaques : le nombre de cartes est dans le texte.
+
+## 3. Le pli au centre
+
+- Cartes du pli **plus grandes** (92 px de large sur ordinateur au lieu de ~68), disposées **en croix**, chacune devant son joueur,
+  légèrement inclinées (gauche −7°, haut +2°, droite +7°, bas −2°). Positions de référence dans `Main.dc.html` (`SLOT`).
+- Au-dessus de la croix : pastille « Doublon demandé » (rond de la couleur) ou « Aucune couleur demandée ».
+- Étiquette dorée **« En tête »** sous la carte qui gagne le pli pour l'instant. Calcul côté site avec
+  `resolve(trick.entries)` du moteur partagé (déjà importé via `@engine`) ; ne rien ajouter au serveur.
+- Quand c'est à vous : emplacement vide en pointillés « Votre carte » devant votre plaque (bordure qui pulse doucement).
+- Supprimer la rose des vents en filigrane derrière les cartes si elle gêne la lecture, ou la ramener à 14 % d'opacité.
+
+## 4. Votre tour
+
+- **Anneau de tour** : cercle doré qui se vide autour de l'avatar du joueur actif (SVG, `stroke-dashoffset` animé sur 30 s),
+  plus un halo qui « respire » sur sa plaque. Visuel uniquement : aucune règle de temps côté serveur pour l'instant.
+- **Bandeau d'action** (parchemin sous la table) : titre « À vous de jouer » et, à droite, compte à rebours « 30 s » avec barre.
+- **Aperçu du coup au survol ou au focus d'une carte** : la deuxième ligne du bandeau dit ce qui se passerait. Calcul côté site :
+  `resolve([...trick.entries, entréeSimulée])`. Messages :
+  - gagne : « 13 Doublon bat le 11 d'Ysolde : vous prenez le pli » (vert `#2b6a33`) ;
+  - perd : « 2 Doublon est trop faible : Ysolde garde le pli » (brun `#8a5e0e`) ;
+  - interdite : « Bloquée : vous devez fournir du Doublon » (rouge `#a03123`).
+  - Cartes à choix (Morgane la Louve, 0/14, Grand Quinze) : afficher le meilleur cas, ou « selon votre choix ».
+  - Sans survol : « Survolez une carte pour voir si elle prend le pli ».
+- **Main** : cartes 120 px, en éventail léger, posées sur le rail en bois. Jouables : contour doré au survol et levée de 24 px.
+  Interdites : désaturées et assombries, `aria-disabled="true"`, curseur « interdit ». Sur téléphone, un premier appui montre l'aperçu,
+  un second joue la carte.
+
+## 5. Panneau de droite
+
+1. **Classement** : rang, pastille couleur, nom, score total (20 px), variation de la manche précédente (vert/rouge),
+   et sous le nom des pastilles de mise (vides = plis manquants, vertes = pris, rouges = en trop) suivies de « il manque 1 »,
+   « mise tenue », « mise 0 tenue » ou « 1 de trop ».
+2. **Réactions** : 4 boutons (« Bien joué ! », « Aïe ! », « Hissez haut ! », « Bluff ? »). Un clic affiche une bulle 2,2 s à côté de la plaque
+   de l'expéditeur, chez tout le monde. Transport : **Supabase Realtime broadcast** sur le canal de la partie déjà ouvert dans `pages/game.ts`
+   (événement `emote`, charge utile `{ seat, text }`), rien en base. Limiter à une réaction toutes les 2 s par joueur. En entraînement, la bulle
+   s'affiche seulement localement.
+3. **Journal** réduit aux 5 dernières lignes, lien « Tout voir » qui ouvre le journal complet dans une fenêtre.
+
+## 6. Phase de mise
+
+- Au centre : « Manche 7 » en grand, « 7 cartes · 7 plis à prendre », puis « Mises secrètes · 2 joueurs sur 4 ont misé ».
+- Sur chaque plaque, à la place de la jauge : points animés « réfléchit… », ou pièce scellée (dos foncé à rose des vents) « a misé »,
+  ou « ? » pour vous tant que vous n'avez pas misé. `hasBid` est déjà dans la vue publique.
+- Bandeau : « Combien de plis allez-vous remporter ? » + pièces 0…n (46 px, la choisie se soulève). Après le choix : « Mise scellée : 2 »
+  et « En attente de Corentin… ».
+- À droite, encadré « Ce que vaut votre mise » qui suit la pièce survolée : mise n tenue +20×n, un pli d'écart −10, deux −20 ;
+  mise 0 : +10×cartes / −10×cartes. Utiliser les règles de score réelles (classique ou Rascal selon `opts.score`).
+- À la révélation (événement `bids`) : toutes les pièces se retournent (voir animations), puis le centre affiche
+  « Total misé : 5 pour 7 plis » et un commentaire : « 2 plis que personne n'a réclamés » (vert), « Autant de mises que de plis »
+  (doré) ou « Plus de mises que de plis : la bataille sera rude » (rouge).
+
+## 7. Fin de manche
+
+Fenêtre parchemin (voir `RoundEnd.dc.html`) remplaçant le récapitulatif actuel :
+- colonnes : rang (avec ▲ / ▼ si le classement a bougé), joueur, « mise → plis » + puce « tenue » / « +1 » / « −1 », points de base,
+  bonus en puces (« +20 Sirène capturée »…), total de la manche, total général ;
+- la ligne du meneur sur fond doré ;
+- bandeau « Coup de la manche » : la meilleure manche du tour parmi des cas simples (mise 0 tenue avec beaucoup de cartes, plus gros bonus,
+  plus grosse mise tenue). Calcul côté site à partir de `hist`.
+- **« Je suis prêt »** + barre de 8 s : la manche suivante s'affiche quand tout le monde est prêt ou à la fin du délai. Le serveur
+  enchaîne déjà les manches sans attendre : ici c'est seulement l'affichage côté site qui patiente. Diffuser « prêt » par Realtime broadcast
+  pour afficher « 3 prêts sur 4 ».
+
+## 8. Animations
+
+Toutes en CSS (keyframes + classes), timings de référence dans la maquette. Multiplier les durées par le réglage de vitesse existant.
+
+| Moment | Animation | Durée |
 |---|---|---|
-| `#/` | Accueil, AccueilMobile | Héros (avatar, niveau, barre d'XP, créer / code / entraînement), bandeau « À vous de jouer » si c'est votre tour quelque part, parties en cours, terminées récemment, mini classement entre amis, derniers hauts faits |
-| `#/salon/:code` | Salon | Code en grand, lien d'invitation, bouton Copier (devient « Lien copié ✓ » pendant 1,8 s), Partager (`navigator.share`), QR code ; places (hôte, prêt, bot, place libre + « Ajouter un bot ») ; réglages ; « Lever l'ancre » réservé à l'hôte, 2 joueurs minimum |
-| `#/profil` | Profil | Identité + XP, éditeur d'image de profil, 6 tuiles de stats, liste des titres, hauts faits, réglages du compte |
-| `#/historique` | Historique | Résumé de la période, filtres (Toutes, Victoires, Avec extension, Règles de base), liste regroupée par mois, pagination « plus anciennes » |
-| `#/partie/:id` | DetailPartie | Podium, courbe des scores cumulés, XP gagnée, temps forts, tableau manche par manche, « Revanche » |
-| `#/classement` | Classement | Entre amis / Tous, Semaine / Mois / Toujours, podium, tableau, votre ligne surlignée (et ajoutée en bas si vous êtes hors du top) |
-| superposition en fin de partie | FinPartie | Remplace l'écran de fin actuel : podium animé, détail XP, barre qui se remplit, haut fait débloqué |
+| Carte jouée par vous | Part de la main vers son emplacement, en se redressant (translation + rotation −16° → 0, échelle 1,3 → 1) | 550 ms |
+| Carte jouée par un autre | Même mouvement depuis sa plaque | 450 ms |
+| Changement de meneur du pli | L'étiquette « En tête » glisse vers la nouvelle carte | 200 ms |
+| Pli résolu | Halo doré pulsé sur la carte gagnante + bandeau « Vous remportez le pli / avec 13 Doublon » | 1,2 s |
+| Ramassage | Toutes les cartes filent vers la plaque du gagnant en rétrécissant (variables CSS `--dx --dy`) | 600 ms |
+| Jauge du gagnant | Grossit puis revient (×1,4) + « +1 pli » qui s'élève et s'efface | 550 ms / 1,8 s |
+| Kraken | La table tremble légèrement, les cartes coulent vers le centre et disparaissent | 700 ms |
+| Baleine / Raie | Onde circulaire depuis le centre, puis halo sur la plus haute / plus basse carte | 800 ms |
+| Mise scellée | La pièce apparaît en se posant (échelle 1,5 → 1) | 350 ms |
+| Révélation des mises | Toutes les pièces se retournent (rotateY 90° → 0), 90 ms de décalage entre joueurs | 550 ms |
+| Distribution | Les cartes arrivent une à une dans la main depuis le centre | 60 ms par carte |
+| Fin de manche | La fenêtre monte, les lignes entrent une à une (120 ms d'écart), les totaux de manche « rebondissent » | 0,4 s + 0,6 s |
+| Réaction | Bulle qui apparaît (échelle 0,8 → 1) puis disparaît | 2,2 s |
+| Joueur actif | Halo qui respire sur la plaque | 2 s en boucle |
 
-`AppBar` est l'en-tête commun : logo, navigation et pastille de profil (avatar, « Pseudo · Niv. N », mini barre d'XP).
+Sons (si le son est activé) : carte posée, pli ramassé, pièce retournée, réaction. Garder les sons existants si présents.
 
-## Avatar
+## 9. Téléphone (< 640 px)
 
-Le composant `Avatar(v, letter, color, size, ring)` sert partout : à la table, dans les listes et dans le classement.
+Voir `Mobile.dc.html` :
+- barre réduite : « Manche 7 · pli 2/7 », boutons Scores et Menu (44 × 44) ;
+- les adversaires en bandeau de 3 colonnes en haut (avatar 30 px, nom, jauge « 1/1 », score) ;
+- table rectangulaire arrondie, croix de cartes à 74 px, nom du joueur sous chaque carte (« Ysolde · en tête ») ;
+- votre ligne : avatar avec anneau de tour, « À vous de jouer », aperçu du coup, jauge « 0/2 » ;
+- main en éventail serré, cartes 92 px, sur le rail en bois ;
+- 3 réactions rapides en bas ;
+- le classement et le journal passent dans un tiroir ouvert par le bouton Scores.
 
-- `v = -1` : initiale sur fond de couleur (valeur par défaut d'un nouveau compte).
-- `v = 0..7` : silhouettes de pirate en SVG. Les tracés sont dans `maquettes/Avatar.dc.html` : tricorne, bandana, chapeau à plume, bicorne, bandana + bandeau, couronne, cheveux longs + tricorne, tricorne + perroquet.
-- **Photo** : téléversée dans Supabase Storage. Côté client, on la recadre en carré, on la réduit à 256 × 256 et on la convertit en WebP. Taille maximale : 5 Mo.
-- **Couleur du médaillon** : elle sert aussi de couleur du joueur à la table. Palette fixe de 8 couleurs : `#d9b25a #c8644b #7ab874 #5c9db6 #a982c4 #e0954a #c9c0ae #d77fa1`.
+## 10. Critères d'acceptation
 
-## XP et niveaux
-
-- **Gains, uniquement pour les parties en ligne terminées** (l'entraînement ne compte pas) :
-  - +50 pour une partie terminée ;
-  - +10 par mise tenue ;
-  - +100 pour une victoire ;
-  - +25 par haut fait débloqué.
-- **Niveaux** : passer du niveau L au niveau L+1 coûte 250 × L XP, soit 125 × L × (L − 1) XP au total pour atteindre le niveau L. La barre affiche l'XP gagnée à l'intérieur du niveau, par exemple « 2 340 / 3 000 ».
-- **Titres par niveau** : 1 Mousse, 3 Matelot, 5 Gabier, 8 Quartier-maître, 11 Bosco, 13 Second, 16 Capitaine, 20 Corsaire, 25 Amiral, 30 Légende des 7 mers.
-- **Calcul côté serveur uniquement**, dans l'Edge Function, quand la partie passe à `finished`. Il doit être idempotent, avec une contrainte unique sur `xp_events (game_id, user_id, reason)`.
-
-## Hauts faits (première série)
-
-| Code | Nom | Condition |
-|---|---|---|
-| first_game | Premier abordage | terminer une partie |
-| perfect | Sans fausse note | tenir toutes ses mises sur une partie |
-| kraken_bet | Pari du Kraken | mise de 0 tenue à la manche 10 |
-| siren_hunter | Chasseur de sirènes | 10 sirènes capturées au total (Barbe-Cendre ou pirate) |
-| grand_quinze | Grand Quinze | remporter un pli avec le Grand Quinze |
-| silk_thread | Fil-de-Soie | la carte imposée par Lise remporte le pli |
-| captain | Capitaine des mers | 10 victoires |
-| abyss | Fosse insondable | remporter un pli avec la Fosse des Noyés |
-| mermaid_king | La Sirène et le Roi | capturer Barbe-Cendre avec une sirène |
-| velvet | Main de velours | 5 mises à 0 tenues au total |
-
-On les détecte à partir de `hist` et des `game_events` en fin de partie. Les compteurs cumulés (sirènes, victoires, mises à 0) sont tenus dans `player_stats`.
-
-## Élo et classement
-
-L'Élo mesure le niveau (il monte et descend) ; l'XP mesure l'assiduité (elle ne fait que monter). Les deux sont affichés séparément.
-
-- **Départ et plancher** : tout compte commence à **100**. L'Élo ne descend jamais sous **0** (`max(0, …)`).
-- **Formule multijoueur par paires**. Pour une partie à n joueurs humains, on compare le joueur i à chaque adversaire j :
-  - `S = 1` si i finit devant j, `0,5` en cas d'égalité de score, `0` sinon ;
-  - `E = 1 / (1 + 10^((Rj − Ri) / 100))` (diviseur 100, adapté à une échelle qui part de 100) ;
-  - `Δi = K / (n − 1) × Σj (S − E)`.
-- **K** : 40 pendant les 10 premières parties classées (pour trouver vite son niveau), 20 ensuite.
-- **Calcul** : on part des Élo *avant* la partie pour tout le monde, puis on applique les Δ en même temps. On stocke la valeur décimale (`numeric(7,2)`) et on l'affiche arrondie.
-- **Ordres de grandeur avec K = 20**, 4 joueurs à 100 :
-  - le 1er gagne +10, le 2e +3, le 3e −3, le 4e −10 ;
-  - un joueur à 60 qui bat un joueur à 200 en duel gagne +19 ;
-  - à l'inverse, le joueur à 200 qui bat celui à 60 ne gagne que +1.
-- **Ce qui compte** : les parties en ligne terminées, entre au moins 2 humains. Les bots sont ignorés (on les retire des paires) ; une partie avec un seul humain ne compte pas. L'entraînement ne compte jamais. Quitter une partie en cours = dernière place pour l'Élo.
-- **Exemple de la maquette** (Table de Maëlle) :
-
-| Joueur | Élo avant | Place | Variation | Élo après |
-|---|---|---|---|---|
-| Théo | 133 | 1 | +9,7 | 143 |
-| Corentin | 122 | 2 | +4,6 | 127 |
-| Maëlle | 172 | 3 | −8,8 | 163 |
-| Ysolde | 99 | 4 | −5,6 | 93 |
-
-  Détail pour Théo, affiché dans FinPartie : devant Maëlle +4,7, devant Corentin +2,9, devant Ysolde +2,1.
-
-**Classement** : trié par Élo actuel. « Entre amis » = toutes les personnes avec qui l'on a déjà joué au moins une partie ; « Tous » = au moins 5 parties classées et `public_rank = true`. Le filtre Semaine / Mois / Toujours ne change pas le tri : il change la dernière colonne (variation d'Élo sur 7 jours, sur 30 jours, ou record).
-
-**Où l'Élo apparaît** :
-- Profil : pastille dans l'en-tête, tuile, panneau avec la courbe des 15 dernières parties ;
-- Accueil : mini classement entre amis ;
-- Historique : pastille ± par partie ;
-- DetailPartie : Élo après et variation sous le podium ;
-- FinPartie : avant → après et détail par adversaire ;
-- Classement.
+- [ ] Partie à 3 et à 4 en ligne : la jauge « plis / mise » de chaque joueur est juste après chaque pli (vérifier contre la feuille de scores).
+- [ ] « En tête » désigne toujours la carte que `resolve()` donne gagnante, y compris avec Kraken, Baleine, Raie, Fosse, Planche, Grand Quinze.
+- [ ] L'aperçu au survol annonce le bon résultat pour chaque carte de la main.
+- [ ] Les animations s'enchaînent sans saut quand plusieurs coups arrivent d'un coup (file d'événements), et se coupent avec `prefers-reduced-motion`.
+- [ ] Les réactions apparaissent chez tous les joueurs en moins d'une seconde, et pas plus d'une toutes les 2 s par joueur.
+- [ ] Le mode entraînement fonctionne toujours, sans compte.
+- [ ] Rien ne déborde à 390 px de large ; boutons et cartes jouables ≥ 44 px de haut.
+- [ ] `npm test`, `npm run typecheck` et `npm run build` passent.

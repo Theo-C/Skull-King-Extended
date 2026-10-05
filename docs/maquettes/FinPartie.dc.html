@@ -27,10 +27,14 @@ button:focus-visible,a:focus-visible{outline:2px solid #ead08a;outline-offset:2p
 .medal{animation:medal .6s 2.6s cubic-bezier(.2,.8,.3,1.2) both}
 @keyframes spark{0%{opacity:0;transform:translateY(0) scale(.6)}20%{opacity:1}100%{opacity:0;transform:translateY(-120px) scale(1)}}
 .sp{position:absolute;width:6px;height:6px;border-radius:50%;background:#ead08a;animation:spark 2.4s ease-out infinite}
+@keyframes popIn{0%{opacity:0;transform:scale(.6) rotate(-8deg)}70%{transform:scale(1.08)}100%{opacity:1;transform:none}}
+.pop{animation:popIn .5s cubic-bezier(.2,.8,.3,1.2) both}
+@keyframes wob{0%,100%{transform:rotate(0)}20%{transform:rotate(-6deg)}40%{transform:rotate(5deg)}60%{transform:rotate(-3deg)}}
+.chest{animation:wob 1.2s 3.4s ease-in-out 2}
 @media (prefers-reduced-motion: reduce){*{animation:none!important}}
 </style>
 </helmet>
-<div style="position: relative; width: 100%; height: 900px; overflow: hidden; background: radial-gradient(ellipse at 38% 40%, #2a1f17 0%, #120e0b 70%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+<div style="position: relative; width: 100%; height: 1000px; overflow: hidden; background: radial-gradient(ellipse at 38% 40%, #2a1f17 0%, #120e0b 70%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
 <div style="position: absolute; left: 50%; top: 90px; width: 1040px; height: 520px; margin-left: -520px; border-radius: 50%; background: radial-gradient(ellipse at 50% 46%, #2a6066 0%, #1f4c50 42%, #102c31 100%); box-shadow: 0 0 0 26px #5e381d; filter: blur(3px); opacity: .5;"></div>
 <div style="position: absolute; inset: 0; background: rgba(10,7,5,.62);"></div>
 <span class="sp" style="left: 30%; top: 300px; animation-delay: .2s;"></span><span class="sp" style="left: 38%; top: 260px; animation-delay: .9s;"></span><span class="sp" style="left: 62%; top: 280px; animation-delay: .5s;"></span><span class="sp" style="left: 70%; top: 320px; animation-delay: 1.3s;"></span>
@@ -55,7 +59,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #ead08a;outline-offset:2p
 </sc-for>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px;">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px;">
 <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; border-radius: 12px; background: rgba(0,0,0,.28);">
 <sc-for list="{{xp}}" as="x" hint-placeholder-count="4"><div class="xl" style="display: flex; justify-content: space-between; font-size: 15px; animation-delay: {{x.d}}s;"><span>{{x.t}}</span><b style="color: #ead08a;">{{x.v}}</b></div></sc-for>
 <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px; border-top: 1px solid rgba(234,208,138,.2);"><b>Niveau 12 · Bosco</b><b style="font-family: 'Pirata One', cursive; font-size: 26px; color: #ead08a;">+255 XP</b></div>
@@ -67,9 +71,22 @@ button:focus-visible,a:focus-visible{outline:2px solid #ead08a;outline-offset:2p
 <span style="display: flex; align-items: baseline; gap: 10px;"><span style="font-family: 'Pirata One', cursive; font-size: 24px; color: #a8987f;">133</span><span style="color: #a8987f;">→</span><span style="font-family: 'Pirata One', cursive; font-size: 40px; line-height: 1; color: #ead08a;">143</span><b style="color: #9bd69f; font-size: 18px;">+10</b></span>
 <sc-for list="{{elo}}" as="e" hint-placeholder-count="3"><div style="display: flex; justify-content: space-between; font-size: 13.5px; color: #d9cdb6;"><span>{{e.t}}</span><b style="color: #9bd69f;">{{e.v}}</b></div></sc-for>
 </div>
-<div style="display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 12px; background: linear-gradient(180deg, #f6ecd4, #eadbb7); color: #2b2117; border-top: 2px solid #c9a96a; border-bottom: 2px solid #c9a96a;">
-<span class="medal" style="width: 64px; height: 64px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, #f6e3a8, #b78c33 70%); box-shadow: inset 0 0 0 3px rgba(60,40,10,.4), 0 6px 14px rgba(0,0,0,.3);"><svg viewBox="0 0 24 24" style="width: 30px; height: 30px;" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z" fill="#3a2a10"></path></svg></span>
-<span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #7a6132;">Haut fait débloqué</span><span style="font-family: 'IM Fell English SC', serif; font-size: 24px; line-height: 1.05;">Pari du Kraken</span><span style="font-size: 14px; font-weight: 700; color: #5d4c37;">Mise de 0 tenue en manche 10</span></span>
+<div style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px;">
+<div class="xl" style="display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 12px; background: linear-gradient(180deg, #f6ecd4, #eadbb7); color: #2b2117; border-top: 2px solid #c9a96a; border-bottom: 2px solid #c9a96a; animation-delay: 2.5s;">
+<span class="medal" style="position: relative; width: 64px; height: 64px; flex: none; line-height: 0;"><dc-import name="Avatar" v="{{2}}" color="#d9b25a" look="{{achLook}}" size="{{64}}" ring="0 0 0 2px #1b140e, 0 0 0 4px #ead08a" hint-size="64px,64px"></dc-import></span>
+<span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #7a6132;">Haut fait · Pari du Kraken</span><span style="font-family: 'IM Fell English SC', serif; font-size: 22px; line-height: 1.05;">Cadre Tentacules</span><span style="font-size: 13.5px; font-weight: 700; color: #5d4c37;">Objet légendaire, réservé à ce haut fait</span></span>
+</div>
+<div class="xl" style="display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 12px; background: rgba(0,0,0,.32); border: 1px solid rgba(111,179,208,.45); animation-delay: 2.8s;">
+<sc-if value="{{closed}}" hint-placeholder-val="{{true}}">
+<button onClick="{{open}}" class="chest" aria-label="Ouvrir le coffre de victoire" style="width: 72px; height: 64px; flex: none; padding: 0; border: 0; background: transparent; cursor: pointer;"><svg viewBox="0 0 72 64" style="width: 72px; height: 64px;" aria-hidden="true"><rect x="8" y="28" width="56" height="30" rx="3" fill="#6b4226" stroke="#2a170b" stroke-width="2"></rect><path d="M8 28c0-12 10-18 28-18s28 6 28 18z" fill="#7d4f2c" stroke="#2a170b" stroke-width="2"></path><path d="M8 28h56M20 12v46M52 12v46" stroke="#c9a14a" stroke-width="3"></path><rect x="31" y="30" width="10" height="12" rx="2" fill="#e3c47a" stroke="#8a6620"></rect></svg></button>
+<span style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #6fb3d0;">Coffre de victoire</span><span style="font-size: 15px; color: #efe6d2;">Un objet pour votre pirate vous attend.</span><a class="gold" href="Coffre.dc.html" style="align-self: flex-start; min-height: 40px; padding: 0 16px; font-size: 15px; text-decoration: none;">Ouvrir le coffre</a></span>
+</sc-if>
+<sc-if value="{{opened}}" hint-placeholder-val="{{false}}">
+<span class="pop" style="line-height: 0; flex: none; filter: drop-shadow(0 0 12px rgba(79,168,255,.7));"><dc-import name="Objet" item="monocle" size="{{64}}" hint-size="64px,64px"></dc-import></span>
+<span class="pop" style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #6fb3d0;">★★ Rare · nouvel objet</span><span style="font-family: 'IM Fell English SC', serif; font-size: 22px; line-height: 1.05; color: #f2e7cd;">Monocle de l'armateur</span><span style="font-size: 13.5px; color: #a8987f;">Visible à la table dès la prochaine partie</span></span>
+<button class="gold" onClick="{{wear}}" style="margin-left: auto; min-height: 40px; padding: 0 14px; font-size: 15px;">{{wearLabel}}</button>
+</sc-if>
+</div>
 </div>
 </div>
 
@@ -82,12 +99,16 @@ button:focus-visible,a:focus-visible{outline:2px solid #ead08a;outline-offset:2p
 </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
 class Component extends DCLogic {
+  state = { opened: false, worn: false };
   renderVals() {
+    var st = this.state, base = { skin: 1, hair: 'meche', hc: 1, beard: 'short', hat: 'plume', htc: '#1d1814', neck: 'foulard', nkc: '#9e2a22', bg: 'mer', frame: null };
     var P = [['Théo', 2, 'T', '#d9b25a', 280, '+10'], ['Corentin', 3, 'C', '#c8644b', 250, '+5'], ['Maëlle', 6, 'M', '#7ab874', 230, '−9'], ['Ysolde', 0, 'Y', '#5c9db6', 200, '−6']];
     var H = [120, 92, 70, 52], ORD = [2, 1, 3, 4], R = ['1er', '2e', '3e', '4e'], MB = ['linear-gradient(180deg,#f6e3a8,#b78c33)', 'linear-gradient(180deg,#f1f1ec,#9da3a8)', 'linear-gradient(180deg,#f0c19b,#a8653a)', 'linear-gradient(180deg,#6b5a45,#3d3226)'], DL = [1.05, .75, .6, .45];
     return {
+      closed: !st.opened, opened: st.opened, open: () => this.setState({ opened: true }), wear: () => this.setState({ worn: true }), wearLabel: st.worn ? 'Porté ✓' : 'Le porter',
+      achLook: Object.assign({}, base, { frame: 'tentacules', hat: null }), loot: Object.assign({}, base, { face: 'monocle', hat: null }),
       pod: P.map((p, i) => ({ name: i ? p[0] : 'Vous', v: p[1], l: p[2], c: p[3], total: p[4], elo: p[5], rank: R[i], h: H[i], order: ORD[i], bg: MB[i], delay: DL[i], sz: i ? 52 : 68, ring: '0 0 0 2px #1b140e, 0 0 0 4px ' + p[3] })),
       elo: [{ t: 'Devant Maëlle (172)', v: '+4,7' }, { t: 'Devant Corentin (122)', v: '+2,9' }, { t: 'Devant Ysolde (99)', v: '+2,1' }],
       xp: [{ t: 'Partie terminée', v: '+50', d: 1.3 }, { t: '8 mises tenues × 10', v: '+80', d: 1.5 }, { t: 'Victoire', v: '+100', d: 1.7 }, { t: 'Haut fait', v: '+25', d: 1.9 }]
