@@ -2,7 +2,7 @@
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
 import { cname, leadSuitOf, resolve, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
 import { cardHTML, cardKey, backFace, preloadArt } from './cards';
-import { ANIM, ANIM_MODES, HALO_MS, animAllowed, attachAnim, detachAnim, getAnimMode, onAnimMode, setAnimMode, type AnimMode } from './animatedCards';
+import { ANIM, ANIM_MODES, HALO_MS, attachAnim, detachAnim, getAnimMode, onAnimMode, setAnimMode, type AnimMode } from './animatedCards';
 import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
@@ -342,7 +342,7 @@ export class TableView {
   /** Le réglage et l'appareil permettent d'animer les cartes de ce siège. */
   private animOn(seat: number) {
     const mode = getAnimMode();
-    return mode !== 'aucune' && (mode !== 'miennes' || seat === this.mySeat) && animAllowed();
+    return mode !== 'aucune' && (mode !== 'miennes' || seat === this.mySeat);
   }
   /** Clé de la carte si elle doit être animée quand ce siège la tient ou la pose (réglage, appareil, possession). */
   private animKey(seat: number, c: Card): string | null {

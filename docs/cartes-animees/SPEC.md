@@ -46,8 +46,7 @@ Une vidéo coûte beaucoup moins cher qu'un filtre SVG ou canvas : le décodage 
 - Couleurs du halo : kraken `#ff5a3a`, sk `#ffd36b`, raie `#6fe6ff`, baleine `#ff9a3a`, sirene `#bff6ff`, fosse `#5dff8a`.
 
 ## Garde-fous
-- Réglage « Cartes animées : toutes / les miennes / aucune » (localStorage `pli.cartesAnimees`).
-- Avec `prefers-reduced-motion` ou l'économiseur de données (`navigator.connection.saveData`), on affiche l'image fixe.
+- Réglage « Cartes animées : toutes / les miennes / aucune » (localStorage `pli.cartesAnimees`). Seul « aucune » coupe les vidéos ; `prefers-reduced-motion` et `saveData` ne les désactivent pas (le réglage utilisateur prime, on ne veut pas qu'un réglage système OS/navigateur fige les cartes à l'insu du joueur).
 - Si la vidéo ne peut pas être lue, le `poster` (l'image normale) reste affiché : il n'y a jamais de trou.
 
 ## Rareté et coffre

@@ -8,7 +8,7 @@ import { xpLine, LEVEL_TITLES, xpToReach, fmt } from '../xp';
 import { getAmbiance, setAmbiance } from '../ambiance';
 import { openChestOverlay, type ChestResult } from '../chest';
 import { ART } from '../cards';
-import { ANIM_MODES, KEY_OF_FILE, animAllowed, attachAnim, detachAnim, getAnimMode, setAnimMode, type AnimMode } from '../animatedCards';
+import { ANIM_MODES, KEY_OF_FILE, attachAnim, detachAnim, getAnimMode, setAnimMode, type AnimMode } from '../animatedCards';
 
 const COLOR_NAMES = ['Or', 'Corail', 'Algue', 'Lagon', 'Améthyste', 'Ambre', 'Écume', 'Corail rose'];
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z"/></svg>';
@@ -432,7 +432,7 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
     });
     box.querySelectorAll<HTMLElement>('.wcarte').forEach(t => {
       const card = t.querySelector('.wcard') as HTMLElement;
-      const on = () => { if (animAllowed() && getAnimMode() !== 'aucune') attachAnim(card, t.dataset.carte!); }, off = () => detachAnim(card);
+      const on = () => { if (getAnimMode() !== 'aucune') attachAnim(card, t.dataset.carte!); }, off = () => detachAnim(card);
       t.onmouseenter = on; t.onmouseleave = off; t.onfocus = on; t.onblur = off;
     });
     box.querySelectorAll<HTMLButtonElement>('.wvar').forEach(b => b.onclick = () => {

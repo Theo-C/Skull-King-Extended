@@ -1,8 +1,9 @@
 // Cartes animées, rareté Mythique (docs/cartes-animees/SPEC.md, maquette CartesAnimees) : six cartes dont l'illustration
 // est une courte vidéo en boucle. Trois couches dans .art : l'image normale (repli, toujours là), la vidéo masquée par
 // l'image (coins arrondis), puis le cadre seul (<fichier>-cadre.webp) pour que la compression ne touche jamais le cadre.
-// Garde-fous : réglage « toutes / les miennes / aucune » (localStorage pli.cartesAnimees), image fixe sous
-// prefers-reduced-motion ou en économie de données, une seule lecture à la fois par vidéo, pause quand l'onglet est masqué.
+// Garde-fous : réglage « toutes / les miennes / aucune » (localStorage pli.cartesAnimees), une seule lecture à la fois
+// par vidéo, pause quand l'onglet est masqué. Le réglage utilisateur prime : prefers-reduced-motion et saveData ne
+// coupent plus les cartes animées (seul « aucune » les désactive), le poster sert de repli si la vidéo ne peut pas lire.
 import { ART } from './cards';
 
 /** Clé de carte du moteur (cardKey) → fichier dans web/public/cards/anim/ et couleur du halo d'arrivée. */
@@ -33,12 +34,6 @@ export function setAnimMode(m: AnimMode) {
 }
 /** Prévenu à chaque changement du réglage (table et profil). Renvoie de quoi se désabonner. */
 export function onAnimMode(f: () => void) { listeners.add(f); return () => { listeners.delete(f); }; }
-
-/** L'appareil accepte les vidéos décoratives : ni mouvement réduit, ni économiseur de données. */
-export function animAllowed(): boolean {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
-  return !(navigator as any).connection?.saveData;
-}
 
 // une seule lecture par vidéo : pour chaque fichier, la dernière vidéo attachée joue, les autres attendent en pause
 const stacks = new Map<string, HTMLVideoElement[]>();
