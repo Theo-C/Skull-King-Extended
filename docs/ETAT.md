@@ -81,13 +81,7 @@ Choix validés le 5 octobre :
 
 ## Avancement
 
-Lots faits, un commit chacun, avec Unknown command: "test"
-
-
-Did you mean this?
-  npm test # Test a package
-To see a list of supported npm commands, run:
-  npm help et  au vert après chacun :
+Lots faits, un commit chacun, avec `npm test` et `npm run build` au vert après chacun :
 1. B : cartes illustrées, et A6 (zoom avec fiche).
 2. D côté serveur, puis D côté site, avec C5 (coffre en fin de partie).
 3. A7 : aperçu au survol.
