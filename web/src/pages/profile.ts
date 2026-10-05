@@ -101,7 +101,8 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
 
   const paintHero = (pp: Profile) => { $('#heroAv', root).innerHTML = avatarHTML(av(pp), 120, `0 0 0 3px #1b140e,0 0 0 6px ${pp.color}`); $('#heroName', root).textContent = pp.pseudo; };
   paintHero(p);
-  openWardrobe(root, uid, p, ward as any, (saved) => { Object.assign(p, saved); paintHero(p); forgetProfile(); });
+  const achNames = new Map((all as any[]).map(a => [a.code as string, a.name as string]));
+  openWardrobe(root, uid, p, ward as any, achNames, (saved) => { Object.assign(p, saved); paintHero(p); forgetProfile(); });
   $('#bEdit', root).onclick = () => openEditor(root, uid, p, saved => { Object.assign(p, saved); paintHero(p); forgetProfile(); shell({ id: uid }, 'profile'); });
   $('#bPseudo', root).onclick = async () => {
     const v = ($('#pseudo', root) as HTMLInputElement).value.trim();
@@ -307,7 +308,7 @@ const CHEST_ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h18
 
 interface WardrobeData { owned: string[]; coins: number; chests: number; shop: { cosmetic_id: string; price: number }[] }
 
-function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: WardrobeData, onSaved: (s: Partial<Profile>) => void) {
+function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: WardrobeData, achNames: Map<string, string>, onSaved: (s: Partial<Profile>) => void) {
   const box = $('#wardrobe', root);
   const st = {
     tab: 'base',
@@ -317,7 +318,6 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
     owned: new Set<string>(data.owned),
     coins: data.coins, chests: data.chests,
     shop: data.shop,
-    reveal: null as null | { cosmeticId: string; name: string; rarity: string },
     busy: false,
   };
   const totalItems = CATALOG.all.length;
@@ -359,7 +359,7 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
           ${!owned ? `<span class="wlock-ico">${LOCK_ICO}</span>` : ''}
           <span class="wname">${esc(it.name)}</span>
           <span class="wrar" style="color:${rar.color}">${esc(rar.name)}</span>
-          ${!owned && it.how ? `<span class="whow">${esc(howLabel(it.how))}</span>` : ''}
+          ${!owned && it.how ? `<span class="whow">${esc(howLabel(it.how, achNames))}</span>` : ''}
           ${vars}
         </button>`;
       }).join('');
@@ -376,12 +376,6 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
       }).join('')}
     </div>`;
 
-    const revealHtml = st.reveal ? `<div class="wreveal" role="status">
-      ${avatarHTML({ kind: 'art', letter: p.pseudo, color: st.color, look: previewLookFor(st.look, st.reveal.cosmeticId) }, 84, '0 0 0 3px #1b140e, 0 0 0 5px ' + RARITY[st.reveal.rarity].color)}
-      <span class="wrtxt"><span class="wrtag ${st.reveal.rarity}">Coffre ouvert · objet ${RARITY[st.reveal.rarity].name.toLowerCase()}</span><span class="wrttl">${esc(st.reveal.name)}</span><span class="wrsub">Ajouté à votre garde-robe.</span></span>
-      <button type="button" class="abtn gold" id="wWear">Le porter</button>
-    </div>` : '';
-
     box.innerHTML = `<div class="whead">
         <div class="wlhs"><h2>Garde-robe</h2><span class="lbl">Votre visage est libre ; les accessoires se gagnent en jouant.</span></div>
         <div class="wrhs">
@@ -390,7 +384,6 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
           ${st.chests > 0 ? `<button type="button" class="abtn gold" id="wChest">${CHEST_ICO}Ouvrir ${st.chests > 1 ? st.chests + ' coffres' : '1 coffre'} de victoire</button>` : ''}
         </div>
       </div>
-      ${revealHtml}
       <div class="wmain">
         <div class="wprev">
           ${avatarHTML(previewAv, 200, ring)}
@@ -424,12 +417,6 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
     });
     const wChest = box.querySelector('#wChest') as HTMLButtonElement | null;
     if (wChest) wChest.onclick = () => openChestFlow(wChest);
-    const wWear = box.querySelector('#wWear') as HTMLButtonElement | null;
-    if (wWear) wWear.onclick = () => {
-      if (!st.reveal) return;
-      const it = CATALOG.byId[st.reveal.cosmeticId]; if (!it) return;
-      (st.look as any)[it.slot] = it.value; st.tab = it.slot; st.reveal = null; render();
-    };
     box.querySelectorAll<HTMLButtonElement>('[data-buy]').forEach(b => b.onclick = () => doShopBuy(b));
     $('#wRand', box).onclick = () => {
       const rnd = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
@@ -453,7 +440,6 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
     }
     return out;
   };
-  const previewLookFor = withItem;
 
   async function openChestFlow(btn: HTMLButtonElement) {
     if (st.busy) return; st.busy = true; btn.disabled = true;
@@ -503,12 +489,12 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
   render();
 }
 
-/** Transforme un code de source d'obtention en texte lisible. */
-function howLabel(how: string): string {
+/** Transforme un code de source d'obtention en texte lisible (nom du haut fait lu dans la table achievements). */
+function howLabel(how: string, achNames: Map<string, string>): string {
   if (how === 'chest') return 'Coffre de victoire';
   if (how === 'shop') return 'Échoppe du port';
   if (how.startsWith('title:')) { const l = Number(how.slice(6)); const t = LEVEL_TITLES.find(([lv]) => lv === l); return t ? `Niveau ${l} · ${t[1]}` : `Niveau ${l}`; }
-  if (how.startsWith('achievement:')) return 'Haut fait · ' + how.slice(12);
+  if (how.startsWith('achievement:')) return 'Haut fait · ' + (achNames.get(how.slice(12)) ?? 'à débloquer');
   if (how === 'leaderboard:top3-month') return 'Top 3 du classement du mois';
   return how;
 }
