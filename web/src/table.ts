@@ -15,7 +15,6 @@ import { openChestOverlay, type ChestResult } from './chest';
 import { PlayerCardCtl, type PlayerCardData, type SeatSnapshot } from './playercard';
 
 
-const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 /** Remplace le contenu d'un élément seulement s'il a changé : évite de recréer le DOM (et de casser animations et survol). */
 const htmlCache = new WeakMap<Element, string>();
 function setHTML(el: Element, html: string) { if (htmlCache.get(el) !== html) { el.innerHTML = html; htmlCache.set(el, html); } }
@@ -296,7 +295,7 @@ export class TableView {
     this.wasMyTurn = mine;
     document.title = mine && document.hidden ? '⚓ À vous de jouer ! · ' + this.baseTitle : this.baseTitle;
   }
-  private get animMs() { return reduceMotion() ? 0 : Math.max(.5, Math.min(this.speed, 1.4)); }
+  private get animMs() { return Math.max(.5, Math.min(this.speed, 1.4)); }
   private renderBar() {
     const pb = this.pub!;
     setHTML($('#gRound', this.root), pb.round ? `Manche ${pb.round}` : 'Partie');
@@ -577,7 +576,7 @@ export class TableView {
       this.prevWon[i] = p.won;
       // variation de score : bulle +/- au-dessus de la plaque (posée sur le plateau pour survivre aux mises à jour de la plaque)
       const prev = this.prevScores[i];
-      if (prev != null && prev !== p.score && !reduceMotion()) {
+      if (prev != null && prev !== p.score) {
         const d = p.score - prev, f = document.createElement('div');
         f.className = 'float ' + (d < 0 ? 'neg' : ''); f.textContent = (d > 0 ? '+' : '') + d;
         if (mob) this.anchor(i)?.append(f); else { f.style.left = g.px + 'px'; f.style.top = (g.py - 46) + 'px'; layer.append(f); }
@@ -816,13 +815,13 @@ export class TableView {
       return R.winner ? t.entries.indexOf(R.winner) : null;
     } catch { return null; }
   }
-  /** Joue une animation CSS (classe + variables) puis nettoie ; la durée de secours couvre `prefers-reduced-motion` (aucun animationend). */
+  /** Joue une animation CSS (classe + variables) puis nettoie ; le setTimeout sert de filet si l'événement animationend se perd. */
   private animate(el: HTMLElement, cls: string, vars: Record<string, string>, ms: number, done?: () => void) {
     for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v);
     const cl = cls.split(' '); el.classList.remove(...cl); void el.offsetWidth; el.classList.add(...cl);
     let over = false; const end = () => { if (over) return; over = true; el.classList.remove(...cl); done?.(); };
     el.addEventListener('animationend', ev => { if (ev.target === el) end(); }, { once: true });
-    setTimeout(end, (reduceMotion() ? 0 : ms * this.animMs) + 120);
+    setTimeout(end, ms * this.animMs + 120);
   }
   /** Carte qui arrive sur le pli : depuis la main en se redressant (550 ms) ou depuis la plaque de l'adversaire (450 ms). */
   private flyIn(c: HTMLElement, seat: number, id: number) {

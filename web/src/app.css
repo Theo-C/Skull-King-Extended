@@ -173,7 +173,6 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 .fbadge.off{background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(234,208,138,.15)}.fbadge.off svg{stroke:#5d5142}
 .empty{color:var(--muted);margin:0}
 @media (max-width:719px){.apage{padding:16px 16px 32px;gap:16px}}
-@media (prefers-reduced-motion:reduce){.apage *{animation:none!important;transition:none!important}}
 
 /* Accueil */
 .sr{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
@@ -541,7 +540,6 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 @keyframes medal{0%{opacity:0;transform:scale(.4) rotate(-20deg)}70%{transform:scale(1.12) rotate(4deg)}100%{opacity:1;transform:none}}
 .fbtns{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}.fbtns .abtn{min-height:50px}
 @media (max-width:720px){.fcard{padding:20px 16px}.fhead h2{font-size:30px}.fpod{width:24%}.fpodium{gap:6px}}
-@media (prefers-reduced-motion:reduce){.finov *,.finov{animation:none!important}}
 .fbox.fxl{justify-content:flex-start}
 /* Coffre de victoire dans la superposition de fin de partie */
 .fchest{display:flex;align-items:center;gap:16px;padding:16px 18px;border-radius:12px;background:rgba(0,0,0,.32);border:1px solid rgba(111,179,208,.45);animation:inL .4s calc(2.6s * var(--spd,1)) ease-out both}
@@ -559,7 +557,6 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 .fcoins b{color:var(--brass2)}
 @keyframes wob{0%,100%{transform:rotate(0)}20%{transform:rotate(-6deg)}40%{transform:rotate(5deg)}60%{transform:rotate(-3deg)}}
 @keyframes pop{0%{opacity:0;transform:scale(.6) rotate(-8deg)}70%{transform:scale(1.08)}100%{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.fchest .fchestbtn,.fchest .pop{animation:none!important}}
 /* partie classée ou non (Élo), sous le nombre de manches : visible avant chaque lancement */
 .rnote{margin:8px 0 0;padding:10px 12px;border-radius:10px;font-size:14px;line-height:1.4;border:1px solid}
 .rnote:empty{display:none}

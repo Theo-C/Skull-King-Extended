@@ -1,6 +1,7 @@
 // Superposition d'ouverture de coffre (maquette docs/ecrans-compte/maquettes/Coffre.dc.html).
 // 7 phases : idle → shake → glow → tint → open → item → done (ou convert pour un doublon avant done).
-// `prefers-reduced-motion` : on affiche directement le résultat ; sons via sfx (coupés si l'option est désactivée).
+// L'animation du coffre tourne toujours en entier (le réglage système prefers-reduced-motion est ignoré par choix produit) ;
+// sons via sfx (coupés si l'option est désactivée). Le bouton « Passer » reste là pour qui veut sauter l'anim.
 import { esc } from './util';
 import { objectSVG } from './objects';
 import { sfx } from './sound';
@@ -106,7 +107,6 @@ function installStyles() {
 .chov.myth .crays>span{animation:cspin 18s linear infinite,cirid 3s linear infinite}
 @keyframes cirid{to{filter:hue-rotate(360deg)}}
 .chov .ctext .crlbl.irid{padding:2px 10px;border-radius:999px;color:#1b140e!important;background:${IRID}}
-@media (prefers-reduced-motion:reduce){.chov *{animation:none!important;transition:none!important}}
 .chov .citem.shown{opacity:1}
 @media (max-width:720px){.chov .chead{padding:12px 14px}.chov .chead h2{font-size:20px}.chov .ctext{bottom:90px}.chov .ctext .cname{font-size:28px}.chov .cact{right:12px;bottom:12px}.chov .cact button{min-height:46px;padding:0 14px;font-size:14px}.chov .cchest{width:260px;height:280px;transform:scale(.8)}}
 `;
@@ -144,7 +144,6 @@ const SOCKET_SVG = `<svg viewBox="0 0 1440 100" style="width:100%;display:block"
 /** Ouvre la superposition. L'appelant a déjà obtenu le résultat du serveur (chest.open). */
 export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}): void {
   installStyles();
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const prev = document.querySelector<HTMLElement>('.chov'); if (prev) prev.remove();
   const ov = document.createElement('div'); ov.className = 'chov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Ouverture de coffre');
   document.body.append(ov);
@@ -245,7 +244,7 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
         else if (a === 'again') { busy = true; b.disabled = true; cb.onOpenNext!().then((n) => { busy = false; render(n); }, (e) => { busy = false; b.disabled = false; alert((e as any)?.message || 'Erreur à l\'ouverture.'); }); }
       };
     };
-    /** Objet sorti, sans animation de montée (Passer, ou prefers-reduced-motion) : couvercle ouvert, teinte de rareté. */
+    /** Objet sorti, sans animation de montée (bouton Passer) : couvercle ouvert, teinte de rareté. */
     const reveal = () => {
       timers.forEach(clearTimeout); timers.length = 0; ov.classList.toggle('myth', r.rarity === 'm');
       chest.classList.remove('bob', 'shake', 'hum'); chest.classList.add('dim');
@@ -303,8 +302,6 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
     const start = () => {
       skipBtn.hidden = false;
       (ov.querySelector('.cidle') as HTMLElement).innerHTML = '';
-      // résultat direct : l'objet est montré tel quel, sans fonte en pièces
-      if (reduced) { reveal(); done(); return; }
       shake();
     };
     const idle = ov.querySelector('.cidle') as HTMLElement;

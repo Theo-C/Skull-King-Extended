@@ -1,7 +1,8 @@
 /* Ambiance pirate de la table (A9, docs/table-v2/AMBIANCE.md, maquette TableAmbiance).
    Tout est décoratif : pointer-events: none, jamais sous une carte, la main ou un texte (décors dans les marges et les coins).
    .sobre (réglage « Ambiance : Sobre ») masque les couches 1, 3 et 4 et rend le style d'origine aux informations.
-   Les animations ne touchent que transform et opacity ; elles sont coupées sous prefers-reduced-motion. */
+   Les animations ne touchent que transform et opacity. Elles tournent même sous prefers-reduced-motion
+   (le réglage utilisateur système ne doit pas figer l'ambiance de la table). */
 @keyframes sway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
 @keyframes flicker{0%,100%{opacity:.92}18%{opacity:.78}22%{opacity:.96}47%{opacity:.84}52%{opacity:1}76%{opacity:.88}}
 @keyframes flame{0%,100%{transform:scaleY(1) translateX(0)}35%{transform:scaleY(1.12) translateX(-.6px)}70%{transform:scaleY(.94) translateX(.6px)}}
@@ -78,9 +79,6 @@ body.at-table .tablepage:not(.sobre)::after{content:'';position:absolute;inset:0
 
 /* Ambiance sobre : couches 1, 3 et 4 masquées */
 .tablepage.sobre .amb-chart,.tablepage.sobre .amb-rim,.tablepage.sobre .amb-prop{display:none}
-@media (prefers-reduced-motion:reduce){
-  .amb-lantern,.amb-lantern .amb-flame,.amb-lantern .amb-halo,.amb-porthole .amb-swell,.amb-porthole .amb-swell2,body.at-table .tablepage::before{animation:none!important}
-}
 
 /* le sélecteur d'ambiance passe dans le menu sur téléphone */
 @media (max-width:719px){#amb,#anim{display:none}}

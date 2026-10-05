@@ -27,4 +27,3 @@
 .seatc{animation:none}
 .seatc.new{animation:inS .35s ease-out both}
 .kick.confirm{width:auto;padding:0 14px;border-radius:999px;border-color:#f0a08b;color:#f0a08b;font:800 14px var(--f-body)}
-@media (prefers-reduced-motion:reduce){.seatc.new,.skel{animation:none}}
