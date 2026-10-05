@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cartes animées</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible{outline:2px solid #ead08a;outline-offset:3px}
+.btn{min-height:40px;padding:0 16px;border-radius:9px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.35);color:#f2e7cd;font-weight:800;font-size:14px;cursor:pointer}
+.btn.sm{min-height:32px;padding:0 12px;font-size:13px}
+.btn.gold{border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117}
+
+.ac{transform-origin:50% 60%}
+.ac svg *{transform-box:fill-box;transform-origin:center}
+.sheen,.goldsweep{position:absolute;inset:0;pointer-events:none;-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.sheen{background:linear-gradient(115deg,transparent 0 40%,rgba(255,240,200,.0) 42%,rgba(255,236,190,.55) 46%,rgba(170,220,255,.5) 49%,rgba(255,170,235,.45) 52%,rgba(255,255,255,0) 56%,transparent 100%);background-size:320% 100%;mix-blend-mode:overlay;animation:sheen 7s ease-in-out infinite}
+@keyframes sheen{0%,62%{background-position:100% 0}100%{background-position:0 0}}
+.goldsweep{background:linear-gradient(110deg,transparent 0 44%,rgba(255,226,140,.0) 45%,rgba(255,232,160,.85) 49%,rgba(255,226,140,0) 53%,transparent 100%);background-size:300% 100%;mix-blend-mode:color-dodge;opacity:.55;animation:sheen 5s ease-in-out infinite 1s}
+.bolt{opacity:0;animation-duration:6s;animation-iteration-count:infinite}
+@keyframes boltA{0%,68%{opacity:0}69%{opacity:1}70%{opacity:.1}72%{opacity:1}76%,100%{opacity:0}}
+@keyframes boltB{0%,30%{opacity:0}31%{opacity:1}32%{opacity:0}33.5%{opacity:.9}37%,100%{opacity:0}}
+.flash{opacity:0;mix-blend-mode:screen;animation:flash 6s infinite}
+.flashS{animation-delay:2.6s}
+@keyframes flash{0%,68%{opacity:0}69%{opacity:.38}70%{opacity:.05}72%{opacity:.3}78%,100%{opacity:0}}
+.eye{mix-blend-mode:screen;animation:eye 3.2s ease-in-out infinite}
+.eye2{opacity:.0;animation:eye2 3.2s ease-in-out infinite}
+@keyframes eye{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+@keyframes eye2{0%,100%{opacity:.1}50%{opacity:.8}}
+.ember{mix-blend-mode:screen;animation:eye 2.6s ease-in-out infinite}
+.twk{opacity:0;animation:twk 3s ease-in-out infinite}
+@keyframes twk{0%,70%,100%{opacity:0;transform:scale(.3) rotate(0)}82%{opacity:1;transform:scale(1) rotate(45deg)}}
+.spot{filter:drop-shadow(0 0 6px #7ff)}
+.caus{mix-blend-mode:screen;opacity:.22}
+.ray{mix-blend-mode:screen;animation:ray 7s ease-in-out infinite}
+@keyframes ray{0%,100%{opacity:.15;transform:skewX(-3deg)}50%{opacity:.4;transform:skewX(3deg)}}
+.bub{animation:bub 7s linear infinite}
+@keyframes bub{0%{transform:translate(0,0);opacity:0}10%{opacity:1}50%{transform:translate(8px,calc(var(--rise)*.5))}85%{opacity:.9}100%{transform:translate(-4px,var(--rise));opacity:0}}
+.ring{opacity:0}
+.sun{mix-blend-mode:screen;animation:sun 5s ease-in-out infinite}
+@keyframes sun{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:.95;transform:scale(1.08)}}
+.bird{animation:bird 18s linear infinite}
+@keyframes bird{from{transform:translate(0,0)}to{transform:translate(620px,-40px)}}
+.wing{animation:flap .7s ease-in-out infinite}
+@keyframes flap{0%,100%{transform:scaleY(1)}50%{transform:scaleY(-.5)}}
+.glint{opacity:0;animation:glint 3s ease-in-out infinite}
+@keyframes glint{0%,60%,100%{opacity:0}75%{opacity:.9}}
+.drop{opacity:0;animation:drop2 1.6s ease-in infinite}
+@keyframes drop2{0%{opacity:0;transform:translateY(0)}15%{opacity:.9}100%{opacity:0;transform:translateY(var(--fall))}}
+.fog{opacity:.22;mix-blend-mode:screen;animation:fog 16s ease-in-out infinite alternate}
+@keyframes fog{from{transform:translateX(-70px)}to{transform:translateX(70px)}}
+.aura{mix-blend-mode:screen;animation:sun 4.5s ease-in-out infinite}
+.eyes{mix-blend-mode:screen;animation:eyesG 5s ease-in-out infinite}
+@keyframes eyesG{0%,100%{opacity:.25}45%,60%{opacity:1}}
+.spl,.goflash,.foam{opacity:0}
+.halo{position:absolute;left:-30%;top:-22%;width:160%;height:144%;opacity:0;pointer-events:none}
+.go .halo{animation:halo 1.6s ease-out both}
+@keyframes halo{0%{opacity:0;transform:scale(.7)}25%{opacity:.85;transform:scale(1.05)}100%{opacity:0;transform:scale(1.2)}}
+.go .foam{animation:foam 1.2s ease-out both}
+@keyframes foam{0%{opacity:0;transform:scale(.3)}20%{opacity:1}100%{opacity:0;transform:scale(1.4,1.1)}}
+/* --- entrées (classe go, 1,6 s) --- */
+.go.kshake{animation:kshake .7s cubic-bezier(.36,.07,.19,.97) both}
+@keyframes kshake{10%,90%{transform:translateX(-2px) rotate(-.4deg)}20%,80%{transform:translateX(4px) rotate(.6deg)}30%,50%,70%{transform:translateX(-6px) rotate(-.8deg)}40%,60%{transform:translateX(6px) rotate(.8deg)}}
+.go.kpop{animation:kpop 1.2s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes kpop{0%{transform:scale(1)}25%{transform:scale(1.06)}100%{transform:scale(1)}}
+.go .spl{animation:spl 1.3s cubic-bezier(.2,.7,.4,1) both}
+@keyframes spl{0%{opacity:1;transform:translate(0,0) scale(.6)}70%{opacity:1}100%{opacity:0;transform:translate(var(--dx),calc(var(--dy) + 60px)) scale(1)}}
+.go .flash{animation:gflash 1.2s both}
+@keyframes gflash{0%{opacity:0}8%{opacity:.9}16%{opacity:.15}24%{opacity:.75}100%{opacity:0}}
+.go .bolt{animation-name:gbolt;animation-duration:1.2s;animation-delay:0s;animation-iteration-count:1}
+@keyframes gbolt{0%{opacity:0}8%{opacity:1}16%{opacity:.1}24%{opacity:1}60%,100%{opacity:0}}
+.go .goflash{animation:gold 1.2s both}
+@keyframes gold{0%{opacity:0}15%{opacity:.45}100%{opacity:0}}
+.go .goflash.dark{animation:dark 1.6s both}
+@keyframes dark{0%{opacity:0}25%{opacity:.6}100%{opacity:0}}
+.go .eyes{animation:eyesGo 1.6s both}
+@keyframes eyesGo{0%{opacity:.2;transform:scale(1)}30%{opacity:1;transform:scale(1.5)}100%{opacity:.3;transform:scale(1)}}
+.go .eye{animation:eyesGo 1.4s both}
+.go .ember{animation:eyesGo 1.4s both}
+.go .twk{animation:twkGo 1.4s both}
+@keyframes twkGo{0%{opacity:0;transform:scale(.2)}40%{opacity:1;transform:scale(1.4) rotate(90deg)}100%{opacity:0;transform:scale(.5) rotate(180deg)}}
+.go .ring{animation:ring 1.4s ease-out both}
+.go .ring2{animation-delay:.25s}
+@keyframes ring{0%{opacity:.9;transform:scale(.4)}100%{opacity:0;transform:scale(1.8)}}
+.go .bub{animation-duration:1.8s}
+.go .sun{animation:sunGo 1.4s both}
+@keyframes sunGo{0%{opacity:.6;transform:scale(1)}30%{opacity:1;transform:scale(1.6)}100%{opacity:.6;transform:scale(1)}}
+.go .sheen{animation:sheenGo 1.1s ease-out both}
+@keyframes sheenGo{from{background-position:100% 0}to{background-position:0 0}}
+
+/* arrêt */
+.still .fx{display:none}
+.ac .full{display:none}
+.ac:hover .full,.ac.zoom .full{display:block}
+.still .ac .full{display:none}
+.mini .fx{display:none}
+@media (prefers-reduced-motion: reduce){.ac .fx{display:none}.ac{animation:none!important}}
+.irid{background:conic-gradient(from var(--a,0deg),#ff9ad5,#ffd36b,#8dffb0,#7fc8ff,#c39bff,#ff9ad5);animation:irid 4s linear infinite}
+@property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes irid{to{--a:360deg}}
+
+.ac.go{animation:kpop 1.2s cubic-bezier(.2,.9,.3,1.2) both}
+.mask-kraken{-webkit-mask-image:url(/_blob/447c9e8c7d969e8f6766feff265f844a);mask-image:url(/_blob/447c9e8c7d969e8f6766feff265f844a);-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.mask-sk{-webkit-mask-image:url(/_blob/0ed75a1c0d934cd2fc2d5bc282f25da4);mask-image:url(/_blob/0ed75a1c0d934cd2fc2d5bc282f25da4);-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.mask-stingray{-webkit-mask-image:url(/_blob/14c72007c9d4baee2e934c0a96b4857d);mask-image:url(/_blob/14c72007c9d4baee2e934c0a96b4857d);-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.mask-whale{-webkit-mask-image:url(/_blob/3c7edb6e1b9a83c4fa9510c282ddd976);mask-image:url(/_blob/3c7edb6e1b9a83c4fa9510c282ddd976);-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.mask-mermaid0{-webkit-mask-image:url(/_blob/a814cde5a564567221bbeff6dcecde0d);mask-image:url(/_blob/a814cde5a564567221bbeff6dcecde0d);-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.mask-davy{-webkit-mask-image:url(/_blob/4bb3c78920f6b742f3d4300354d8b4fc);mask-image:url(/_blob/4bb3c78920f6b742f3d4300354d8b4fc);-webkit-mask-size:100% 100%;mask-size:100% 100%}
+</style>
+</helmet>
+<div class="{{rootCls}}" style="position: relative; width: 1440px; height: 1140px; overflow: hidden; font-family: 'Alegreya Sans', sans-serif; background: radial-gradient(ellipse at 30% 30%, #2a1f17 0%, #120e0b 75%);">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<filter id="blur6" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"></feGaussianBlur></filter>
+<filter id="blur30" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="30"></feGaussianBlur></filter>
+<filter id="fwK" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.02 0.07" numOctaves="2" seed="3"><animate attributeName="baseFrequency" dur="7s" values="0.02 0.07;0.026 0.085;0.02 0.07" repeatCount="indefinite"></animate></feTurbulence><feDisplacementMap in="SourceGraphic" scale="7"></feDisplacementMap></filter>
+<filter id="fwR" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.03" numOctaves="1" seed="8"><animate attributeName="baseFrequency" dur="11s" values="0.012 0.03;0.015 0.036;0.012 0.03" repeatCount="indefinite"></animate></feTurbulence><feDisplacementMap in="SourceGraphic" scale="4"></feDisplacementMap></filter>
+<filter id="fwW" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.018 0.08" numOctaves="2" seed="5"><animate attributeName="baseFrequency" dur="8s" values="0.018 0.08;0.022 0.095;0.018 0.08" repeatCount="indefinite"></animate></feTurbulence><feDisplacementMap in="SourceGraphic" scale="5"></feDisplacementMap></filter>
+<filter id="fwA" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.01 0.02" numOctaves="1" seed="2"><animate attributeName="baseFrequency" dur="10s" values="0.01 0.02;0.013 0.026;0.01 0.02" repeatCount="indefinite"></animate></feTurbulence><feDisplacementMap in="SourceGraphic" scale="7"></feDisplacementMap></filter>
+<filter id="fwD" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.01 0.018" numOctaves="1" seed="9"><animate attributeName="baseFrequency" dur="13s" values="0.01 0.018;0.013 0.022;0.01 0.018" repeatCount="indefinite"></animate></feTurbulence><feDisplacementMap in="SourceGraphic" scale="4"></feDisplacementMap></filter>
+<filter id="caus" x="0" y="0" width="100%" height="100%"><feTurbulence type="turbulence" baseFrequency="0.012 0.02" numOctaves="1" seed="4"><animate attributeName="baseFrequency" dur="9s" values="0.012 0.02;0.015 0.024;0.012 0.02" repeatCount="indefinite"></animate></feTurbulence><feColorMatrix type="matrix" values="0 0 0 0 .8  0 0 0 0 1  0 0 0 0 1  -7 0 0 0 1.25"></feColorMatrix></filter>
+<radialGradient id="gEye"><stop offset="0" stop-color="#fff3a0"></stop><stop offset=".35" stop-color="#ff9a2a" stop-opacity=".85"></stop><stop offset="1" stop-color="#ff3a00" stop-opacity="0"></stop></radialGradient>
+<radialGradient id="gRuby"><stop offset="0" stop-color="#ff5a3a" stop-opacity=".9"></stop><stop offset=".5" stop-color="#c0141a" stop-opacity=".45"></stop><stop offset="1" stop-color="#600" stop-opacity="0"></stop></radialGradient>
+<radialGradient id="gSun"><stop offset="0" stop-color="#fff2b0" stop-opacity=".9"></stop><stop offset=".4" stop-color="#ffb347" stop-opacity=".4"></stop><stop offset="1" stop-color="#ff7a00" stop-opacity="0"></stop></radialGradient>
+<radialGradient id="gAura"><stop offset="0" stop-color="#7dff9a" stop-opacity=".0"></stop><stop offset=".55" stop-color="#5dff8a" stop-opacity=".22"></stop><stop offset="1" stop-color="#1f8a3a" stop-opacity="0"></stop></radialGradient>
+<radialGradient id="gEyeG"><stop offset="0" stop-color="#b6ffc8" stop-opacity=".9"></stop><stop offset="1" stop-color="#3dff7a" stop-opacity="0"></stop></radialGradient>
+<linearGradient id="gRay" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eaffff" stop-opacity=".55"></stop><stop offset="1" stop-color="#eaffff" stop-opacity="0"></stop></linearGradient>
+<pattern id="rainK" width="60" height="120" patternUnits="userSpaceOnUse"><path d="M40 0 l-7 34 M14 52 l-7 34 M52 78 l-6 30" stroke="rgba(225,235,255,.55)" stroke-width="2.2" stroke-linecap="round"></path><animateTransform attributeName="patternTransform" type="translate" from="0 0" to="0 120" dur=".55s" repeatCount="indefinite"></animateTransform></pattern>
+<pattern id="rainS" width="60" height="120" patternUnits="userSpaceOnUse"><path d="M40 0 l-7 34 M14 52 l-7 34 M52 78 l-6 30" stroke="rgba(225,235,255,.45)" stroke-width="2" stroke-linecap="round"></path><animateTransform attributeName="patternTransform" type="translate" from="0 0" to="0 120" dur=".6s" repeatCount="indefinite"></animateTransform></pattern>
+</defs></svg>
+<div style="position: absolute; left: 40px; top: 30px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span style="font-family: 'IM Fell English SC', serif; font-size: 30px; color: #ead08a;">Cartes animées</span><span class="irid" style="padding: 3px 12px; border-radius: 999px; font-weight: 800; font-size: 13px; color: #1b140e;">Mythique</span></div>
+<div style="font-size: 14.5px; color: #b9ab92; margin-top: 4px;">Les éléments de l'illustration prennent vie : tentacules, cheveux, ailes, navires, mer. Six cartes à gagner dans le coffre. « Entrée » montre l'effet quand la carte est posée dans le pli.</div>
+</div>
+<div style="position: absolute; left: 40px; top: 118px; width: 250px;">
+<div class="ac {{go_kraken}}" style="position: relative; width: 250px; height: 356px;">
+<div class="halo" style="background: radial-gradient(closest-side, #ff5a3a, transparent);"></div>
+<img src="/_blob/447c9e8c7d969e8f6766feff265f844a" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 10px 18px rgba(0,0,0,.55));">
+<video class="fx cardvid mask-kraken" src="/_blob/632c3f515886a29c50023745339daceb" data-mp4="/_blob/3d65da78e7dc1302db58c65a3dd4c0b9" poster="/_blob/447c9e8c7d969e8f6766feff265f844a" autoplay muted loop playsinline preload="auto" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill;"></video>
+<img class="fx" src="/_blob/1efa4a3e204994fce2dead462656b484" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;">
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;"><span style="font-family: 'Pirata One', serif; font-size: 22px; color: #f2e7cd;">Kraken</span><button class="btn sm" onClick="{{play_kraken}}">▶ Entrée</button></div>
+<div style="font-size: 12.5px; color: #b9ab92; line-height: 1.35; margin-top: 4px;">Les tentacules ondulent et s'enroulent, la tête respire, l'œil rougeoie. Les navires tanguent, le feu vacille, les naufragés flottent, l'éclair du ciel s'allume.</div>
+</div>
+<div style="position: absolute; left: 330px; top: 118px; width: 250px;">
+<div class="ac {{go_sk}}" style="position: relative; width: 250px; height: 356px;">
+<div class="halo" style="background: radial-gradient(closest-side, #ffd36b, transparent);"></div>
+<img src="/_blob/0ed75a1c0d934cd2fc2d5bc282f25da4" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 10px 18px rgba(0,0,0,.55));">
+<video class="fx cardvid mask-sk" src="/_blob/ff97623a6384e49dd8736cf89f9de160" data-mp4="/_blob/25ed9dbc3feb26cc7aa2c300b2b0f19b" poster="/_blob/0ed75a1c0d934cd2fc2d5bc282f25da4" autoplay muted loop playsinline preload="auto" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill;"></video>
+<img class="fx" src="/_blob/1f7bc94e15723cd84a43412cf01649c9" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;">
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;"><span style="font-family: 'Pirata One', serif; font-size: 22px; color: #f2e7cd;">Skull King</span><button class="btn sm" onClick="{{play_sk}}">▶ Entrée</button></div>
+<div style="font-size: 12.5px; color: #b9ab92; line-height: 1.35; margin-top: 4px;">Il tourne la barre, tresses et barbe dans le vent. La mer se déchaîne derrière lui, les navires au loin tanguent, les éclairs s'allument. Éclat sur la couronne, rubis du médaillon.</div>
+</div>
+<div style="position: absolute; left: 620px; top: 118px; width: 250px;">
+<div class="ac {{go_raie}}" style="position: relative; width: 250px; height: 356px;">
+<div class="halo" style="background: radial-gradient(closest-side, #6fe6ff, transparent);"></div>
+<img src="/_blob/14c72007c9d4baee2e934c0a96b4857d" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 10px 18px rgba(0,0,0,.55));">
+<video class="fx cardvid mask-stingray" src="/_blob/c33bd7be83e700b907ea527995f3bd05" data-mp4="/_blob/008ccfba3e16dbd143afb706e5733d46" poster="/_blob/14c72007c9d4baee2e934c0a96b4857d" autoplay muted loop playsinline preload="auto" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill;"></video>
+<img class="fx" src="/_blob/46ebf94b6dde3257ece74d6bac3cb0d6" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;">
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;"><span style="font-family: 'Pirata One', serif; font-size: 22px; color: #f2e7cd;">Raie</span><button class="btn sm" onClick="{{play_raie}}">▶ Entrée</button></div>
+<div style="font-size: 12.5px; color: #b9ab92; line-height: 1.35; margin-top: 4px;">Les ailes battent, la queue fouette, la raie plane. Le navire tangue, la surface ondule, les algues se balancent, la lumière danse sur le sable, des bulles montent.</div>
+</div>
+<div style="position: absolute; left: 40px; top: 608px; width: 250px;">
+<div class="ac {{go_baleine}}" style="position: relative; width: 250px; height: 356px;">
+<div class="halo" style="background: radial-gradient(closest-side, #ff9a3a, transparent);"></div>
+<img src="/_blob/3c7edb6e1b9a83c4fa9510c282ddd976" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 10px 18px rgba(0,0,0,.55));">
+<video class="fx cardvid mask-whale" src="/_blob/6c85b308651263f67e41960418a00ef0" data-mp4="/_blob/3e7ec7026113571b9f7bffddc6133e4c" poster="/_blob/3c7edb6e1b9a83c4fa9510c282ddd976" autoplay muted loop playsinline preload="auto" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill;"></video>
+<img class="fx" src="/_blob/31f97a8a5fb4a1ad1ad3f39135bd497a" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;">
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;"><span style="font-family: 'Pirata One', serif; font-size: 22px; color: #f2e7cd;">Baleine</span><button class="btn sm" onClick="{{play_baleine}}">▶ Entrée</button></div>
+<div style="font-size: 12.5px; color: #b9ab92; line-height: 1.35; margin-top: 4px;">La baleine surgit et ouvre la gueule, des gerbes d'eau jaillissent et ruissellent, les rayons du soleil tournent, des mouettes passent. Les navires et la chaloupe tanguent, un marin fait signe, la mer houle, le soleil pulse, l'eau scintille.</div>
+</div>
+<div style="position: absolute; left: 330px; top: 608px; width: 250px;">
+<div class="ac {{go_sirene}}" style="position: relative; width: 250px; height: 356px;">
+<div class="halo" style="background: radial-gradient(closest-side, #bff6ff, transparent);"></div>
+<img src="/_blob/a814cde5a564567221bbeff6dcecde0d" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 10px 18px rgba(0,0,0,.55));">
+<video class="fx cardvid mask-mermaid0" src="/_blob/c895d099370b0a95818368027c7c1f6a" data-mp4="/_blob/6f7d49451b165e839dad714fcd8617f0" poster="/_blob/a814cde5a564567221bbeff6dcecde0d" autoplay muted loop playsinline preload="auto" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill;"></video>
+<img class="fx" src="/_blob/747d6dbab36c53356e66931ecb79b22e" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;">
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;"><span style="font-family: 'Pirata One', serif; font-size: 22px; color: #f2e7cd;">Alyra</span><button class="btn sm" onClick="{{play_sirene}}">▶ Entrée</button></div>
+<div style="font-size: 12.5px; color: #b9ab92; line-height: 1.35; margin-top: 4px;">Ses cheveux flottent et ondulent sous l'eau, les perles scintillent. Les méduses montent et descendent, poissons et algues bougent, des bulles montent.</div>
+</div>
+<div style="position: absolute; left: 620px; top: 608px; width: 250px;">
+<div class="ac {{go_fosse}}" style="position: relative; width: 250px; height: 356px;">
+<div class="halo" style="background: radial-gradient(closest-side, #5dff8a, transparent);"></div>
+<img src="/_blob/4bb3c78920f6b742f3d4300354d8b4fc" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 10px 18px rgba(0,0,0,.55));">
+<video class="fx cardvid mask-davy" src="/_blob/5d68b7fb58562e4bfd550266077d5309" data-mp4="/_blob/1d1caa31f53512218c20c8e14c5d3ff4" poster="/_blob/4bb3c78920f6b742f3d4300354d8b4fc" autoplay muted loop playsinline preload="auto" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill;"></video>
+<img class="fx" src="/_blob/60a916f654c1e1dcaa9ed69a8eedd60b" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;">
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;"><span style="font-family: 'Pirata One', serif; font-size: 22px; color: #f2e7cd;">Fosse des Noyés</span><button class="btn sm" onClick="{{play_fosse}}">▶ Entrée</button></div>
+<div style="font-size: 12.5px; color: #b9ab92; line-height: 1.35; margin-top: 4px;">Le noyé flotte dans un halo spectral, ses yeux s'allument, son manteau en lambeaux ondule. La lumière balaie le fond, des particules dérivent. Les poissons passent, les algues ondulent, les pièces brillent.</div>
+</div>
+
+<div style="position: absolute; left: 930px; top: 118px; width: 470px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; gap: 8px; flex-wrap: wrap;"><button class="btn gold" onClick="{{toggle}}">{{toggleLabel}}</button><button class="btn" onClick="{{playAll}}">Rejouer toutes les entrées</button></div>
+<div style="font-size: 12.5px; color: #8f8270;">{{vidStatus}}</div>
+<div style="font-family: 'IM Fell English SC', serif; font-size: 21px; color: #ead08a; margin-top: 6px;">Une rareté au-dessus de Légendaire</div>
+<div style="display: flex; gap: 12px; align-items: center;"><div class="irid" style="flex: none; width: 54px; height: 54px; border-radius: 50%; box-shadow: 0 0 22px rgba(255,200,240,.45);"></div><div style="font-size: 13.5px; color: #d9cdb6; line-height: 1.45;"><b style="color: #f2e7cd;">Mythique · 1 %</b> par coffre (pris sur Commun, qui passe à 61 %). Couleur irisée qui tourne. Dans le coffre, la lueur passe par l'or puis devient irisée. Un doublon rapporte 400 pièces.</div></div>
+<div style="font-size: 13.5px; color: #d9cdb6; line-height: 1.45;">C'est un objet de la garde-robe, onglet <b style="color: #f2e7cd;">Cartes</b>, qu'on active ou désactive. Les autres joueurs voient la version animée quand vous jouez la carte : c'est ce qui la rend désirable.</div>
+<div style="font-family: 'IM Fell English SC', serif; font-size: 21px; color: #ead08a; margin-top: 6px;">Quand ça bouge</div>
+<div><div style="display: grid; grid-template-columns: 132px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(234,208,138,.15);"><b style="color: #f2e7cd; font-size: 13.5px;">En main, au repos</b><span style="font-size: 13.5px; color: #d9cdb6; line-height: 1.4;">Image fixe. La pastille irisée « Mythique » apparaît dans le zoom et la garde-robe.</span></div><div style="display: grid; grid-template-columns: 132px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(234,208,138,.15);"><b style="color: #f2e7cd; font-size: 13.5px;">En main, au survol</b><span style="font-size: 13.5px; color: #d9cdb6; line-height: 1.4;">La boucle se lance tant que le pointeur reste dessus.</span></div><div style="display: grid; grid-template-columns: 132px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(234,208,138,.15);"><b style="color: #f2e7cd; font-size: 13.5px;">Posée dans le pli</b><span style="font-size: 13.5px; color: #d9cdb6; line-height: 1.4;">Halo de couleur à l'arrivée (1,2 s) pour tous les joueurs, puis la boucle tourne jusqu'à la fin du pli.</span></div><div style="display: grid; grid-template-columns: 132px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(234,208,138,.15);"><b style="color: #f2e7cd; font-size: 13.5px;">Zoom (survol long)</b><span style="font-size: 13.5px; color: #d9cdb6; line-height: 1.4;">Boucle complète, en grand. La fiche parchemin ajoute « Version Mythique ».</span></div><div style="display: grid; grid-template-columns: 132px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(234,208,138,.15);"><b style="color: #f2e7cd; font-size: 13.5px;">Journal, miniatures</b><span style="font-size: 13.5px; color: #d9cdb6; line-height: 1.4;">Toujours fixe.</span></div></div>
+<div style="font-family: 'IM Fell English SC', serif; font-size: 21px; color: #ead08a; margin-top: 6px;">Lisibilité d'abord</div>
+<ul style="margin: 0; padding-left: 18px; font-size: 13.5px; color: #d9cdb6; line-height: 1.4;"><li style="margin-bottom: 6px;">Le dessin, le cadre et la couleur ne changent jamais : la carte se reconnaît au premier coup d'œil.</li><li style="margin-bottom: 6px;">Seule l'illustration bouge : le cadre, les médaillons et le nom restent parfaitement fixes.</li><li style="margin-bottom: 6px;">Mouvements lents et de faible amplitude, en boucle de 5 s sans à-coup. Une seule carte animée bouge à la fois sur la table.</li><li style="margin-bottom: 6px;">Option « Cartes animées : toutes / les miennes / aucune ». Coupées si « réduire les animations » est activé.</li></ul>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1140}}'>
+class Component extends DCLogic {
+  state = { anim: true, go: {}, ok: 0, err: 0 };
+  kick() {
+    if (typeof document === 'undefined') return false;
+    var vids = document.querySelectorAll('video.cardvid');
+    if (!vids.length) return false;
+    var webm = !!document.createElement('video').canPlayType('video/webm; codecs="vp9"');
+    vids.forEach(v => {
+      v.muted = true; v.defaultMuted = true; v.playsInline = true; v.loop = true;
+      if (!webm && v.dataset.mp4 && v.getAttribute('src') !== v.dataset.mp4) v.src = v.dataset.mp4;
+      if (!v.dataset.hooked) {
+        v.dataset.hooked = '1';
+        v.addEventListener('playing', () => this.count());
+        v.addEventListener('error', () => { if (v.dataset.mp4 && v.getAttribute('src') !== v.dataset.mp4) { v.src = v.dataset.mp4; v.play().catch(() => {}); } else this.count(); });
+      }
+      if (this.state.anim) { var p = v.play(); if (p && p.catch) p.catch(() => {}); } else v.pause();
+    });
+    return true;
+  }
+  count() {
+    if (typeof document === 'undefined') return;
+    var vids = [...document.querySelectorAll('video.cardvid')];
+    var ok = vids.filter(v => !v.paused && v.readyState > 2).length, err = vids.filter(v => v.error).length;
+    if (ok !== this.state.ok || err !== this.state.err) this.setState({ ok: ok, err: err });
+  }
+  boot() {
+    if (this.booted) return; this.booted = true;
+    var n = 0, tick = () => { this.kick(); this.count(); if (++n < 20) this.tm = setTimeout(tick, 500); };
+    this.tm = setTimeout(tick, 50);
+  }
+  componentWillUnmount() { clearTimeout(this.tm); }
+  play(keys) {
+    var off = {}; keys.forEach(k => off[k] = false);
+    this.setState({ go: Object.assign({}, this.state.go, off) });
+    setTimeout(() => { var on = {}; keys.forEach(k => on[k] = true); this.setState({ go: Object.assign({}, this.state.go, on) }); }, 40);
+    setTimeout(() => { var off2 = {}; keys.forEach(k => off2[k] = false); this.setState({ go: Object.assign({}, this.state.go, off2) }); }, 1900);
+  }
+  renderVals() {
+    var s = this.state, K = ['kraken', 'sk', 'raie', 'baleine', 'sirene', 'fosse'], v = {};
+    K.forEach((k, i) => { v['go_' + k] = s.go[k] ? 'go' : ''; v['play_' + k] = () => { this.play([k]); this.kick(); }; });
+    v.playAll = () => this.play(K);
+    v.rootCls = s.anim ? '' : 'still';
+    this.boot();
+    v.toggle = () => { var a = !s.anim; this.setState({ anim: a }); setTimeout(() => this.kick(), 30); document.querySelectorAll('video.cardvid').forEach(x => { if (a) { x.muted = true; x.play().catch(() => {}); } }); };
+    v.vidStatus = s.err ? ('Vidéos : ' + s.err + ' introuvable(s), ' + s.ok + '/6 en lecture') : (s.ok ? 'Vidéos : ' + s.ok + '/6 en lecture' : 'Vidéos : chargement…');
+    v.toggleLabel = s.anim ? 'Voir la version fixe' : 'Voir la version animée';
+    return v;
+  }
+}
+</script>
+</body>
+</html>

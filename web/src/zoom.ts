@@ -2,6 +2,7 @@
 // Les faces font 252 × 352 px : en grand (300 px de large), le texte des cartes spéciales devient lisible et, pour les
 // cartes illustrées « Cartes-v3 », on affiche à côté une fiche parchemin avec le nom et la règle.
 import { esc } from './util';
+import { attachAnim, detachAnim } from './animatedCards';
 
 let installed = false;
 /** Pastille sous la carte agrandie (maquette Main : « Prendrait le pli »…), fournie par la table. */
@@ -19,9 +20,14 @@ export function installCardZoom() {
     const face = card.querySelector('.face'); if (!face || !card.isConnected) return;
     const tag = card.querySelector('.tag'), note = noteFor?.(card) ?? null;
     const name = card.dataset.artName, rule = card.dataset.artRule;
-    const info = name ? `<div class="zinfo"><b>${esc(name)}</b>${rule ? `<p>${esc(rule)}</p>` : ''}</div>` : '';
+    const anim = card.dataset.anim, myth = anim ? '<span class="irid">Mythique</span>' : '';
+    const info = name ? `<div class="zinfo">${myth}<b>${esc(name)}</b>${rule ? `<p>${esc(rule)}</p>` : ''}</div>` : '';
     pv.innerHTML = `<div class="zcol"><div class="card zc">${face.outerHTML}${tag ? tag.outerHTML : ''}</div>${note ? `<span class="znote" style="color:${esc(note.ink)}">${esc(note.text)}</span>` : ''}</div>${info}`;
     pv.classList.toggle('with-info', !!info);
+    // carte animée : la copie ne garde que l'image ; la vidéo est relancée en grand (l'originale attend en pause)
+    const zc = pv.querySelector('.zc') as HTMLElement;
+    zc.querySelectorAll('video.anim, img.cadre').forEach(x => x.remove());
+    if (anim) attachAnim(zc, anim);
     pv.hidden = false; shownFor = card;
     const r = card.getBoundingClientRect(), w = pv.offsetWidth, h = pv.offsetHeight, m = 10;
     // au-dessus de la carte si possible, sinon à côté
@@ -29,7 +35,7 @@ export function installCardZoom() {
     if (y < m) { y = Math.min(Math.max(m, r.top + r.height / 2 - h / 2), innerHeight - h - m); x = r.right + 14 + w < innerWidth - m ? r.right + 14 : r.left - 14 - w; }
     pv.style.left = Math.min(Math.max(m, x), innerWidth - w - m) + 'px'; pv.style.top = Math.max(m, y) + 'px';
   };
-  const hide = () => { clearTimeout(timer); timer = null; pv.hidden = true; shownFor = null; pending = null; };
+  const hide = () => { const zc = pv.querySelector('.zc') as HTMLElement | null; if (zc?.dataset.anim) detachAnim(zc); clearTimeout(timer); timer = null; pv.hidden = true; shownFor = null; pending = null; };
   const cardAt = (t: EventTarget | null) => (t as HTMLElement | null)?.closest?.('.card:not(.zc)') as HTMLElement | null;
 
   document.addEventListener('pointerover', ev => {

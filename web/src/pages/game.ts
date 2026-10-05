@@ -71,6 +71,7 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       myLook: () => myLookCache || { color: '#d9b25a', look: null },
       // aperçu d'un joueur au survol de son pod
       playerCard: (u: string) => callGame<any>('player.card', { user_id: u }),
+      saveSound: on => { callGame('profile.update', { sounds: on }).then(() => forgetProfile(), () => { /* réglage gardé sur cet appareil */ }); },
     }, () => go('#/'));
     // avatars et couleurs des joueurs (les bots gardent l'initiale sur la couleur par défaut)
     const ids = seats.filter(s => s.user_id).map(s => s.user_id);
@@ -80,6 +81,9 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
         table.setAvatars(seats.map(s => { const p = profs.find((x: any) => x.id === s.user_id); return p ? fromProfile(p) : null; }));
         const me = profs.find((x: any) => x.id === uid); if (me) myLookCache = { color: me.color || '#d9b25a', look: me.look || null };
       }
+      // cartes animées possédées par chaque joueur (posséder suffit : pas d'interrupteur)
+      const { data: ca } = await sb.rpc('cartes_animees', { p_users: ids });
+      if (ca) table.setAnimCards(seats.map(s => new Set((ca as any[]).filter(r => r.user_id === s.user_id).map(r => r.carte as string))));
     }
   };
 

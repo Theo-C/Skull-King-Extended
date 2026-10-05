@@ -52,7 +52,7 @@ function breath(when: number, dur: number, gain: number) {
 }
 
 /** Accords du coffre, du commun (2 notes) au légendaire (5 notes, plus long). */
-const CHORDS: Record<string, number[]> = { c: [523, 659], r: [523, 659, 784], e: [440, 554, 659, 880], l: [392, 494, 587, 784, 988] };
+const CHORDS: Record<string, number[]> = { c: [523, 659], r: [523, 659, 784], e: [440, 554, 659, 880], l: [392, 494, 587, 784, 988], m: [349, 440, 523, 659, 784, 1047] };
 
 export const sfx = {
   // Pose d'une carte : court frottement de papier + tap sourd (basses fréquences), moins strident que l'ancien swish seul

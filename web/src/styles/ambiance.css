@@ -83,10 +83,12 @@ body.at-table .tablepage:not(.sobre)::after{content:'';position:absolute;inset:0
 }
 
 /* le sélecteur d'ambiance passe dans le menu sur téléphone */
-@media (max-width:719px){#amb{display:none}}
+@media (max-width:719px){#amb,#anim{display:none}}
 /* entre 720 et 1099 px, la barre est pleine : le réglage d'ambiance passe dans le menu */
-@media (min-width:720px) and (max-width:1099px){#amb{display:none}.gtools #bMenu{display:inline-flex}}
+@media (min-width:720px) and (max-width:1099px){#amb,#anim{display:none}.gtools #bMenu{display:inline-flex}}
 @media (max-width:1099px){.tablepage:not(.sobre) .gdots{gap:7px;padding:0 3px}.tablepage:not(.sobre) .gdots i{width:11px;height:11px}}
 @media (max-width:799px){.tablepage:not(.sobre) .gdots{gap:4px;padding:0 2px}.tablepage:not(.sobre) .gdots i{width:10px;height:10px}}
 /* la carte marine a sa propre rose des vents : l'ancienne n'est gardée qu'en ambiance sobre */
 .tablepage:not(.sobre) .mat>svg:not(.amb-chart){display:none}
+/* ambiance et cartes animées : dans la barre à partir de 1300 px ; en dessous, dans le menu */
+@media (max-width:1299px){#amb,#anim{display:none}.gtools #bMenu{display:inline-flex}}

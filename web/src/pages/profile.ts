@@ -7,6 +7,8 @@ import { avatarHTML, avatarSVG, CATALOG, PALETTE, ART_NAMES, withItem, type Avat
 import { xpLine, LEVEL_TITLES, xpToReach, fmt } from '../xp';
 import { getAmbiance, setAmbiance } from '../ambiance';
 import { openChestOverlay, type ChestResult } from '../chest';
+import { ART } from '../cards';
+import { ANIM_MODES, KEY_OF_FILE, animAllowed, attachAnim, detachAnim, getAnimMode, setAnimMode, type AnimMode } from '../animatedCards';
 
 const COLOR_NAMES = ['Or', 'Corail', 'Algue', 'Lagon', 'Améthyste', 'Ambre', 'Écume', 'Corail rose'];
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z"/></svg>';
@@ -93,6 +95,7 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
         ${pref('notify_turn', "Me prévenir quand c'est mon tour", "notification du navigateur ou de l'appli", p.notify_turn)}
         ${pref('sounds', 'Sons de la table', 'cartes, plis gagnés, fin de manche', p.sounds)}
         ${pref('ambiance', 'Ambiance pirate à la table', 'cabine, lanterne et carte marine ; sinon ambiance sobre (aussi réglable pendant la partie)', getAmbiance() !== 'sobre')}
+        <div class="prow"><span><b>Cartes animées</b><span class="lbl">cartes Mythiques, les vôtres et celles des autres joueurs (aussi réglable pendant la partie)</span></span><select id="pAnim" class="inp" style="width:auto" aria-label="Cartes animées">${ANIM_MODES.map(([v, l]) => `<option value="${v}"${getAnimMode() === v ? ' selected' : ''}>${l.charAt(0).toUpperCase() + l.slice(1)}</option>`).join('')}</select></div>
         ${pref('public_rank', 'Apparaître dans le classement public', 'sinon, visible seulement par vos amis', p.public_rank)}
       </div>
       <div class="acc-foot"><button class="abtn gold" id="bPseudo">Enregistrer le pseudo</button><button class="abtn ghost" id="bOut">Se déconnecter</button></div>
@@ -110,6 +113,8 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
     try { await callGame('profile.update', { pseudo: v }); p.pseudo = v; paintHero(p); forgetProfile(); shell({ id: uid }, 'profile'); toast('Pseudo enregistré.'); }
     catch (e: any) { toast(e.message, 'err'); } finally { b.disabled = false; }
   };
+  // cartes animées : réglage de ce navigateur (localStorage pli.cartesAnimees), comme l'ambiance
+  ($('#pAnim', root) as HTMLSelectElement).onchange = ev => setAnimMode((ev.target as HTMLSelectElement).value as AnimMode);
   root.querySelectorAll<HTMLButtonElement>('.tg').forEach(t => t.onclick = async () => {
     const k = t.dataset.k as 'notify_turn' | 'sounds' | 'public_rank' | 'ambiance', on = t.getAttribute('aria-checked') !== 'true';
     const set = (v: boolean) => { t.setAttribute('aria-checked', String(v)); t.classList.toggle('on', v); };
@@ -296,8 +301,9 @@ const RARITY: Record<string, { name: string; color: string }> = {
   r: { name: 'Rare', color: '#4fa8ff' },
   e: { name: 'Épique', color: '#c27dff' },
   l: { name: 'Légendaire', color: '#ffc94a' },
+  m: { name: 'Mythique', color: '#c39bff' },
 };
-const WT: [string, string][] = [['base', 'Visage'], ['hat', 'Chapeaux'], ['face', 'Yeux et visage'], ['neck', 'Cou'], ['pet', 'Compagnons'], ['bg', 'Décor'], ['frame', 'Cadre']];
+const WT: [string, string][] = [['base', 'Visage'], ['hat', 'Chapeaux'], ['face', 'Yeux et visage'], ['neck', 'Cou'], ['pet', 'Compagnons'], ['bg', 'Décor'], ['frame', 'Cadre'], ['carte', 'Cartes']];
 const HAIR_OPTS: [string, string][] = [['Court', 'court'], ['Mèche', 'meche'], ['Long', 'long'], ['Bouclé', 'boucles'], ['Chignon', 'chignon'], ['Tresse', 'tresse'], ['Queue', 'queue'], ['Rasé', 'none']];
 const BEARD_OPTS: [string, string][] = [['Aucune', 'none'], ['Moustache', 'mous'], ['Barbe courte', 'short'], ['Grande barbe', 'long']];
 const SKIN_SW = ['#f3d2b3', '#e6b48f', '#c98e66', '#a56a45', '#7a4a2c', '#5a3420'];
@@ -346,6 +352,19 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
       ];
       main = `<div class="wbase">${rows.map(r => `<div class="wbaserow"><span class="lbl">${esc(r.label)}</span><div class="wopts">${r.opts.join('')}</div></div>`).join('')}
         <span class="lbl">Teint, coiffure et pilosité sont gratuits et modifiables à tout moment. Aucun choix n'est réservé à un genre.</span></div>`;
+    } else if (st.tab === 'carte') {
+      // cartes animées (maquette CartesAnimees) : posséder suffit, pas d'interrupteur ; aperçu vidéo au survol
+      const cards = (CATALOG.bySlot.carte || []).map(it => {
+        const owned = ownsItem(it), key = KEY_OF_FILE[it.value!];
+        return `<div class="witem wcarte${owned ? '' : ' lock'}" data-carte="${esc(key)}" tabindex="0" style="--rar:#c39bff" aria-label="${esc(it.name)}, carte Mythique, ${owned ? 'possédée' : 'à gagner au coffre'}">
+          <span class="wcard"><span class="art"><img src="${ART[key]}" alt="" draggable="false"></span></span>
+          ${!owned ? `<span class="wlock-ico">${LOCK_ICO}</span>` : ''}
+          <span class="wname">${esc(it.name)}</span>
+          <span class="wrar irid">Mythique</span>
+          <span class="whow">${owned ? 'Animée quand vous la jouez' : esc(howLabel(it.how!, achNames)) + ' · 1\u00a0%'}</span>
+        </div>`;
+      }).join('');
+      main = `<p class="lbl wcintro">Leur illustration prend vie à la table, en main et dans le pli. Il suffit de les posséder ; le réglage « Cartes animées » de vos préférences les coupe si besoin.</p><div class="wgrid">${cards}</div>`;
     } else {
       const items = (CATALOG.bySlot[st.tab] || []).map(it => {
         const owned = ownsItem(it), onSel = st.look[it.slot as keyof Look] === it.value;
@@ -410,6 +429,11 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
       if ((ev.target as HTMLElement).closest('.wvar')) return;
       const id = b.dataset.item!, it = CATALOG.byId[id]; if (!it || !ownsItem(it)) return;
       (st.look as any)[it.slot] = it.value; render();
+    });
+    box.querySelectorAll<HTMLElement>('.wcarte').forEach(t => {
+      const card = t.querySelector('.wcard') as HTMLElement;
+      const on = () => { if (animAllowed() && getAnimMode() !== 'aucune') attachAnim(card, t.dataset.carte!); }, off = () => detachAnim(card);
+      t.onmouseenter = on; t.onmouseleave = off; t.onfocus = on; t.onblur = off;
     });
     box.querySelectorAll<HTMLButtonElement>('.wvar').forEach(b => b.onclick = () => {
       const id = b.dataset.item!, it = CATALOG.byId[id]; if (!it || !ownsItem(it)) return;

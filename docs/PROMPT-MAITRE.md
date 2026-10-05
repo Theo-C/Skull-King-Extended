@@ -11,6 +11,7 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
 | `docs/table-v2/SPEC.md` | Table de jeu v2 : plaques, pli, tour, panneau, mises, fin de manche, animations, mobile |
 | `docs/ecrans-compte/SPEC.md` | Écrans du compte, XP, Élo, garde-robe, coffre |
 | `docs/ecrans-compte/PROMPT-claude-code.md` | Prompts 1 à 3 (main, écrans du compte, garde-robe) |
+| `web/public/cards/anim/` | Vidéos en boucle des 6 cartes animées (webm + mp4) |
 | `docs/maquettes/*.dc.html` | **Toutes** les maquettes, dans leur dernière version. Ouvre-les comme du HTML. Les données d'exemple et la logique sont dans le `<script type="text/x-dc">` en bas de chaque fichier. Lis-les pour la mise en page, ne copie pas le format `.dc.html`. |
 
 ## Étape 0 : état des lieux (obligatoire, avant d'écrire du code)
@@ -81,6 +82,7 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
   - boutons « Au hasard », « Annuler », « Enregistrer » ;
   - échoppe : 3 objets par jour.
 - [ ] D9. Les avatars composés remplacent les initiales partout : table, listes, classement, aperçu au survol.
+- [ ] D11. Cartes animées, rareté Mythique (1 %) : 6 cartes dont l'illustration s'anime (vidéos en boucle prêtes dans `web/public/cards/anim/`) : Kraken, Skull King, Raie, Baleine, Alyra, Fosse des Noyés. Voir `docs/cartes-animees/` et la maquette `CartesAnimees`.
 - [ ] D10. Tests :
   - probabilités du tirage (graine fixe) ;
   - refus d'ouvrir avec 0 coffre ;

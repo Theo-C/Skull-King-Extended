@@ -7,7 +7,7 @@ import { sfx } from './sound';
 
 export interface ChestResult {
   cosmetic_id: string; slot: string; value: string; name: string;
-  rarity: 'c' | 'r' | 'e' | 'l'; duplicate: boolean;
+  rarity: 'c' | 'r' | 'e' | 'l' | 'm'; duplicate: boolean;
   coins_gained: number; coins: number; chests: number;
 }
 export interface ChestCallbacks {
@@ -22,12 +22,14 @@ export interface ChestCallbacks {
 }
 
 const RAR: Record<string, { label: string; color: string; soft: string; p: string; hold: number }> = {
-  c: { label: 'Commun',      color: '#d6dde4', soft: 'rgba(214,221,228,.5)', p: '62 %', hold: 1500 },
+  c: { label: 'Commun',      color: '#d6dde4', soft: 'rgba(214,221,228,.5)', p: '61 %', hold: 1500 },
   r: { label: 'Rare',        color: '#4fa8ff', soft: 'rgba(79,168,255,.55)', p: '26 %', hold: 1800 },
   e: { label: 'Épique',      color: '#c27dff', soft: 'rgba(194,125,255,.6)', p: '9 %',  hold: 2100 },
   l: { label: 'Légendaire',  color: '#ffc94a', soft: 'rgba(255,201,74,.7)',  p: '3 %',  hold: 2500 },
+  m: { label: 'Mythique',    color: '#c39bff', soft: 'rgba(195,155,255,.7)', p: '1 %',  hold: 2800 },
 };
-const SLOT_LABEL: Record<string, string> = { hat: 'Chapeau', face: 'Yeux et visage', neck: 'Cou', pet: 'Compagnon', bg: 'Décor', frame: 'Cadre' };
+const IRID = 'conic-gradient(#ff9ad5,#ffd36b,#8dffb0,#7fc8ff,#c39bff,#ff9ad5)';
+const SLOT_LABEL: Record<string, string> = { carte: 'Carte animée', hat: 'Chapeau', face: 'Yeux et visage', neck: 'Cou', pet: 'Compagnon', bg: 'Décor', frame: 'Cadre' };
 
 let stylesInstalled = false;
 function installStyles() {
@@ -99,6 +101,11 @@ function installStyles() {
 .chov .ccoins span{position:absolute;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%);box-shadow:inset 0 0 0 1.5px rgba(90,60,10,.6);animation:ccoin .9s cubic-bezier(.5,0,.6,1) var(--d) both}
 @keyframes ccoin{0%{transform:translate(0,0) scale(.6);opacity:0}15%{opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.5);opacity:.2}}
 .chov .csock{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:min(500px,70vw);pointer-events:none;z-index:0}
+/* Mythique : halo et rayons irisés (teinte qui tourne) */
+.chov.myth .chalo,.chov.myth .crays>span{animation:cirid 3s linear infinite}
+.chov.myth .crays>span{animation:cspin 18s linear infinite,cirid 3s linear infinite}
+@keyframes cirid{to{filter:hue-rotate(360deg)}}
+.chov .ctext .crlbl.irid{padding:2px 10px;border-radius:999px;color:#1b140e!important;background:${IRID}}
 @media (prefers-reduced-motion:reduce){.chov *{animation:none!important;transition:none!important}}
 .chov .citem.shown{opacity:1}
 @media (max-width:720px){.chov .chead{padding:12px 14px}.chov .chead h2{font-size:20px}.chov .ctext{bottom:90px}.chov .ctext .cname{font-size:28px}.chov .cact{right:12px;bottom:12px}.chov .cact button{min-height:46px;padding:0 14px;font-size:14px}.chov .cchest{width:260px;height:280px;transform:scale(.8)}}
@@ -151,20 +158,21 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
 
   const render = (r: ChestResult) => {
     timers.forEach(clearTimeout); timers.length = 0;
-    const R = RAR[r.rarity];
+    const R = RAR[r.rarity]; ov.classList.remove('myth');
     const sparks = Array.from({ length: 26 }, (_, k) => {
       const a = k / 26 * Math.PI * 2, d = 140 + ((k * 53) % 160);
       const dx = Math.round(Math.cos(a) * d), dy = Math.round(Math.sin(a) * d * .7 - 40);
       const sz = 4 + (k % 4) * 2, t = (.7 + (k % 4) * .15).toFixed(2), delay = ((k % 5) * .02).toFixed(2);
       const c = k % 3 ? R.color : '#ffffff';
-      return `<span style="--dx:${dx}px;--dy:${dy}px;--t:${t}s;--d:${delay}s;left:-4px;top:-4px;width:${sz}px;height:${sz}px;background:${c};box-shadow:0 0 10px ${c}"></span>`;
+      const cc = r.rarity === 'm' && c !== '#ffffff' ? ['#ff9ad5', '#ffd36b', '#8dffb0', '#7fc8ff', '#c39bff'][k % 5] : c;
+      return `<span style="--dx:${dx}px;--dy:${dy}px;--t:${t}s;--d:${delay}s;left:-4px;top:-4px;width:${sz}px;height:${sz}px;background:${cc};box-shadow:0 0 10px ${cc}"></span>`;
     }).join('');
     const coinsFly = Array.from({ length: 12 }, (_, j) => {
       const dx = 530 + (j % 3) * 6, dy = -164 - (j % 2) * 4, delay = (j * .06).toFixed(2);
       const l = ((j * 29) % 60) - 30, t = ((j * 17) % 40) - 20;
       return `<span style="--dx:${dx}px;--dy:${dy}px;--d:${delay}s;left:${l}px;top:${t}px"></span>`;
     }).join('');
-    const stars = Array.from({ length: ['c','r','e','l'].indexOf(r.rarity) + 1 },
+    const stars = Array.from({ length: ['c','r','e','l','m'].indexOf(r.rarity) + 1 },
       (_, i) => `<svg class="cstar" viewBox="0 0 24 24" style="width:16px;height:16px;animation-delay:${(.2 + i * .15).toFixed(2)}s" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z" fill="${R.color}"/></svg>`).join('');
     ov.innerHTML = `<div class="chead">
         <h2>Coffre de victoire</h2>
@@ -185,9 +193,9 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
         <div class="csparks" hidden>${sparks}</div>
         <div class="citem" hidden><div class="cfloat">${objectSVG(r.slot, r.value, 210, '#2f5f8a', cb.color || '#d9b25a')}</div></div>
         <div class="ccoins" hidden>${coinsFly}</div>
-        <div class="ctext" aria-live="polite"><div class="crow1"><span class="crlbl" style="color:${R.color}">${esc(R.label)}</span><span style="display:flex;gap:3px">${stars}</span></div>
+        <div class="ctext" aria-live="polite"><div class="crow1"><span class="crlbl${r.rarity === 'm' ? ' irid' : ''}" style="color:${R.color}">${esc(R.label)}</span><span style="display:flex;gap:3px">${stars}</span></div>
           <div class="cname">${esc(r.name)}</div>
-          <div class="csub">${esc(SLOT_LABEL[r.slot] || r.slot)} · ${r.duplicate ? 'déjà possédé · +' + r.coins_gained + ' pièces' : 'nouvel objet'}</div>
+          <div class="csub">${esc(SLOT_LABEL[r.slot] || r.slot)} · ${r.duplicate ? (r.slot === 'carte' ? 'déjà possédée' : 'déjà possédé') + ' · +' + r.coins_gained + ' pièces' : r.slot === 'carte' ? 'nouvelle carte : elle s\'anime quand vous la jouez' : 'nouvel objet'}</div>
         </div>
         <div class="cidle"></div>
         <div class="cact" hidden></div>
@@ -223,7 +231,8 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
     const done = () => {
       text.classList.add('on');
       actEl.hidden = false;
-      actEl.innerHTML = r.duplicate
+      // une carte animée ne se porte pas : posséder suffit, on ferme simplement
+      actEl.innerHTML = r.duplicate || r.slot === 'carte'
         ? `<button type="button" class="ghost" data-act="again"${r.chests > 0 ? '' : ' hidden'}>Ouvrir le suivant</button><button type="button" class="gold" data-act="close">Continuer</button>`
         : `<button type="button" class="ghost" data-act="again"${r.chests > 0 ? '' : ' hidden'}>Ouvrir le suivant</button><button type="button" class="gold" data-act="equip">Équiper</button>`;
       skipBtn.hidden = true;
@@ -238,7 +247,7 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
     };
     /** Objet sorti, sans animation de montée (Passer, ou prefers-reduced-motion) : couvercle ouvert, teinte de rareté. */
     const reveal = () => {
-      timers.forEach(clearTimeout); timers.length = 0;
+      timers.forEach(clearTimeout); timers.length = 0; ov.classList.toggle('myth', r.rarity === 'm');
       chest.classList.remove('bob', 'shake', 'hum'); chest.classList.add('dim');
       lid.classList.remove('crack'); lid.classList.add('open');
       setGlow(R.color, R.soft, 1, 1); seam.style.opacity = '1'; raysWrap.style.opacity = '.35';
@@ -265,9 +274,12 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
       });
     };
     const tint = () => {
-      setGlow(R.color, R.soft, 1, 1); raysEl.style.transition = 'background 1s';
+      raysEl.style.transition = 'background 1s';
       try { sfx.chord(r.rarity); } catch { /* son indisponible */ }
-      later(1000, open);
+      if (r.rarity !== 'm') { setGlow(R.color, R.soft, 1, 1); later(1000, open); return; }
+      // Mythique : la lueur passe par l'or pendant 1 s, puis devient irisée
+      setGlow(RAR.l.color, RAR.l.soft, 1, 1);
+      later(1000, () => { setGlow(R.color, R.soft, 1, 1.05); raysEl.style.background = `repeating-conic-gradient(from 0deg,#ff9ad5 0deg 5deg,transparent 5deg 20deg,#8dffb0 20deg 25deg,transparent 25deg 40deg,#7fc8ff 40deg 45deg,transparent 45deg 60deg)`; ov.classList.add('myth'); later(1000, open); });
     };
     const glow = () => {
       chest.classList.remove('shake'); chest.classList.add('hum');
@@ -297,7 +309,7 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
     };
     const idle = ov.querySelector('.cidle') as HTMLElement;
     idle.innerHTML = `<button type="button" class="ciopen">Ouvrir le coffre</button>
-      <div class="codds">${Object.entries(RAR).map(([, R]) => `<span><i style="background:${R.color}"></i>${esc(R.label)} ${R.p}</span>`).join('')}</div>`;
+      <div class="codds">${Object.entries(RAR).map(([, R]) => `<span><i style="background:${R === RAR.m ? IRID : R.color}"></i>${esc(R.label)} ${R.p}</span>`).join('')}</div>`;
     (idle.querySelector('.ciopen') as HTMLButtonElement).onclick = start;
     (idle.querySelector('.ciopen') as HTMLButtonElement).focus();
     skipBtn.onclick = () => { reveal(); if (r.duplicate) convert(); else done(); };

@@ -4,6 +4,7 @@ import * as E from '@engine';
 import { TableView } from '../table';
 import { optionsHTML, readOptions, wireOptions, paintRanked } from '../options';
 import { go, setCleanup } from '../main';
+import { sb } from '../api';
 
 export function practicePage(root: HTMLElement) {
   root.innerHTML = `<section class="page narrow"><div class="box">
@@ -23,6 +24,12 @@ export function practicePage(root: HTMLElement) {
       },
     }, () => go('#/'));
     view.push(E.takeEvents(S)); view.setLatest(E.publicView(S), E.privateView(S, 0));
+    // connecté : vos cartes animées s'animent aussi à l'entraînement (siège 0)
+    sb.auth.getSession().then(async ({ data }) => {
+      const u = data.session?.user.id; if (!u) return;
+      const { data: ca } = await sb.rpc('cartes_animees', { p_users: [u] });
+      if (ca?.length) view.setAnimCards([new Set((ca as any[]).map(r => r.carte as string))]);
+    }).catch(() => { /* hors ligne : images fixes */ });
     // accès de débogage (tests de bout en bout) : en développement, ou si localStorage « pli-debug » vaut « 1 »
     let dbg = import.meta.env.DEV; try { dbg ||= localStorage.getItem('pli-debug') === '1'; } catch { /* stockage indisponible */ }
     if (dbg) (window as any).__practice = { S, view, E };

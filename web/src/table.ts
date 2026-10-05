@@ -1,7 +1,8 @@
 // Vue de la table, partagée par le mode en ligne et l'entraînement hors ligne.
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
 import { cname, leadSuitOf, resolve, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
-import { cardHTML, backFace, preloadArt } from './cards';
+import { cardHTML, cardKey, backFace, preloadArt } from './cards';
+import { ANIM, ANIM_MODES, HALO_MS, animAllowed, attachAnim, detachAnim, getAnimMode, onAnimMode, setAnimMode, type AnimMode } from './animatedCards';
 import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
@@ -40,6 +41,8 @@ export interface TableBackend {
   myLook?: () => { color: string; look: Look | null };
   /** Aperçu d'un joueur (player.card) pour la fenêtre au survol d'un pod. */
   playerCard?(uid: string): Promise<PlayerCardData>;
+  /** Son coupé ou remis depuis la table : enregistré aussi dans le profil (réglage « Sons de la table »). */
+  saveSound?(on: boolean): void;
 }
 /** Réactions proposées (les seules acceptées, y compris depuis le réseau). */
 export const EMOTES = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
@@ -149,6 +152,7 @@ export class TableView {
       <div class="gsp"></div>
       <div class="gtools">
         <select id="speed" class="tb" aria-label="Vitesse des animations"><option value="1.7">Lente</option><option value="1">Normale</option><option value="0.45">Rapide</option></select>
+        <select id="anim" class="tb" aria-label="Cartes animées">${ANIM_MODES.map(([v, l]) => `<option value="${v}">Cartes animées : ${l}</option>`).join('')}</select>
         <select id="amb" class="tb" aria-label="Ambiance de la table"><option value="pirate">Ambiance : pirate</option><option value="sobre">Ambiance : sobre</option></select>
         <button class="tb" id="bLast" aria-label="Dernier pli">${ICON.last}<span class="lbl">Dernier pli</span></button>
         <button class="tb" id="bScores" aria-label="Scores">${ICON.scores}<span class="lbl">Scores</span></button>
@@ -193,7 +197,11 @@ export class TableView {
     root.addEventListener('click', ev => { const b = (ev.target as HTMLElement).closest('[data-emo]') as HTMLElement | null; if (b) this.sendEmote(b.dataset.emo!); });
     const bs = $('#bSound', root);
     const paintSound = () => { bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff; bs.setAttribute('aria-label', soundOn() ? 'Couper le son' : 'Activer le son'); bs.title = bs.getAttribute('aria-label')!; };
-    paintSound(); bs.onclick = () => { setSound(!soundOn()); paintSound(); if (soundOn()) sfx.coin(); };
+    paintSound(); bs.onclick = () => { setSound(!soundOn()); paintSound(); this.backend.saveSound?.(soundOn()); if (soundOn()) sfx.coin(); };
+    // cartes animées : toutes / les miennes / aucune (localStorage pli.cartesAnimees), modifiable à tout moment
+    const an = $('#anim', root) as HTMLSelectElement; an.value = getAnimMode();
+    an.onchange = () => setAnimMode(an.value as AnimMode);
+    this.offAnim = onAnimMode(() => { an.value = getAnimMode(); this.applyAnimMode(); });
     installCardZoom(); setZoomNote(card => this.zoomNote(card)); preloadArt();
     // Aperçu joueur au survol d'un pod : cache per-partie, évite la main et le centre du plateau à l'affichage
     if (this.backend.playerCard) this.playerCardCtl = new PlayerCardCtl(
@@ -225,7 +233,7 @@ export class TableView {
   }
   private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
   private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
-  destroy() { this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); this.playerCardCtl?.destroy(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
+  destroy() { this.offAnim?.(); this.root.querySelectorAll<HTMLElement>('.card.animated').forEach(detachAnim); this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); this.playerCardCtl?.destroy(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {
@@ -323,6 +331,37 @@ export class TableView {
   private avatars: (AvatarData | null)[] = [];
   /** Avatars et couleurs des sièges (null : bot ou joueur sans profil, initiale sur la couleur par défaut). */
   setAvatars(list: (AvatarData | null)[]) { this.avatars = list; if (this.pub) this.render(); }
+  /** Cartes animées possédées, par siège (fichiers : kraken, sk, raie…) : posséder une carte suffit pour qu'elle soit animée. */
+  private animOwned: Set<string>[] = [];
+  private offAnim: (() => void) | null = null;
+  private trickAnim: { card: HTMLElement; seat: number } | null = null;
+  setAnimCards(list: Set<string>[]) { this.animOwned = list; if (this.pub) this.render(); }
+  /** Le réglage et l'appareil permettent d'animer les cartes de ce siège. */
+  private animOn(seat: number) {
+    const mode = getAnimMode();
+    return mode !== 'aucune' && (mode !== 'miennes' || seat === this.mySeat) && animAllowed();
+  }
+  /** Clé de la carte si elle doit être animée quand ce siège la tient ou la pose (réglage, appareil, possession). */
+  private animKey(seat: number, c: Card): string | null {
+    const key = cardKey(c), a = ANIM[key];
+    return a && this.animOwned[seat]?.has(a.file) && this.animOn(seat) ? key : null;
+  }
+  /** Carte animée posée dans le pli : halo de sa couleur et léger grossissement (1,2 s), puis la vidéo tourne jusqu'au
+   *  ramassage. Une seule vidéo à la fois sur la table : la dernière carte animée posée. */
+  private trickAnimate(w: HTMLElement, c: HTMLElement, seat: number, key: string) {
+    if (this.trickAnim && this.trickAnim.card !== c) detachAnim(this.trickAnim.card);
+    this.trickAnim = { card: c, seat }; attachAnim(c, key);
+    const tcw = w.querySelector('.tcw') as HTMLElement | null; if (!tcw || !this.animMs) return;
+    tcw.style.setProperty('--halo', ANIM[key].halo);
+    tcw.classList.remove('anim-go'); void tcw.offsetWidth; tcw.classList.add('anim-go');
+    setTimeout(() => tcw.classList.remove('anim-go'), HALO_MS);
+  }
+  /** Réglage changé pendant la partie : la carte du pli s'arrête si elle n'est plus permise, la main suit. */
+  private applyAnimMode() {
+    const t = this.trickAnim;
+    if (t && !this.animOn(t.seat)) { detachAnim(t.card); this.trickAnim = null; }
+    if (this.pub) this.renderHand();
+  }
   private colorOf(i: number) { return this.avatars[i]?.color || PCOL[i % 9]; }
   private avatar(i: number, name: string, size: number) { return avatarHTML({ ...(this.avatars[i] || {}), letter: name, color: this.colorOf(i) }, size, size >= 50 ? `0 0 0 2px #1b140e,0 0 0 4px ${this.colorOf(i)}` : undefined); }
   /** Instantané d'un joueur pour l'aperçu : place courante, résultat manche par manche, mise/plis du moment. */
@@ -459,9 +498,11 @@ export class TableView {
       { label: soundOn() ? 'Couper le son' : 'Activer le son', value: 'sound', cls: 'alt' },
       { label: `Vitesse : ${this.speed === 1 ? 'normale' : this.speed > 1 ? 'lente' : 'rapide'}`, value: 'speed', cls: 'alt' },
       { label: `Ambiance : ${getAmbiance()}`, value: 'amb', cls: 'alt' },
+      { label: `Cartes animées : ${ANIM_MODES.find(([m]) => m === getAnimMode())![1]}`, value: 'anim', cls: 'alt' },
       { label: 'Quitter la table', value: 'exit', cls: 'alt' }, { label: 'Fermer', value: null }]);
     if (v === 'last') this.lastTrickModal(); else if (v === 'rules') modal(rulesHTML()); else if (v === 'exit') this.onExit();
     else if (v === 'sound') { ($('#bSound', this.root) as HTMLButtonElement).click(); }
+    else if (v === 'anim') { const o = ANIM_MODES.map(([m]) => m), nx = o[(o.indexOf(getAnimMode()) + 1) % o.length]; setAnimMode(nx); toast('Cartes animées : ' + ANIM_MODES.find(([m]) => m === nx)![1]); }
     else if (v === 'amb') { const a = $('#amb', this.root) as HTMLSelectElement; a.value = getAmbiance() === 'sobre' ? 'pirate' : 'sobre'; a.dispatchEvent(new Event('change')); toast('Ambiance : ' + a.value); }
     else if (v === 'speed') { const sp = $('#speed', this.root) as HTMLSelectElement; const o = ['1', '0.45', '1.7']; sp.value = o[(o.indexOf(sp.value) + 1) % 3]; sp.dispatchEvent(new Event('change')); toast('Vitesse : ' + sp.selectedOptions[0].text.toLowerCase()); }
   }
@@ -589,7 +630,7 @@ export class TableView {
       w.classList.toggle('behind', li != null && !win);
       (w.querySelector('.topen') as HTMLElement).hidden = s.idx !== 0;
       setHTML(w.querySelector('.tft') as HTMLElement, win ? `<span class="twin">${CROWN}prend le pli</span>` : '');
-      if (fresh) this.flyIn(c, e.p, e.card.id);
+      if (fresh) { this.flyIn(c, e.p, e.card.id); const ak = this.animKey(e.p, e.card); if (ak) this.trickAnimate(w, c, e.p, ak); }
     });
     for (const [key, el] of this.tempty) if (!seen.has(key)) { el.remove(); this.tempty.delete(key); }
     // petites flèches entre les places
@@ -794,6 +835,7 @@ export class TableView {
   /** Fin du pli : les cartes filent vers la plaque du gagnant en rétrécissant (600 ms), ou coulent vers le centre (Kraken, pli défaussé). */
   private flyOut(w: HTMLElement, seat: number | null, i: number) {
     const c = (w.querySelector('.card') ?? w.firstElementChild) as HTMLElement;
+    if (c.dataset.anim) { detachAnim(c); if (this.trickAnim?.card === c) this.trickAnim = null; }
     if (!this.animMs) { w.remove(); return; }
     w.classList.add('leaving'); w.style.zIndex = String(30 + i);
     const pl = seat != null && seat >= 0 ? this.anchor(seat) : null;
@@ -823,7 +865,7 @@ export class TableView {
   }
   private renderHand() {
     const el = $('#hand', this.root); el.classList.toggle('lisewait', this.liseChoosing());
-    const clear = (msg: string) => { this.handEls.clear(); el.innerHTML = `<span class="hidden-hand">${msg}</span>`; };
+    const clear = (msg: string) => { for (const c of this.handEls.values()) detachAnim(c); this.handEls.clear(); el.innerHTML = `<span class="hidden-hand">${msg}</span>`; };
     if (this.mySeat == null || !this.priv) { $('#handTitle', this.root).innerHTML = '<b>Spectateur</b>'; $('#handMeta', this.root).innerHTML = ''; clear('Vous regardez la partie.'); return; }
     const pv = this.priv, pb = this.pub!;
     // pendant la relecture, la main connue date d'avant nos coups : on retire toutes les cartes déjà posées dans la manche
@@ -851,7 +893,7 @@ export class TableView {
     el.style.setProperty('--lift', (cardH * .12).toFixed(1) + 'px');
 
     const ids = new Set(hand.map(c => c.id));
-    for (const [id, c] of this.handEls) if (!ids.has(id)) { c.remove(); this.handEls.delete(id); }
+    for (const [id, c] of this.handEls) if (!ids.has(id)) { detachAnim(c); c.remove(); this.handEls.delete(id); }
     const playing = this.myTurnToPlay() && !this.choice; const legal = new Set(pv.legal);
     const m = (len - 1) / 2; const added: HTMLElement[] = [];
     let prev: HTMLElement | null = null;
@@ -871,6 +913,9 @@ export class TableView {
       if (hit && !ce.querySelector('.listag')) ce.insertAdjacentHTML('beforeend', `<span class="listag">Imposée par ${esc(lfx!.by === this.mySeat ? 'vous' : this.pub!.players[lfx!.by].name)}</span>`);
       if (!hit) ce.querySelector('.listag')?.remove();
       ce.classList.toggle('sending', this.sendingId === c.id);
+      // carte animée : la vidéo démarre dès que la carte arrive en main (décision 7 de docs/ETAT.md)
+      const ak = this.animKey(this.mySeat!, c);
+      if (ak) { if (!ce.dataset.anim) attachAnim(ce, ak); } else if (ce.dataset.anim) detachAnim(ce);
       // pendant votre tour, toutes les cartes se survolent et se focalisent (l'aperçu explique pourquoi une carte est bloquée)
       if (act || playing) { ce.tabIndex = 0; ce.setAttribute('role', 'button'); } else { ce.removeAttribute('tabindex'); ce.setAttribute('role', 'img'); }
       if (playing && !legal.has(c.id) && !pick) ce.setAttribute('aria-disabled', 'true'); else ce.removeAttribute('aria-disabled');

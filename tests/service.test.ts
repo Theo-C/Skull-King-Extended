@@ -237,17 +237,29 @@ for (let i = 0; i < 500; i++) {
   const r = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 1_000_000 + i * 2017 });
   if (r?.rarity === 'c') cC++; else if (r?.rarity === 'r') cR++; else if (r?.rarity === 'e') cE++; else if (r?.rarity === 'l') cL++;
 }
-ok('coffre : fréquence commune autour de 62 %', Math.abs(cC - 310) <= 60, { cC, cR, cE, cL });
+ok('coffre : fréquence commune autour de 61 %', Math.abs(cC - 305) <= 60, { cC, cR, cE, cL });
 ok('coffre : fréquence rare autour de 26 %', Math.abs(cR - 130) <= 50, { cC, cR, cE, cL });
 ok('coffre : fréquence épique autour de 9 %', Math.abs(cE - 45) <= 30, { cC, cR, cE, cL });
 
-// Légendaire : le Poulpe est le seul légendaire du coffre ; il doit sortir environ 3 fois sur 100
-let leg = 0;
+// Légendaire (le Poulpe est le seul légendaire du coffre) : environ 3 fois sur 100 ; Mythique (cartes animées) : environ 1 fois sur 100
+let leg = 0, myth = 0;
 for (let i = 0; i < 1000; i++) {
   await db.exec(`update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
-  if ((await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 7_000_000 + i * 7919 }))?.rarity === 'l') leg++;
+  const r = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 7_000_000 + i * 7919 });
+  if (r?.rarity === 'l') leg++; else if (r?.rarity === 'm') { myth++; if (r.slot !== 'carte') myth = -999; }
 }
-ok('coffre : fréquence légendaire autour de 3 %', leg >= 15 && leg <= 50, { leg });
+ok('coffre : fréquence légendaire autour de 3 %', leg >= 15 && leg <= 50, { leg, myth });
+ok('coffre : fréquence mythique autour de 1 %, toujours une carte animée', myth >= 3 && myth <= 22, { leg, myth });
+// graine 9950 : tirage 0,995 → Mythique, première carte par ordre d'identifiant (carte:baleine)
+await db.exec(`delete from user_cosmetics where user_id = '${nobodyUid}' and cosmetic_id like 'carte:%'; update user_wallet set chests = 2 where user_id = '${nobodyUid}'`);
+const m1 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 9950 }), m2 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 9950 });
+ok('coffre : Mythique → carte animée, doublon à 400 pièces', m1?.rarity === 'm' && m1.cosmetic_id === 'carte:baleine' && !m1.duplicate && m2?.duplicate && m2.coins_gained === 400, { m1, m2 });
+await db.exec(`insert into user_cosmetics (user_id, cosmetic_id, source) select '${nobodyUid}', id, 'test' from cosmetics where slot = 'carte' on conflict do nothing; update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
+const m3 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 9950 });
+ok('coffre : les 6 cartes possédées → la Mythique devient une Légendaire', m3?.rarity === 'l', m3);
+const ca = (await db.query<any>('select * from cartes_animees($1::uuid[])', [[nobodyUid, U.alice]])).rows;
+ok('cartes animées : lecture de qui possède quoi', ca.length === 6 && ca.every((r: any) => r.user_id === nobodyUid), ca);
+await db.exec(`delete from user_cosmetics where user_id = '${nobodyUid}' and cosmetic_id like 'carte:%'`);
 
 // chest.open par l'action du service (le site passe par là) : un coffre ouvert, puis refus quand il n'y en a plus
 await db.exec(`update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);

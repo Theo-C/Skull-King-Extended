@@ -31,8 +31,8 @@ export interface AvatarData { kind?: 'initial' | 'art' | 'photo' | string | null
 
 /** Catalogue d'objets (aligné sur public.cosmetics / maquettes/Profil.dc.html).
  *  id = `slot:value`. default_owned = libre pour tout le monde. how = source d'obtention.
- *  4 niveaux de rareté : c (Commun) · r (Rare) · e (Épique) · l (Légendaire). */
-export type Rar = 'c' | 'r' | 'e' | 'l';
+ *  5 niveaux de rareté : c (Commun) · r (Rare) · e (Épique) · l (Légendaire) · m (Mythique : cartes animées). */
+export type Rar = 'c' | 'r' | 'e' | 'l' | 'm';
 export const CATALOG = (() => {
   interface Item { id: string; slot: string; value: string | null; name: string; rarity: Rar; defaultOwned: boolean; how: string | null; variantKey?: 'htc' | 'nkc' | 'ptc'; variants?: string[] }
   const C: Item[] = [
@@ -76,6 +76,14 @@ export const CATALOG = (() => {
     { id: 'frame:corde', slot: 'frame', value: 'corde', name: 'Corde', rarity: 'c', defaultOwned: true, how: null },
     { id: 'frame:tentacules', slot: 'frame', value: 'tentacules', name: 'Tentacules', rarity: 'l', defaultOwned: false, how: 'achievement:kraken_bet' },
     { id: 'frame:or', slot: 'frame', value: 'or', name: 'Cadre d\'or', rarity: 'l', defaultOwned: false, how: 'leaderboard:top3-month' },
+
+    // cartes animées (docs/cartes-animees/SPEC.md) : value = fichier dans web/public/cards/anim/ ; posséder suffit
+    { id: 'carte:kraken', slot: 'carte', value: 'kraken', name: 'Le Kraken', rarity: 'm', defaultOwned: false, how: 'chest' },
+    { id: 'carte:sk', slot: 'carte', value: 'sk', name: 'Skull King', rarity: 'm', defaultOwned: false, how: 'chest' },
+    { id: 'carte:raie', slot: 'carte', value: 'raie', name: 'La Raie Étoilée', rarity: 'm', defaultOwned: false, how: 'chest' },
+    { id: 'carte:baleine', slot: 'carte', value: 'baleine', name: 'La Baleine Fantôme', rarity: 'm', defaultOwned: false, how: 'chest' },
+    { id: 'carte:sirene', slot: 'carte', value: 'sirene', name: 'Alyra', rarity: 'm', defaultOwned: false, how: 'chest' },
+    { id: 'carte:fosse', slot: 'carte', value: 'fosse', name: 'La Fosse des Noyés', rarity: 'm', defaultOwned: false, how: 'chest' },
   ];
   const bySlot: Record<string, Item[]> = {};
   for (const it of C) (bySlot[it.slot] ||= []).push(it);
