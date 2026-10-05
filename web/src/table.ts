@@ -7,6 +7,9 @@ import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
 import { installCardZoom, setZoomNote } from './zoom';
 import { avatarHTML, type AvatarData } from './avatar';
+import { BY_ID, RARITY } from '@shared/cosmetics.ts';
+import { itemPreview } from './objects';
+import { openChestOverlay, type ChestResult } from './chest';
 import { levelFor, xpToReach, LEVEL_TITLES, fmt, xpReason as xpLabel } from './xp';
 
 
@@ -28,6 +31,8 @@ export interface TableBackend {
   gameId?: string; uid?: string; seatUids?: (string | null)[]; rematch?(): Promise<string>;
   /** Règlement de fin de partie relu au serveur (history.get) quand il tarde à arriver par l'état de la partie. */
   settled?(): Promise<any>;
+  /** Coffre de victoire (partie en ligne) : ouverture côté serveur, objet porté tout de suite, état du porte-monnaie. */
+  chest?: { open(): Promise<ChestResult>; equip(r: ChestResult): Promise<void>; wallet(): Promise<{ coins: number; chests: number }> };
 }
 /** Réactions proposées (les seules acceptées, y compris depuis le réseau). */
 export const EMOTES = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
@@ -1093,23 +1098,57 @@ export class TableView {
     const xpRows = (s.xp as any[]).map((x, k) => `<div class="fxl" style="animation-delay:calc(${(1.3 + k * .2).toFixed(1)}s * var(--spd,1))"><span>${esc(xpLabel(x.reason, x.amount))}</span><b>+${x.amount}</b></div>`).join('');
     const nextT = LEVEL_TITLES.find(([l]) => l > after.level);
     const elo = s.elo;
-    const ach = (s.achievements as any[])[0];
+    const ach = (s.achievements as any[])[0], me = this.mySeat ?? 0;
     grid.innerHTML = `<div class="fbox">${xpRows}
         <div class="fxt"><b>Niveau ${before.level} · ${esc(before.title)}</b><b class="big">+${s.xpTotal} XP</b></div>
         <div class="fbar"><span style="--from:${from}%;--to:${to}%"></span></div>
         <span class="lbl">${up ? '' : `${fmt(after.inLevel)} / ${fmt(after.need)} XP${nextT ? ` · encore ${fmt(xpToReach(nextT[0]) - s.xpAfter)} avant ${esc(nextT[1])}` : ''}`}</span>
-        ${up ? `<span class="lvup">Niveau ${after.level} · ${esc(after.title)} !</span>` : ''}</div>
+        ${up ? `<span class="lvup">Niveau ${after.level} · ${esc(after.title)} !</span>` : ''}
+        ${s.coins ? `<span class="lbl fcoins"><span class="coin" aria-hidden="true"></span>+${s.coins} pièces pour la garde-robe</span>` : ''}</div>
       ${elo ? `<div class="fbox fxl" style="animation-delay:calc(2.3s * var(--spd,1))"><span class="ftag">Élo</span>
         <span class="felo"><span class="o">${Math.round(elo.before)}</span><span class="o">→</span><span class="n">${Math.round(elo.after)}</span><b class="${elo.delta >= 0 ? 'pos' : 'neg'}">${signed(Math.round(elo.delta))}</b></span>
         ${((elo.vs || []) as any[]).map(v => `<div class="fvs"><span>${vsLabel(v)}</span><b class="${v.delta >= 0 ? 'pos' : 'neg'}">${signedOne(v.delta)}</b></div>`).join('')}</div>`
         : '<div class="fbox"><span class="ftag">Élo</span><span class="lbl">Partie non classée : il faut au moins deux joueurs humains.</span></div>'}
-      ${ach ? `<div class="fach"><span class="medal2">${ACH_STAR}</span><span><span class="ftag dark">Haut fait débloqué</span><b>${esc(ach.name)}</b><span>${esc(ach.description)}${s.achievements.length > 1 ? ` · et ${s.achievements.length - 1} autre${s.achievements.length > 2 ? 's' : ''}` : ''}</span></span></div>` : ''}`;
+      ${this.rewardsHTML(s, me) || (ach ? `<div class="fach"><span class="medal2">${ACH_STAR}</span><span><span class="ftag dark">Haut fait débloqué</span><b>${esc(ach.name)}</b><span>${esc(ach.description)}${s.achievements.length > 1 ? ` · et ${s.achievements.length - 1} autre${s.achievements.length > 2 ? 's' : ''}` : ''}</span></span></div>` : '')}`;
+    this.wireChest(grid);
     // place et Élo de chacun sous le podium
     const res = (this.latest?.pub as any)?.settled || {};
     ov.querySelectorAll<HTMLElement>('[data-elo]').forEach(el => {
       const i = Number(el.dataset.elo), u = this.backend.seatUids?.[i]; const e = u ? res[u]?.elo : null;
       if (e) el.textContent += ` · Élo ${signed(Math.round(e.delta))}`;
     });
+  }
+  /** Récompenses de la garde-robe (maquette FinPartie) : objet du haut fait ou du titre, coffre de victoire. Vide s'il n'y en a pas. */
+  private rewardsHTML(s: any, me: number) {
+    const color = this.colorOf(me), cards: string[] = [];
+    for (const it of (s.items || []) as any[]) {
+      const x = BY_ID[it.id]; if (!x) continue;
+      const ach = (s.achievements as any[]).find(a => a.item === it.id), r = RARITY[x.rarity];
+      cards.push(`<div class="fach frw"><span class="fitem">${itemPreview(x, color, 64)}</span><span><span class="ftag dark">${ach ? `Haut fait · ${esc(ach.name)}` : 'Nouveau titre'}</span>
+        <b>${esc(x.name)}</b><span>${ach ? `Objet ${r.name.toLowerCase()}, réservé à ce haut fait` : `Objet ${r.name.toLowerCase()}, obtenu avec votre nouveau titre`}</span></span></div>`);
+    }
+    if (s.chests && this.backend.chest) cards.push(`<div class="fchest" id="fChest"><button class="chestbtn" id="fChestBtn" aria-label="Ouvrir le coffre de victoire">${CHEST_SVG}</button>
+      <span><span class="ftag blue">Coffre de victoire</span><span class="fct">Un objet pour votre pirate vous attend.</span><button class="abtn gold" id="fChestGo">Ouvrir le coffre</button></span></div>`);
+    return cards.length ? `<div class="frews">${cards.join('')}</div>` : '';
+  }
+  private wireChest(grid: HTMLElement) {
+    const ch = this.backend.chest, box = grid.querySelector<HTMLElement>('#fChest'); if (!ch || !box) return;
+    const open = async () => {
+      const w = await ch.wallet().catch(() => ({ coins: 0, chests: 1 }));
+      let last: ChestResult | null = null;
+      openChestOverlay({
+        chests: w.chests, coins: w.coins, color: this.colorOf(this.mySeat ?? 0), sounds: soundOn(),
+        open: async () => (last = await ch.open()), equip: r => ch.equip(r),
+        onClose: () => {
+          if (!last) return; const x = BY_ID[last.item.id], r = RARITY[last.item.rarity];
+          // le coffre ouvert laisse place à l'objet obtenu
+          box.innerHTML = `<span class="fitem pop" style="filter:drop-shadow(0 0 12px ${r.color})">${x ? itemPreview(x, this.colorOf(this.mySeat ?? 0), 64) : ''}</span>
+            <span class="pop"><span class="ftag" style="color:${r.color}">${'★'.repeat(r.stars)} ${r.name}${last.duplicate ? ` · +${last.coinsGained} pièces` : ' · nouvel objet'}</span>
+            <b class="fct2">${esc(last.item.name)}</b><span class="lbl">${last.duplicate ? 'Déjà dans votre garde-robe' : 'Visible à la table dès la prochaine partie'}</span></span>`;
+        },
+      });
+    };
+    box.querySelectorAll<HTMLElement>('#fChestBtn, #fChestGo').forEach(b => b.onclick = open);
   }
   private maybeFinal() { if (this.pub?.phase === 'end' && !this.shownEnd) { this.shownEnd = true; this.finalOverlay(); } }
   scoreSheet() {
@@ -1120,6 +1159,7 @@ export class TableView {
     modal(h);
   }
 }
+const CHEST_SVG = '<svg viewBox="0 0 72 64" aria-hidden="true"><rect x="8" y="28" width="56" height="30" rx="3" fill="#6b4226" stroke="#2a170b" stroke-width="2"/><path d="M8 28c0-12 10-18 28-18s28 6 28 18z" fill="#7d4f2c" stroke="#2a170b" stroke-width="2"/><path d="M8 28h56M20 12v46M52 12v46" stroke="#c9a14a" stroke-width="3"/><rect x="31" y="30" width="10" height="12" rx="2" fill="#e3c47a" stroke="#8a6620"/></svg>';
 const sgn = (v: number) => `<span class="${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${v}</span>`;
 /** Points de base d'une mise selon le barème du moteur (même calcul que endRound dans engine.ts : classique ou Rascal). */
 /** « Coup de la manche » : le plus beau cas simple (mise 0 tenue avec beaucoup de cartes, plus gros bonus, plus grosse mise tenue). */

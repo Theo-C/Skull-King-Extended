@@ -1,15 +1,16 @@
-// Profil (#/profil) : identité + XP, éditeur d'image (pirate illustré, photo recadrée, initiale), statistiques, Élo, titres,
-// hauts faits, réglages du compte. Maquette Profil.
+// Profil (#/profil) : identité + XP, garde-robe (personnage composé, objets, coffres, échoppe), statistiques, Élo, titres,
+// hauts faits, réglages du compte. Maquette docs/maquettes/Profil.dc.html.
 import { sb, callGame } from '../api';
 import { $, esc, toast } from '../util';
 import { myProfile, forgetProfile, shell, applyPrefs, type Profile } from '../account';
-import { avatarHTML, PALETTE, ART_NAMES, type AvatarData } from '../avatar';
-import { xpLine, LEVEL_TITLES, xpToReach, fmt } from '../xp';
+import { avatarHTML, PALETTE, SKINS, HAIR_COLORS, type AvatarData } from '../avatar';
+import { xpLine, LEVEL_TITLES, xpToReach, fmt, titleFor } from '../xp';
+import { CATALOG, BY_ID, FREE, DEFAULT_LOOK, RARITY, howTo, type Cosmetic, type Look, type Slot } from '@shared/cosmetics.ts';
+import { itemPreview } from '../objects';
+import { openChestOverlay, type ChestResult } from '../chest';
 
 const COLOR_NAMES = ['Or', 'Corail', 'Algue', 'Lagon', 'Améthyste', 'Ambre', 'Écume', 'Corail rose'];
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z"/></svg>';
-const MAX_BYTES = 5 * 1024 * 1024;
-const TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const PENCIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
 const nth = (r: number) => r === 1 ? '1er' : r + 'e';
 
@@ -37,7 +38,7 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
 
   root.innerHTML = `<section class="apage profile">
     <section class="phero">
-      <div class="pav"><span id="heroAv"></span><button class="abtn gold round" id="bEdit" aria-label="Modifier la photo de profil" aria-controls="editor" aria-expanded="false">${PENCIL}</button></div>
+      <div class="pav"><span id="heroAv"></span><button class="abtn gold round" id="bEdit" aria-label="Ouvrir la garde-robe" aria-controls="wardrobe">${PENCIL}</button></div>
       <div class="pid">
         <div class="pline"><h1 id="heroName">${esc(p.pseudo)}</h1><span class="chip1">${esc(x.title)} · niveau ${x.level}</span>
           <span class="chip2">Élo ${eloNow}${lastDelta ? ` <span class="${lastDelta > 0 ? 'up' : 'down'}">${arrow(lastDelta)}</span>` : ''}</span></div>
@@ -46,7 +47,7 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
         ${next ? `<div class="pnext">Encore ${fmt(xpToReach(next[0]) - p.xp)} XP pour devenir <b>${esc(next[1])}</b> (niveau ${next[0]})</div>` : ''}
       </div>
     </section>
-    <section class="apanel editor" id="editor" hidden tabindex="-1" aria-label="Modifier l'image de profil"></section>
+    <section class="apanel wardrobe" id="wardrobe" tabindex="-1" aria-label="Garde-robe du pirate"><p class="empty">Chargement de la garde-robe…</p></section>
     <div class="tiles">
       ${tile(String(st.games), `partie${st.games > 1 ? 's' : ''} jouée${st.games > 1 ? 's' : ''}`)}
       ${tile(String(st.wins), `victoire${st.wins > 1 ? 's' : ''}${st.games ? ` · ${Math.round(100 * st.wins / st.games)} %` : ''}`)}
@@ -96,7 +97,9 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
 
   const paintHero = (pp: Profile) => { $('#heroAv', root).innerHTML = avatarHTML(av(pp), 120, `0 0 0 3px #1b140e,0 0 0 6px ${pp.color}`); $('#heroName', root).textContent = pp.pseudo; };
   paintHero(p);
-  $('#bEdit', root).onclick = () => openEditor(root, uid, p, saved => { Object.assign(p, saved); paintHero(p); forgetProfile(); shell({ id: uid }, 'profile'); });
+  const wr = $('#wardrobe', root);
+  $('#bEdit', root).onclick = () => { wr.scrollIntoView({ behavior: 'smooth', block: 'start' }); wr.focus({ preventScroll: true }); };
+  wardrobe(wr, uid, p, saved => { Object.assign(p, saved); paintHero(p); forgetProfile(); shell({ id: uid }, 'profile'); });
   $('#bPseudo', root).onclick = async () => {
     const v = ($('#pseudo', root) as HTMLInputElement).value.trim();
     const b = $('#bPseudo', root) as HTMLButtonElement; b.disabled = true;
@@ -122,7 +125,7 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
   };
 }
 
-const av = (p: Pick<Profile, 'avatar_kind' | 'avatar_art' | 'avatar_url' | 'pseudo' | 'color'>): AvatarData => ({ kind: p.avatar_kind, art: p.avatar_art, url: p.avatar_url, letter: p.pseudo, color: p.color });
+const av = (p: Pick<Profile, 'avatar_kind' | 'avatar_art' | 'look' | 'pseudo' | 'color'>): AvatarData => ({ look: p.look, kind: p.avatar_kind, art: p.avatar_art, letter: p.pseudo, color: p.color });
 const tile = (v: string, l: string) => `<div class="tile"><span class="big">${esc(v)}</span><span class="lbl">${esc(l)}</span></div>`;
 const pref = (k: string, t: string, d: string, on: boolean) => `<div class="prow"><span><b>${esc(t)}</b><span class="lbl">${esc(d)}</span></span><button class="tg ${on ? 'on' : ''}" data-k="${k}" role="switch" aria-checked="${on}" aria-label="${esc(t)}"></button></div>`;
 
@@ -155,126 +158,153 @@ function roving(group: HTMLElement, sel: string, pick: (el: HTMLElement) => void
   });
 }
 
-/* ---------- Éditeur d'image de profil ---------- */
-function openEditor(root: HTMLElement, uid: string, p: Profile, onSaved: (s: Partial<Profile>) => void) {
-  const box = $('#editor', root), bEdit = $('#bEdit', root); box.hidden = false; bEdit.setAttribute('aria-expanded', 'true');
-  const st = { tab: (p.avatar_kind === 'photo' ? 'photo' : p.avatar_kind === 'art' ? 'art' : 'init') as 'art' | 'photo' | 'init', art: p.avatar_art ?? 0, color: p.color, img: null as HTMLImageElement | null, zoom: 1.3, dx: 0, dy: 0, busy: false };
-  const TABS: [string, string][] = [['art', 'Pirate illustré'], ['photo', 'Ma photo'], ['init', 'Initiale']];
-  box.innerHTML = `<div class="ehead"><h2 id="eTitle">Image de profil</h2>
-      <div role="tablist" class="etabs" aria-label="Type d'image">${TABS.map(([k, l]) => `<button role="tab" id="et-${k}" data-t="${k}" aria-controls="ep-${k}">${l}</button>`).join('')}</div></div>
-    <div class="ebody">
-      <div class="eleft">
-        <div data-p="art" id="ep-art" role="tabpanel" aria-labelledby="et-art"><span class="lbl b" id="artLbl">Choisissez votre pirate</span>
-          <div class="arts" role="radiogroup" aria-labelledby="artLbl">${ART_NAMES.map((n, i) => `<button class="avb" role="radio" data-a="${i}" aria-label="${esc(n)}"></button>`).join('')}</div></div>
-        <div data-p="photo" id="ep-photo" role="tabpanel" aria-labelledby="et-photo">
-          <label class="drop" id="drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4" fill="none" stroke="#ead08a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <b>Déposez une image ou cliquez pour choisir</b><span class="lbl">JPG, PNG ou WebP · 5 Mo max · recadrée en cercle 256 × 256</span>
-            <input type="file" id="file" accept="image/jpeg,image/png,image/webp" class="sr"></label>
-          <div class="crop" id="cropWrap" hidden><canvas id="crop" width="240" height="240" tabindex="0" aria-label="Recadrage : faites glisser la photo, ou utilisez les flèches du clavier"></canvas></div>
-          <div class="zoomrow" id="zoomRow" hidden><span class="lbl b">Zoom</span><input type="range" id="zoom" min="100" max="200" value="130" aria-label="Zoom de la photo"></div>
-          <p class="err" id="perr" role="alert" hidden></p>
-        </div>
-        <div data-p="init" id="ep-init" role="tabpanel" aria-labelledby="et-init"><span class="lbl b">Votre initiale sur fond de couleur</span><p class="note2">C'est l'avatar par défaut à la création du compte. Il prend la première lettre de votre pseudo.</p></div>
-        <div class="colors" id="colors"><span class="lbl b" id="swLbl">Couleur du médaillon (sert aussi de couleur à la table)</span>
-          <div class="sws" role="radiogroup" aria-labelledby="swLbl">${PALETTE.map((c, i) => `<button class="sw" role="radio" data-c="${c}" style="background:${c}" aria-label="${COLOR_NAMES[i]}"></button>`).join('')}</div></div>
-      </div>
-      <div class="eprev"><span class="lbl b">Aperçu</span><div class="pv" id="pv"></div><div class="tablepv" id="tpv"></div>
-        <div class="ebtns"><button class="abtn ghost" id="eCancel">Annuler</button><button class="abtn gold" id="eSave">Enregistrer</button></div></div>
-    </div>`;
-  const canvas = $('#crop', box) as HTMLCanvasElement;
-  const photoURL = () => { if (!st.img) return p.avatar_kind === 'photo' ? p.avatar_url : null; const c = document.createElement('canvas'); c.width = c.height = 120; draw(c, 120); return c.toDataURL(); };
-  /** Dessine la photo recadrée (couverture du carré, zoom, déplacement) dans un canevas de taille s. */
-  const draw = (c: HTMLCanvasElement, s: number) => {
-    const g = c.getContext('2d')!, img = st.img; g.clearRect(0, 0, s, s); if (!img) return;
-    const k = Math.max(s / img.width, s / img.height) * st.zoom, w = img.width * k, h = img.height * k, f = s / 240;
-    g.drawImage(img, (s - w) / 2 + st.dx * f, (s - h) / 2 + st.dy * f, w, h);
+
+/* ---------- Garde-robe (maquette Profil, section Garde-robe) ---------- */
+type Tab = 'base' | Slot;
+const TABS: [Tab, string][] = [['base', 'Visage'], ['hat', 'Chapeaux'], ['face', 'Yeux et visage'], ['neck', 'Cou'], ['pet', 'Compagnons'], ['bg', 'Décor'], ['frame', 'Cadre']];
+const NONE: Partial<Record<Slot, string>> = { hat: 'Tête nue', face: 'Rien', neck: 'Rien', pet: 'Personne', frame: 'Sans cadre' };
+const HAIRS: [string, string][] = [['Court', 'court'], ['Mèche', 'meche'], ['Long', 'long'], ['Bouclé', 'boucles'], ['Chignon', 'chignon'], ['Tresse', 'tresse'], ['Queue', 'queue'], ['Rasé', 'none']];
+const BEARDS: [string, string][] = [['Aucune', 'none'], ['Moustache', 'mous'], ['Barbe courte', 'short'], ['Grande barbe', 'long']];
+const LOCK = '<svg class="lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="#ead08a"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="#ead08a" stroke-width="2"/></svg>';
+const CHEST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h18v9H3zM3 10c0-4 3-6 9-6s9 2 9 6M10 12h4v3h-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+const COIN = '<span class="coin" aria-hidden="true"></span>';
+const NEW_DAYS = 3;
+
+async function wardrobe(box: HTMLElement, uid: string, p: Profile, onSaved: (s: Partial<Profile>) => void) {
+  const [rows, wallet] = await Promise.all([
+    sb.from('user_cosmetics').select('cosmetic_id, obtained_at').eq('user_id', uid).then(r => r.error ? null : r.data || []),
+    sb.from('user_wallet').select('coins, chests').eq('user_id', uid).maybeSingle().then(r => r.data),
+  ]);
+  // base sans la migration de la garde-robe
+  if (rows === null) { box.innerHTML = '<div class="hrow"><h2>Garde-robe</h2></div><p class="lbl">La garde-robe ouvre bientôt ses portes.</p>'; return; }
+  const owned = new Set<string>([...FREE, ...rows.map((r: any) => r.cosmetic_id)]);
+  const fresh = new Set<string>(rows.filter((r: any) => Date.now() - Date.parse(r.obtained_at) < NEW_DAYS * 864e5).map((r: any) => r.cosmetic_id));
+  const start: Look = { ...DEFAULT_LOOK, ...(p.look || {}) };
+  const st = {
+    tab: 'base' as Tab, look: { ...start }, saved: { ...start }, color: p.color, savedColor: p.color,
+    coins: wallet?.coins ?? 0, chests: wallet?.chests ?? 0, shop: null as any[] | null, busy: false,
   };
-  const clampPan = () => { if (!st.img) return; const k = Math.max(240 / st.img.width, 240 / st.img.height) * st.zoom, mx = (st.img.width * k - 240) / 2, my = (st.img.height * k - 240) / 2; st.dx = Math.max(-mx, Math.min(mx, st.dx)); st.dy = Math.max(-my, Math.min(my, st.dy)); };
-  const current = (): AvatarData => st.tab === 'photo' ? { kind: 'photo', url: photoURL(), letter: p.pseudo, color: st.color } : st.tab === 'art' ? { kind: 'art', art: st.art, letter: p.pseudo, color: st.color } : { kind: 'initial', letter: p.pseudo, color: st.color };
-  const radio = (b: HTMLElement, on: boolean) => { b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; };
+  const dirty = () => JSON.stringify(st.look) !== JSON.stringify(st.saved) || st.color !== st.savedColor || !p.look;
+  const ring = (c: string, w = 6) => `0 0 0 ${w / 2}px #1b140e,0 0 0 ${w}px ${c}`;
+  const withItem = (it: Cosmetic | null, slot: Slot, variant?: string): Look => {
+    const lk: any = { ...st.look, [slot]: it ? it.value : null };
+    if (it?.variants) lk[it.variants.key] = variant ?? (st.look[slot] === it.value && (st.look as any)[it.variants.key]) ?? it.variants.colors[0];
+    return lk;
+  };
+  const avatar = (look: Partial<Look>, size: number, r?: string, locked = false) => avatarHTML({ look: look as Look, letter: p.pseudo, color: st.color }, size, r, locked);
+
+  const baseHTML = () => {
+    const sw = (k: string, label: string, c: string, on: boolean, extra = '') =>
+      `<button class="sw${on ? ' on' : ''}" role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}" data-k="${k}" ${extra} aria-label="${esc(label)}" style="background:${c}"></button>`;
+    const tile = (k: string, v: string, label: string, on: boolean) =>
+      `<button class="bt${on ? ' on' : ''}" role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}" data-k="${k}" data-v="${v}">${avatar({ ...st.look, [k]: v, hat: null, pet: null }, 56)}<span>${esc(label)}</span></button>`;
+    const row = (id: string, label: string, opts: string) => `<div class="brow"><span class="lbl b" id="${id}">${label}</span><div class="opts" role="radiogroup" aria-labelledby="${id}">${opts}</div></div>`;
+    return row('wSkin', 'Teint', SKINS.map(([c], i) => sw('skin', `Teint ${i + 1}`, c, st.look.skin === i, `data-v="${i}"`)).join(''))
+      + row('wHair', 'Coiffure', HAIRS.map(([l, v]) => tile('hair', v, l, st.look.hair === v)).join(''))
+      + row('wHc', 'Couleur des cheveux', HAIR_COLORS.map((c, i) => sw('hc', `Cheveux ${i + 1}`, c, st.look.hc === i, `data-v="${i}"`)).join(''))
+      + row('wBeard', 'Pilosité', BEARDS.map(([l, v]) => tile('beard', v, l, st.look.beard === v)).join(''))
+      + row('wCoat', 'Manteau (sert aussi de couleur à la table)', PALETTE.map((c, i) => sw('color', COLOR_NAMES[i], c, st.color === c, `data-v="${c}"`)).join(''))
+      + '<span class="lbl">Teint, coiffure et pilosité sont gratuits et modifiables à tout moment. Aucun choix n\'est réservé à un genre.</span>';
+  };
+  const itemsHTML = (slot: Slot) => {
+    const list: (Cosmetic | null)[] = [...(NONE[slot] ? [null] : []), ...CATALOG.filter(x => x.slot === slot)];
+    return `<div class="items">${list.map(it => {
+      const id = it ? it.id : `${slot}:`, has = !it || owned.has(it.id), on = (st.look[slot] ?? null) === (it ? it.value : null);
+      const rc = it ? RARITY[it.rarity].color : RARITY.commun.color, name = it ? it.name : NONE[slot]!;
+      const pv = it ? itemPreview(it, st.color, 64, { silhouette: !has, look: withItem(it, slot), variantColor: it.variants && on ? (st.look as any)[it.variants.key] : undefined })
+        : avatar(withItem(null, slot), 64);
+      const vars = it?.variants && has ? `<span class="vars">${it.variants.colors.map((c, j) => {
+        const sel = on && (st.look as any)[it.variants!.key] === c;
+        return `<button class="vsw${sel ? ' on' : ''}" data-id="${it.id}" data-c="${c}" aria-pressed="${sel}" aria-label="${esc(name)} : couleur ${j + 1}" style="background:${c}"></button>`;
+      }).join('')}</span>` : '';
+      return `<div class="it${on ? ' on' : ''}${has ? '' : ' lock'}" style="--rar:${rc}">
+        <button class="itb" data-id="${id}" aria-pressed="${on}" ${has ? '' : 'aria-disabled="true"'} aria-label="${esc(name)}${has ? '' : ' (verrouillé)'}">
+          <span class="ipw">${pv}${has ? '' : LOCK}${it && has && fresh.has(it.id) ? '<span class="new">Nouveau</span>' : ''}</span>
+          <span class="inm">${esc(name)}</span>${it ? `<span class="rar" style="color:${rc}">${RARITY[it.rarity].name}</span>` : ''}
+          ${it && !has ? `<span class="how">${esc(howTo(it, titleFor))}</span>` : ''}</button>${vars}</div>`;
+    }).join('')}</div>`;
+  };
+  const shopHTML = () => `<div class="shoprow"><span class="sh"><b>Échoppe du port</b><span class="lbl">3 objets, renouvelés chaque jour</span></span>
+    ${st.shop == null ? '<span class="lbl">Chargement…</span>' : st.shop.map(x => {
+      const it = BY_ID[x.id], has = owned.has(x.id), dis = has || st.coins < x.price;
+      return `<button class="shop" data-buy="${x.id}" aria-disabled="${dis}">${avatar(withItem(it, it.slot), 40)}<span><b>${esc(it.name)}${has ? ' ✓' : ''}</b>
+        <span class="lbl">${has ? 'acheté' : `${COIN}${x.price} pièces`}</span></span></button>`;
+    }).join('')}</div>`;
+
   const paint = () => {
-    box.querySelectorAll<HTMLElement>('[role=tab]').forEach(t => { const on = t.dataset.t === st.tab; t.classList.toggle('on', on); t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; });
-    box.querySelectorAll<HTMLElement>('[data-p]').forEach(d => d.hidden = d.dataset.p !== st.tab);
-    $('#colors', box).hidden = st.tab === 'photo';
-    box.querySelectorAll<HTMLElement>('.avb').forEach(b => { const i = Number(b.dataset.a); radio(b, i === st.art); b.innerHTML = avatarHTML({ kind: 'art', art: i, color: st.color }, 64); });
-    box.querySelectorAll<HTMLElement>('.sw').forEach(b => radio(b, b.dataset.c === st.color));
-    $('#cropWrap', box).hidden = $('#zoomRow', box).hidden = !st.img;
-    if (st.img) draw(canvas, 240);
-    const cur = current(), ring = `0 0 0 3px #1b140e,0 0 0 6px ${st.color}`;
-    $('#pv', box).innerHTML = avatarHTML(cur, 104, ring) + avatarHTML(cur, 36);
-    // aperçu de la plaque à la table : pseudo réel, sans score inventé
-    $('#tpv', box).innerHTML = `${avatarHTML(cur, 40, `0 0 0 2px #1b140e,0 0 0 3px ${st.color}`)}<span><b>${esc(p.pseudo)}</b><span class="lbl">à la table</span></span>`;
+    const keep = (document.activeElement as HTMLElement | null)?.closest?.('#wardrobe') ? focusKey(document.activeElement as HTMLElement) : null;
+    const total = CATALOG.filter(x => x.source !== 'free').length, mine = CATALOG.filter(x => x.source !== 'free' && owned.has(x.id)).length;
+    box.innerHTML = `<div class="whead"><span><h2>Garde-robe</h2><span class="lbl">Votre visage est libre ; les accessoires se gagnent en jouant.</span></span>
+        <span class="wpills"><span class="pill"><b>${mine}</b>&nbsp;/ ${total} objets</span><span class="pill">${COIN}<b id="wCoins">${fmt(st.coins)}</b>&nbsp;pièces</span>
+        ${st.chests ? `<button class="abtn gold" id="wChest">${CHEST}Ouvrir ${st.chests > 1 ? `${st.chests} coffres` : '1 coffre'} de victoire</button>` : ''}</span></div>
+      <div class="wgrid">
+        <div class="wprev">${avatar(st.look, 200, ring(st.color))}
+          <div class="tableplate">${avatar(st.look, 44, `0 0 0 2px #1b140e,0 0 0 3px ${st.color}`)}<span><b>${esc(p.pseudo)}</b><span class="lbl">à la table</span></span></div>
+          <div class="wbtns"><button class="abtn ghost" id="wRand">Au hasard</button><button class="abtn ghost" id="wUndo">Annuler</button>
+            <button class="abtn gold" id="wSave" ${dirty() ? '' : 'disabled'}>${dirty() ? 'Enregistrer' : 'Enregistré ✓'}</button></div></div>
+        <div class="wright">
+          <div role="tablist" class="wtabs" aria-label="Catégories">${TABS.map(([k, l]) => {
+            const n = k === 'base' ? 0 : CATALOG.filter(x => x.slot === k && fresh.has(x.id)).length, on = st.tab === k;
+            return `<button role="tab" id="wt-${k}" data-t="${k}" aria-selected="${on}" aria-controls="wpanel" tabindex="${on ? 0 : -1}" class="${on ? 'on' : ''}">${l}${n ? `<span class="cnt" aria-label="${n} nouveau${n > 1 ? 'x' : ''}">${n}</span>` : ''}</button>`;
+          }).join('')}</div>
+          <div id="wpanel" role="tabpanel" aria-labelledby="wt-${st.tab}">${st.tab === 'base' ? baseHTML() : itemsHTML(st.tab)}</div>
+          ${shopHTML()}
+        </div>
+      </div>`;
+    bind();
+    if (keep) (box.querySelector(keep) as HTMLElement | null)?.focus();
   };
-  // un seul rendu par image affichée pendant un glisser ou un zoom (toDataURL est coûteux)
-  let raf = 0;
-  const paintSoon = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; paint(); }); };
-  const err = (m: string | null) => { const e = $('#perr', box); e.hidden = !m; e.textContent = m ?? ''; };
-  const load = (f: File | undefined | null) => {
-    err(null); if (!f) return;
-    if (!TYPES.includes(f.type)) return err('Format refusé : JPG, PNG ou WebP.');
-    if (f.size > MAX_BYTES) return err(`Image trop lourde (${(f.size / 1048576).toFixed(1).replace('.', ',')} Mo) : 5 Mo maximum.`);
-    const url = URL.createObjectURL(f), img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); st.img = img; st.zoom = 1.3; st.dx = st.dy = 0; ($('#zoom', box) as HTMLInputElement).value = '130'; paint(); };
-    img.onerror = () => { URL.revokeObjectURL(url); err('Impossible de lire cette image. Essayez un autre fichier.'); };
-    img.src = url;
-  };
-  const pickTab = (t: HTMLElement) => { st.tab = t.dataset.t as any; paint(); };
-  box.querySelectorAll<HTMLElement>('[role=tab]').forEach(t => t.onclick = () => pickTab(t));
-  roving($('.etabs', box), '[role=tab]', pickTab);
-  const pickArt = (b: HTMLElement) => { st.art = Number(b.dataset.a); paint(); };
-  box.querySelectorAll<HTMLElement>('.avb').forEach(b => b.onclick = () => pickArt(b));
-  roving($('.arts', box), '.avb', pickArt);
-  const pickColor = (b: HTMLElement) => { st.color = b.dataset.c!; paint(); };
-  box.querySelectorAll<HTMLElement>('.sw').forEach(b => b.onclick = () => pickColor(b));
-  roving($('.sws', box), '.sw', pickColor);
-  ($('#file', box) as HTMLInputElement).onchange = ev => load((ev.target as HTMLInputElement).files?.[0]);
-  const drop = $('#drop', box);
-  drop.addEventListener('dragover', ev => { ev.preventDefault(); drop.classList.add('over'); });
-  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-  drop.addEventListener('drop', ev => { ev.preventDefault(); drop.classList.remove('over'); load(ev.dataTransfer?.files?.[0]); });
-  ($('#zoom', box) as HTMLInputElement).oninput = ev => { st.zoom = Number((ev.target as HTMLInputElement).value) / 100; clampPan(); paintSoon(); };
-  // déplacement de la photo au doigt, à la souris ou aux flèches
-  let drag: { x: number; y: number; dx: number; dy: number } | null = null;
-  const stop = () => { drag = null; };
-  canvas.addEventListener('pointerdown', ev => { drag = { x: ev.clientX, y: ev.clientY, dx: st.dx, dy: st.dy }; canvas.setPointerCapture(ev.pointerId); });
-  canvas.addEventListener('pointermove', ev => { if (!drag) return; st.dx = drag.dx + ev.clientX - drag.x; st.dy = drag.dy + ev.clientY - drag.y; clampPan(); paintSoon(); });
-  canvas.addEventListener('pointerup', stop); canvas.addEventListener('pointercancel', stop); canvas.addEventListener('lostpointercapture', stop);
-  canvas.addEventListener('keydown', ev => {
-    const m = ({ ArrowLeft: [-8, 0], ArrowRight: [8, 0], ArrowUp: [0, -8], ArrowDown: [0, 8] } as Record<string, number[]>)[ev.key];
-    if (!m) return; ev.preventDefault(); st.dx += m[0]; st.dy += m[1]; clampPan(); paintSoon();
-  });
-  const close = () => { cancelAnimationFrame(raf); box.hidden = true; box.innerHTML = ''; bEdit.setAttribute('aria-expanded', 'false'); bEdit.focus(); };
-  box.onkeydown = ev => { if (ev.key === 'Escape' && !st.busy) { ev.preventDefault(); close(); } };
-  $('#eCancel', box).onclick = close;
-  $('#eSave', box).onclick = async () => {
-    if (st.busy) return; const b = $('#eSave', box) as HTMLButtonElement; st.busy = true; b.disabled = true; b.textContent = 'Enregistrement…'; err(null);
+  // après un nouveau rendu, le focus revient sur l'élément équivalent
+  const focusKey = (el: HTMLElement) => el.id ? '#' + el.id : el.dataset.t ? `[data-t="${el.dataset.t}"]` : el.dataset.k ? `[data-k="${el.dataset.k}"][data-v="${el.dataset.v}"]`
+    : el.dataset.c ? `[data-id="${el.dataset.id}"][data-c="${el.dataset.c}"]` : el.dataset.id ? `.itb[data-id="${el.dataset.id}"]` : el.dataset.buy ? `[data-buy="${el.dataset.buy}"]` : null;
+
+  const save = async () => {
+    if (st.busy) return; st.busy = true; const b = $('#wSave', box) as HTMLButtonElement; b.disabled = true; b.textContent = 'Enregistrement…';
     try {
-      const body: any = { color: st.color, avatar_kind: st.tab === 'init' ? 'initial' : st.tab };
-      if (st.tab === 'art') body.avatar_art = st.art;
-      let stale: string | null = null;
-      if (st.tab === 'photo') {
-        if (!st.img && !(p.avatar_kind === 'photo' && p.avatar_url)) throw new Error('Choisissez d\'abord une photo.');
-        if (st.img) {
-          // recadrage carré 256 × 256 en WebP (JPEG si le navigateur ne sait pas l'encoder), envoyé dans avatars/<uid>/avatar.webp|jpg
-          const c = document.createElement('canvas'); c.width = c.height = 256; draw(c, 256);
-          const enc = (type: string) => new Promise<Blob | null>(r => c.toBlob(r, type, .9));
-          let blob = await enc('image/webp'), ext = 'webp';
-          if (blob?.type !== 'image/webp') { blob = await enc('image/jpeg'); ext = 'jpg'; }
-          if (!blob) throw new Error('Conversion de l\'image impossible dans ce navigateur.');
-          const path = `${uid}/avatar.${ext}`, contentType = ext === 'webp' ? 'image/webp' : 'image/jpeg';
-          const { error } = await sb.storage.from('avatars').upload(path, blob, { upsert: true, contentType, cacheControl: '3600' });
-          if (error) throw new Error('Envoi de la photo impossible : ' + error.message);
-          body.avatar_url = sb.storage.from('avatars').getPublicUrl(path).data.publicUrl + '?v=' + Date.now();
-          // l'ancienne photo dans l'autre format sera supprimée après l'enregistrement du profil
-          const old = /\/avatar\.(webp|jpg)(\?|$)/.exec(p.avatar_url ?? '')?.[1];
-          if (old && old !== ext) stale = `${uid}/avatar.${old}`;
-        } else body.avatar_url = p.avatar_url;
-      }
-      await callGame('profile.update', body);
-      if (stale) sb.storage.from('avatars').remove([stale]).then(() => { }, () => { });
-      onSaved({ color: body.color, avatar_kind: body.avatar_kind, avatar_art: body.avatar_art ?? p.avatar_art, avatar_url: body.avatar_url ?? p.avatar_url });
-      st.busy = false; close(); toast('Image de profil enregistrée.');
-    } catch (e: any) { err(e.message); toast(e.message, 'err'); b.disabled = false; b.textContent = 'Enregistrer'; st.busy = false; }
+      await callGame('profile.update', { look: st.look, color: st.color });
+      st.saved = { ...st.look }; st.savedColor = st.color; onSaved({ look: { ...st.look }, color: st.color }); toast('Garde-robe enregistrée.');
+    } catch (e: any) { toast(e.message, 'err'); } finally { st.busy = false; paint(); }
   };
-  paint(); box.scrollIntoView({ behavior: 'smooth', block: 'start' }); box.focus({ preventScroll: true });
+  const bind = () => {
+    box.querySelectorAll<HTMLElement>('[role=tab]').forEach(t => t.onclick = () => { st.tab = t.dataset.t as Tab; paint(); });
+    roving($('.wtabs', box), '[role=tab]', t => { st.tab = t.dataset.t as Tab; paint(); });
+    box.querySelectorAll<HTMLElement>('#wpanel [data-k]').forEach(b => b.onclick = () => {
+      const k = b.dataset.k!, v = b.dataset.v!;
+      if (k === 'color') st.color = v; else (st.look as any)[k] = k === 'skin' || k === 'hc' ? Number(v) : v;
+      paint();
+    });
+    box.querySelectorAll<HTMLElement>('#wpanel .opts').forEach(g => roving(g, '[role=radio]', b => b.click()));
+    box.querySelectorAll<HTMLElement>('.itb').forEach(b => b.onclick = () => {
+      if (b.getAttribute('aria-disabled') === 'true') return;
+      const [slot, value] = b.dataset.id!.split(':') as [Slot, string];
+      st.look = withItem(value ? BY_ID[b.dataset.id!] : null, slot); paint();
+    });
+    box.querySelectorAll<HTMLElement>('.vsw').forEach(b => b.onclick = () => { const it = BY_ID[b.dataset.id!]; st.look = withItem(it, it.slot, b.dataset.c); paint(); });
+    $('#wRand', box).onclick = () => {
+      const r = (n: number) => Math.floor(Math.random() * n);
+      st.look = { ...st.look, skin: r(6), hc: r(6), hair: HAIRS[r(HAIRS.length)][1], beard: ['none', 'none', 'mous', 'short', 'long'][r(5)] }; paint();
+    };
+    $('#wUndo', box).onclick = () => { st.look = { ...st.saved }; st.color = st.savedColor; paint(); };
+    $('#wSave', box).onclick = save;
+    box.querySelectorAll<HTMLElement>('[data-buy]').forEach(b => b.onclick = async () => {
+      if (b.getAttribute('aria-disabled') === 'true') { if (!owned.has(b.dataset.buy!)) toast('Pas assez de pièces pour cet objet.', 'err'); return; }
+      const it = BY_ID[b.dataset.buy!];
+      try { const r = await callGame('shop.buy', { id: it.id }); owned.add(it.id); fresh.add(it.id); st.coins = r.coins; st.tab = it.slot; paint(); toast(`${it.name} ajouté à votre garde-robe.`); }
+      catch (e: any) { toast(e.message, 'err'); }
+    });
+    const chest = box.querySelector<HTMLElement>('#wChest');
+    if (chest) chest.onclick = () => openChestOverlay({
+      chests: st.chests, coins: st.coins, color: st.color, sounds: p.sounds,
+      open: async () => {
+        const r: ChestResult = await callGame('chest.open', {});
+        if (!r.duplicate) { owned.add(r.item.id); fresh.add(r.item.id); }
+        st.coins = r.coins; st.chests = r.chests; return r;
+      },
+      // « Équiper » : porte l'objet et enregistre tout de suite
+      equip: async r => { const it = BY_ID[r.item.id]; st.look = withItem(it, it.slot); st.tab = it.slot; await save(); },
+      onClose: last => { st.coins = last.coins; st.chests = last.chests; paint(); shell({ id: uid }, 'profile'); },
+    });
+  };
+  paint();
+  callGame('shop.list', {}).then((s: any) => { st.shop = s.items; st.coins = s.coins; st.chests = s.chests; paint(); }, () => { st.shop = []; paint(); });
 }

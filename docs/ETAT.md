@@ -49,38 +49,35 @@ Ces maquettes sont identiques à celles déjà intégrées : Accueil, AccueilMob
 | C1 | Pages Accueil, AccueilMobile, Salon, Profil, Historique, DetailPartie, Classement, `AppBar` et barre d'onglets | **Fait** | Conformes aux maquettes, qui n'ont pas changé, sauf Profil, traité en D8. | `web/src/pages/*.ts`, `web/src/account.ts`, `web/src/app.css`, `web/src/screens.css`, `web/index.html` |
 | C2 | XP : +50 / +10 / +100 / +25, niveau suivant à 250 × L, titres de Mousse à Légende des 7 mers | **Fait** | Même formule côté serveur et côté site | `supabase/functions/_shared/xp.ts`, `web/src/xp.ts` |
 | C3 | Élo : départ à 100, minimum 0, calcul par paires, diviseur 100, K = 40 puis 20, bots exclus ; affiché partout | **Fait** | Visible dans le profil, l'historique, le détail, la fin de partie (par adversaire) et le classement. Hors liste mais dans la spec : un abandon en cours de partie ne compte pas comme dernière place, car l'abandon n'existe pas encore. | `supabase/functions/_shared/elo.ts`, `settle.ts`, `web/src/table.ts`, `web/src/pages/*.ts` |
-| C4 | Hauts faits, `game_results`, `player_stats`, `xp_events`, classement amis ou tous, `settleGame` idempotent | **Fait** | Règlement refait s'il a échoué, verrous ordonnés. Migrations `20261003000000` et `20261004000000`. Le règlement ne donne encore ni pièces, ni coffre, ni objets : c'est le lot D. | `supabase/migrations/`, `supabase/functions/_shared/settle.ts`, `service.ts` |
-| C5 | Écran de fin de partie : podium, XP, Élo par adversaire, haut fait, bouton « Ouvrir le coffre » | **Partiel** | Le podium, l'XP, l'Élo et le haut fait sont en place. Il manque le coffre de victoire et l'objet du haut fait de la nouvelle maquette, qui dépendent de D. | `web/src/table.ts` (`finalOverlay`, `fillSettled`), `web/src/game.css` |
+| C4 | Hauts faits, `game_results`, `player_stats`, `xp_events`, classement amis ou tous, `settleGame` idempotent | **Fait** | Le règlement est refait s'il a échoué, avec des verrous ordonnés. Il donne aussi les récompenses de la garde-robe (lot D), dans la même transaction. | `supabase/migrations/`, `supabase/functions/_shared/settle.ts`, `service.ts` |
+| C5 | Écran de fin de partie : podium, XP, Élo par adversaire, haut fait, bouton « Ouvrir le coffre » | **Fait** | Podium, XP, Élo et haut fait. S'y ajoutent : l'objet du haut fait ou du titre franchi, montré porté ; les pièces gagnées ; le coffre de victoire. Le coffre est cliquable : l'ouverture se fait sur place avec l'animation, puis l'objet obtenu s'affiche. | `web/src/table.ts` (`finalOverlay`, `fillSettled`, `rewardsHTML`, `wireChest`), `web/src/pages/game.ts`, `web/src/game.css` |
 
 ## D. Garde-robe et coffre
 
-Rien n'existe encore dans le code pour ce lot (aucune occurrence de `look`, `cosmetic`, `chest` ou `coffre`).
+Choix validés le 5 octobre :
+- **Personnage seul** : la photo de profil et les pirates illustrés disparaissent de l'éditeur. Les anciens pirates illustrés restent affichés, en version composée, tant que le joueur n'a pas enregistré de look.
+- **Rétroactivité** : les objets des titres et des hauts faits déjà obtenus sont attribués par la migration.
+- **Cadre d'or du top 3 du mois** : remis à plus tard. Il est dans le catalogue, mais pas encore distribué.
 
-| # | Point | État | Fichiers à créer ou modifier |
-|---|---|---|---|
-| D1 | Avatar en couches SVG : base gratuite (teint, coiffure, cheveux, pilosité, manteau) et 6 emplacements ; `profiles.look` en jsonb | **À faire** | `web/src/avatar.ts` (`avatarSVG(look, color, size)`), nouvelle migration |
-| D2 | Les 11 objets dessinés | **À faire** | `web/src/objects.ts` |
-| D3 | Tables `cosmetics`, `user_cosmetics`, `user_wallet`, catalogue `CAT` de la maquette Profil | **À faire** | nouvelle migration |
-| D4 | Raretés 62 / 26 / 9 / 3 %, leurs couleurs, doublon converti en 30 / 80 / 140 / 200 pièces | **À faire** | `supabase/functions/_shared/` (tirage), migration |
-| D5 | Coffre au gagnant humain, actions `chest.open`, `shop.list` et `shop.buy`, `profile.update` qui refuse un look non possédé | **À faire** | `settle.ts`, `service.ts`, migration (fonctions SQL transactionnelles) |
-| D6 | Animation d'ouverture en 6 étapes, boutons « Passer », « Ouvrir le suivant » et « Équiper », mouvement réduit | **À faire** | `web/src/chest.ts`, CSS |
-| D7 | Accès au coffre : fin de partie, garde-robe, badge dans l'en-tête | **À faire** | `web/src/table.ts`, `web/src/pages/profile.ts`, `web/src/account.ts` |
-| D8 | Garde-robe : 7 onglets, silhouettes verrouillées avec condition, variantes, Au hasard / Annuler / Enregistrer, échoppe de 3 objets par jour | **À faire** | `web/src/pages/profile.ts`, `web/src/app.css` |
-| D9 | Avatars composés partout : table, listes, classement, aperçu | **À faire** | `web/src/avatar.ts` et tous ses appels (la fonction est déjà centralisée) |
-| D10 | Tests : probabilités (graine fixe), refus à 0 coffre, doublons, idempotence, look invalide | **À faire** | `tests/account.test.ts`, `tests/service.test.ts`, `tests/sql.test.ts` |
-
-## Points à trancher avant le lot D
-
-1. **Éditeur d'image actuel.** La nouvelle maquette Profil remplace l'éditeur (pirate illustré, photo recadrée, initiale) par la garde-robe. Le Prompt 3 dit seulement de garder le mode « initiale ». Faut-il retirer la photo de profil (bucket `avatars`, recadrage), ou la garder comme option à côté du personnage composé ?
-2. **Objets des titres et des hauts faits** (tableau « Comment on les obtient » de la spec). Les joueurs ont déjà passé des titres et obtenu des hauts faits. Faut-il leur attribuer ces objets rétroactivement dans la migration ?
-3. **Cadre d'or du top 3 du mois.** Il faut une tâche périodique, que Supabase n'a pas aujourd'hui : soit `pg_cron`, soit un calcul au premier passage du mois. Ce point n'est pas dans la liste de contrôle. Faut-il le faire maintenant, ou plus tard ?
+| # | Point | État | Détail | Fichiers |
+|---|---|---|---|---|
+| D1 | Avatar en couches SVG : base gratuite (teint, coiffure, cheveux, pilosité, manteau) et 6 emplacements ; `profiles.look` en jsonb | **Fait** | `avatarSVG(look, color)` reprend les tracés de la maquette Avatar, dans l'ordre d'empilement de la spec. Le manteau prend la couleur du joueur. L'initiale s'affiche tant que rien n'est choisi. | `web/src/avatar.ts`, `supabase/migrations/20261005000000_wardrobe.sql` |
+| D2 | Les 11 objets dessinés | **Fait** | `objectSVG` couvre les 11 objets, plus l'objet mystère, avec une version silhouette. `itemPreview` montre un personnage qui porte l'objet quand celui-ci n'a pas de dessin dédié (décors, cadres…). | `web/src/objects.ts` |
+| D3 | Tables `cosmetics`, `user_cosmetics`, `user_wallet`, catalogue `CAT` de la maquette Profil | **Fait** | 29 objets, et un journal des coffres. RLS : le catalogue et les looks sont publics ; les objets, le porte-monnaie et le journal sont visibles par leur seul propriétaire. Toute écriture passe par l'Edge Function. Le catalogue est partagé avec le TypeScript, et un test vérifie que les deux concordent. | `supabase/functions/_shared/cosmetics.ts`, `supabase/migrations/20261005000000_wardrobe.sql` |
+| D4 | Raretés 62 / 26 / 9 / 3 %, leurs couleurs, doublon converti en 30 / 80 / 140 / 200 pièces | **Fait** | Le tirage est fait côté serveur, avec un générateur à graine pour les tests. Les objets de haut fait et le cadre du top 3 ne sortent jamais d'un coffre. | `cosmetics.ts`, `chest_open` (SQL) |
+| D5 | Coffre au gagnant humain, actions `chest.open`, `shop.list` et `shop.buy`, `profile.update` qui refuse un look non possédé | **Fait** | En fin de partie en ligne, chaque joueur gagne 10 pièces plus 5 par mise tenue, et le gagnant humain reçoit un coffre. S'y ajoutent les objets des titres franchis et des nouveaux hauts faits. L'ouverture et l'achat se font en une transaction. L'échoppe propose chaque jour 3 objets communs ou rares, choisis à partir de la date (heure de Paris) : 60 pièces pour un commun, 150 pour un rare. | `settle.ts`, `service.ts`, migration |
+| D6 | Animation d'ouverture en 6 étapes, boutons « Passer », « Ouvrir le suivant » et « Équiper », mouvement réduit | **Fait** | Secousse 0,9 s, lueur blanche de 1,5 à 2,5 s selon la rareté, teinte, ouverture avec étincelles, objet, doublon qui fond en pièces. Les sons sont synthétisés et coupés si l'option Sons est désactivée. Le focus est piégé dans la fenêtre. | `web/src/chest.ts`, `web/src/chest.css` |
+| D7 | Accès au coffre : fin de partie, garde-robe, badge dans l'en-tête | **Fait** | Bouton « Ouvrir le coffre » en fin de partie, bouton « Ouvrir N coffres de victoire » dans la garde-robe, et badge en forme de coffre sur la pastille de profil. | `web/src/table.ts`, `web/src/pages/profile.ts`, `web/src/account.ts` |
+| D8 | Garde-robe : 7 onglets, silhouettes verrouillées avec condition, variantes, Au hasard / Annuler / Enregistrer, échoppe de 3 objets par jour | **Fait** | Grand aperçu et aperçu « à la table ». Badge « Nouveau » sur les objets reçus depuis moins de 3 jours. Accessible au clavier : onglets et choix au focus itinérant, boutons de 44 px. | `web/src/pages/profile.ts`, `web/src/app.css` |
+| D9 | Avatars composés partout : table, listes, classement, aperçu | **Fait** (sauf l'aperçu au survol, qui est A7) | La colonne `look` est lue partout : table, accueil, salon, historique, détail, classement. Si la migration n'est pas appliquée, la requête est refaite sans elle. | `web/src/avatar.ts`, `web/src/account.ts` (`withLook`), `web/src/pages/*.ts` |
+| D10 | Tests : probabilités (graine fixe), refus à 0 coffre, doublons, idempotence, look invalide | **Fait** | Couverts : probabilités sur 200 000 tirages ; refus sans coffre ; coffre impossible à ouvrir deux fois ; doublon converti en pièces ; récompenses non doublées ; look invalide ; échoppe ; concordance du catalogue ; formule de niveau des objets rétroactifs. | `tests/account.test.ts`, `tests/service.test.ts`, `tests/sql.test.ts` |
 
 ## Déjà connu et hors liste
 
 - Abandon en cours de partie et Élo (spec du compte) : non géré.
 - Bouton « Supprimer mon compte » : absent. Supprimer un compte effacerait aussi les parties qu'il a créées, et donc l'historique des autres joueurs (`games.host` est en cascade).
 - Contrôle final avec deux comptes réels : pas encore fait.
-- Déploiement : la migration `20261004000000_account_audit.sql` et la fonction `game` ont-elles été déployées sur Supabase ? À vérifier.
+- Déploiement : appliquer les migrations `20261004000000_account_audit.sql` et `20261005000000_wardrobe.sql`, puis redéployer la fonction `game`.
 
 ## Ordre des lots proposé
 

@@ -4,10 +4,11 @@ import { $, esc } from './util';
 import { avatarHTML, fromProfile } from './avatar';
 import { xpLine } from './xp';
 import { setSound } from './sound';
+import type { Look } from '@shared/cosmetics.ts';
 
 export interface Profile {
   id: string; pseudo: string; color: string; avatar_kind: string; avatar_art: number | null; avatar_url: string | null;
-  xp: number; public_rank: boolean; notify_turn: boolean; sounds: boolean;
+  xp: number; public_rank: boolean; notify_turn: boolean; sounds: boolean; look: Look | null;
 }
 const COLS = 'id, pseudo, color, avatar_kind, avatar_art, avatar_url, xp, public_rank, notify_turn, sounds';
 let cache: { uid: string; p: Profile } | null = null;
@@ -19,10 +20,12 @@ export function myProfile(uid: string, force = false): Promise<Profile | null> {
   if (!force && cache?.uid === uid) return Promise.resolve(cache.p);
   if (pending?.uid === uid) return pending.p;
   const p: Promise<Profile | null> = (async () => {
-    let { data, error } = await sb.from('profiles').select(COLS).eq('id', uid).maybeSingle();
+    let { data, error } = await sb.from('profiles').select(COLS + ', look').eq('id', uid).maybeSingle();
+    // base sans la migration de la garde-robe : profil sans look
+    if (error) ({ data, error } = await sb.from('profiles').select(COLS).eq('id', uid).maybeSingle());
     if (error) {
       const r = await sb.from('profiles').select('id, pseudo').eq('id', uid).maybeSingle();
-      data = r.data ? { color: '#d9b25a', avatar_kind: 'initial', avatar_art: null, avatar_url: null, xp: 0, public_rank: true, notify_turn: true, sounds: true, ...r.data } as any : null;
+      data = r.data ? { color: '#d9b25a', avatar_kind: 'initial', avatar_art: null, avatar_url: null, look: null, xp: 0, public_rank: true, notify_turn: true, sounds: true, ...r.data } as any : null;
     }
     const prof = data as Profile | null;
     if (prof) { cache = { uid, p: prof }; applyPrefs(prof); }
@@ -48,6 +51,7 @@ const TABS: [string, string, string, string][] = [
 
 /** En-tête (navigation + pastille de profil) et barre d'onglets du téléphone.
  *  body.authed : sur téléphone, la barre d'onglets remplace la navigation (seul le lien Règles reste en haut). */
+const CHEST_ICON = '<svg viewBox="0 0 24 24"><path d="M3 10h18v9H3zM3 10c0-4 3-6 9-6s9 2 9 6M10 12h4v3h-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
 export function shell(user: { id: string } | null, active: string) {
   const nav = $('#nav'), pill = $('#pill'), tabs = $('#tabbar');
   const link = (k: string, l: string, h: string, inner = l) => `<a href="${h}" class="${active === k ? 'on' : ''}"${active === k ? ' aria-current="page"' : ''}>${inner}</a>`;
@@ -58,14 +62,22 @@ export function shell(user: { id: string } | null, active: string) {
     tabs.hidden = false;
     pill.hidden = false; pill.classList.toggle('on', active === 'profile');
     if (active === 'profile') pill.setAttribute('aria-current', 'page'); else pill.removeAttribute('aria-current');
-    myProfile(user.id).then(p => {
+    // coffres à ouvrir : petit badge sur la pastille (la garde-robe est sur la page Profil)
+    const chests = sb.from('user_wallet').select('chests').eq('user_id', user.id).maybeSingle().then(r => r.data?.chests ?? 0, () => 0);
+    Promise.all([myProfile(user.id), chests]).then(([p, n]) => {
       if (!p) return;
       const x = xpLine(p.xp);
-      pill.setAttribute('aria-label', `Mon profil : ${p.pseudo} · Niv. ${x.level}`);
-      pill.innerHTML = `${avatarHTML(fromProfile(p), 36)}<span><b>${esc(p.pseudo)} <i>· Niv. ${x.level}</i></b><span class="mxp" title="${x.text} XP"><span style="width:${x.pct}%"></span></span></span>`;
+      pill.setAttribute('aria-label', `Mon profil : ${p.pseudo} · Niv. ${x.level}${n ? ` · ${n} coffre${n > 1 ? 's' : ''} à ouvrir` : ''}`);
+      pill.innerHTML = `${avatarHTML(fromProfile(p), 36)}<span><b>${esc(p.pseudo)} <i>· Niv. ${x.level}</i></b><span class="mxp" title="${x.text} XP"><span style="width:${x.pct}%"></span></span></span>`
+        + (n ? `<span class="cbadge" aria-hidden="true">${CHEST_ICON}${n > 1 ? `<b>${n}</b>` : ''}</span>` : '');
     });
   } else {
     nav.innerHTML = link('practice', 'Entraînement', '#/entrainement') + link('rules', 'Règles', '#/regles') + link('login', 'Connexion', '#/connexion');
     pill.hidden = true; pill.removeAttribute('aria-current'); tabs.hidden = true; tabs.innerHTML = '';
   }
+}
+
+/** Requête de profils avec la colonne look (garde-robe) ; sur une base sans la migration, elle est refaite sans. */
+export async function withLook<T>(run: (look: string) => PromiseLike<{ data: T; error: any }>) {
+  const r = await run(', look'); return r.error ? run('') : r;
 }

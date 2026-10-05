@@ -5,7 +5,7 @@ import { sb, callGame } from '../api';
 import { $, esc, toast, relDay, signed, de } from '../util';
 import { optionsHTML, readOptions, wireOptions } from '../options';
 import { go } from '../main';
-import { myProfile } from '../account';
+import { myProfile, withLook } from '../account';
 import { avatarHTML, fromProfile } from '../avatar';
 import { xpLine, LEVEL_TITLES, xpToReach, fmt } from '../xp';
 
@@ -77,7 +77,7 @@ async function loadLive(root: HTMLElement, uid: string) {
   const ids = rows.map((g: any) => g.id);
   let seats: any[] = [];
   if (ids.length) {
-    const r = await sb.from('game_players').select(`game_id, seat, user_id, bot, name, profiles(${PROFILE_COLS})`).in('game_id', ids).order('seat');
+    const r = await withLook<any>(l => sb.from('game_players').select(`game_id, seat, user_id, bot, name, profiles(${PROFILE_COLS}${l})`).in('game_id', ids).order('seat'));
     seats = r.data || [];
   }
   const nameOf = (g: any, seat: number) => g.players?.[seat]?.name ?? seats.find(s => s.game_id === g.id && s.seat === seat)?.name ?? '?';

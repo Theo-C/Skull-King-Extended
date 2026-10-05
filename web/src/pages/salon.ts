@@ -5,6 +5,7 @@ import { sb, callGame, inviteLink } from '../api';
 import { $, esc, toast, copyText, modal } from '../util';
 import { optionsHTML, readOptions, wireOptions } from '../options';
 import { avatarHTML, fromProfile } from '../avatar';
+import { withLook } from '../account';
 import { levelFor } from '../xp';
 import { qrSVG } from '../qr';
 import { go } from '../main';
@@ -22,7 +23,7 @@ const profCache = new Map<string, any>();
 async function profilesOf(ids: string[]) {
   const miss = ids.filter(i => !profCache.has(i));
   if (miss.length) {
-    const { data } = await sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url, xp').in('id', miss);
+    const { data } = await withLook<any>(l => sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url, xp' + l).in('id', miss));
     (data || []).forEach((p: any) => profCache.set(p.id, p));
   }
   return (id: string | null) => id ? profCache.get(id) ?? null : null;

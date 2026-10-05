@@ -5,6 +5,8 @@ import { $, esc, toast, copyText } from '../util';
 import { optionsHTML, readOptions, wireOptions } from '../options';
 import { TableView } from '../table';
 import { fromProfile } from '../avatar';
+import { withLook, myProfile, forgetProfile } from '../account';
+import { BY_ID, DEFAULT_LOOK } from '@shared/cosmetics.ts';
 import { detailPage } from './detail';
 import { renderSalon } from './salon';
 import { go, setCleanup } from '../main';
@@ -57,11 +59,22 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       rematch: async () => (await callGame<{ id: string }>('rematch', { id })).id,
       // règlement de fin de partie relu au serveur (il le refait s'il a été interrompu)
       settled: async () => (await callGame<any>('history.get', { id }))?.state?.settled ?? null,
+      chest: {
+        open: () => callGame('chest.open', {}),
+        wallet: async () => (await sb.from('user_wallet').select('coins, chests').eq('user_id', uid).maybeSingle()).data ?? { coins: 0, chests: 0 },
+        // « Équiper » : l'objet obtenu remplace celui de son emplacement dans le look enregistré
+        equip: async r => {
+          const p = await myProfile(uid, true), it = BY_ID[r.item.id]; if (!p || !it) return;
+          const look: any = { ...DEFAULT_LOOK, ...(p.look || {}), [it.slot]: it.value };
+          if (it.variants) look[it.variants.key] = it.variants.colors[0];
+          await callGame('profile.update', { look }); forgetProfile();
+        },
+      },
     }, () => go('#/'));
     // avatars et couleurs des joueurs (les bots gardent l'initiale sur la couleur par défaut)
     const ids = seats.filter(s => s.user_id).map(s => s.user_id);
     if (ids.length) {
-      const { data: profs } = await sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url').in('id', ids);
+      const { data: profs } = await withLook<any>(l => sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url' + l).in('id', ids));
       if (profs) table.setAvatars(seats.map(s => { const p = profs.find((x: any) => x.id === s.user_id); return p ? fromProfile(p) : null; }));
     }
   };

@@ -1,0 +1,135 @@
+/* Ouverture de coffre (docs/maquettes/Coffre.dc.html) : superposition plein écran. La scène (halo, rayons, socle, coffre,
+   objet) garde les proportions de la maquette (600 × 620 px) et se met à l'échelle selon la place disponible (--k). */
+
+/* la lueur passe du blanc à la couleur de rareté en douceur : couleurs déclarées pour pouvoir les animer dans les dégradés */
+@property --g { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+@property --gs { syntax: '<color>'; inherits: true; initial-value: rgba(255,255,255,.45); }
+
+.chx{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 60%,#2a1f17 0%,#120e0b 62%);color:#efe6d2;font-family:var(--f-body);
+  --g:#ffffff;--gs:rgba(255,255,255,.45);transition:--g 1s ease,--gs 1s ease;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+.chx button{font-family:var(--f-body)}
+.chx button:focus-visible{outline:2px solid #ead08a;outline-offset:3px}
+.chx [hidden]{display:none!important}
+
+/* en-tête */
+.chx-top{position:relative;z-index:30;display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;min-height:72px;padding:10px 32px}
+.chx-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 16px;min-width:0;margin-right:auto}
+.chx-title{font:400 28px/1.1 var(--f-disp);color:#ead08a;margin:0}
+.chx-left{font-size:15px;color:#a8987f}
+.chx-coins{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:999px;background:rgba(0,0,0,.4);border:1px solid rgba(234,208,138,.3)}
+.chx-coins b{font:400 22px/1 'Pirata One',var(--f-disp);color:#ead08a}
+.chx-coins span:last-child{font-size:14px;color:#d9cdb6}
+.chx-coin{display:inline-block;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%)}
+.chx-top .chx-ghost{min-height:44px;padding:0 16px;font-size:14px}
+.chx-x{width:44px;height:44px;border-radius:10px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.3);color:#f2e7cd;cursor:pointer;display:grid;place-items:center;padding:0}
+.chx-x svg{width:18px;height:18px}
+
+/* boutons de la maquette */
+.chx-gold{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 30px;border-radius:10px;border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;font-weight:800;font-size:18px;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(90,60,10,.5),0 2px 0 #6b4c14}
+.chx-ghost{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 20px;border-radius:10px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.3);color:#f2e7cd;font-weight:800;font-size:16px;cursor:pointer}
+.chx-gold:disabled,.chx-ghost:disabled{cursor:default;opacity:.6}
+.chx-gold.done{background:#3e8e4e;color:#f2e7cd;opacity:1;box-shadow:inset 0 0 0 1px rgba(0,0,0,.3)}
+
+/* scène */
+.chx-stage{position:relative;flex:1;min-height:0;z-index:1}
+.chx-scene{position:absolute;left:50%;top:50%;width:600px;height:620px;transform:translate(-50%,-50%) scale(var(--k,1))}
+.chx-scene>*{position:absolute}
+.chx-halo{left:-50px;top:26px;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,var(--gs) 0%,transparent 62%);z-index:1;
+  opacity:.08;transform:scale(.8);transition:opacity .8s ease,transform .8s ease}
+.chx-rays{left:0;top:56px;width:600px;height:600px;z-index:2;pointer-events:none;opacity:0;transition:opacity .8s}
+.chx-rays>div{width:100%;height:100%;border-radius:50%;background:repeating-conic-gradient(from 0deg,var(--g) 0deg 5deg,transparent 5deg 20deg);
+  -webkit-mask:radial-gradient(circle,#000 0%,rgba(0,0,0,.45) 30%,transparent 64%);mask:radial-gradient(circle,#000 0%,rgba(0,0,0,.45) 30%,transparent 64%);animation:chx-spin 18s linear infinite}
+.chx-socle{left:0;top:0;width:600px;height:620px;z-index:3;overflow:visible}
+.chx-chest{left:140px;top:196px;width:320px;height:340px;z-index:5;transition:opacity .8s}
+.chx-body{position:absolute;inset:0;transform-origin:50% 95%}
+.chx-body>svg{position:absolute;left:0;top:155px;width:320px;height:185px}
+.chx-seam{position:absolute;left:18px;top:150px;width:284px;height:10px;border-radius:5px;background:var(--g);opacity:.1;box-shadow:0 0 6px 0 var(--g);
+  transition:opacity .8s ease,box-shadow 1s ease}
+.chx-lid{position:absolute;left:0;top:15px;width:320px;height:143px;transform-origin:8% 100%}
+.chx-lid svg{width:320px;height:143px;display:block}
+.chx-lid.crack{transition:transform .9s cubic-bezier(.3,.7,.3,1);transform:translateY(-14px) rotate(-5deg)}
+.chx-lid.open{transition:transform .5s cubic-bezier(.2,.9,.3,1.1);transform:translate(-36px,-120px) rotate(-34deg)}
+.chx-burst{position:absolute;left:200px;top:256px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,#fff 0%,var(--g) 40%,transparent 70%);z-index:7;pointer-events:none;animation:chx-burst .8s ease-out forwards}
+.chx-sparks{position:absolute;left:300px;top:356px;width:0;height:0;z-index:7;pointer-events:none}
+.chx-sp{position:absolute;left:-4px;top:-4px;border-radius:50%;animation:chx-spark var(--t) cubic-bezier(.1,.7,.3,1) var(--d) forwards}
+.chx-fx{left:0;top:0;width:600px;height:620px;pointer-events:none}
+.chx-item{left:180px;top:0;width:240px;height:240px;display:flex;align-items:center;justify-content:center;z-index:9}
+.chx-item.rise{animation:chx-rise .8s cubic-bezier(.2,.9,.3,1.1) both}
+.chx-glowi{filter:drop-shadow(0 0 24px var(--g));transition:opacity .6s,transform .6s}
+.chx-glowi.melt{animation:chx-melt .5s ease-in forwards}
+.chx-glowi.spent{opacity:.45;transform:scale(.8)}
+.chx-float{animation:chx-float 3.4s ease-in-out infinite}
+
+.chx-body.bob{animation:chx-bob 2.6s ease-in-out infinite}
+.chx-body.shake{animation:chx-shake .45s ease-in-out 2}
+.chx-body.hum{animation:chx-hum .35s ease-in-out infinite}
+
+/* bas : repos, résultat, boutons */
+.chx-bottom{position:relative;z-index:10;min-height:176px;padding:0 32px 28px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.chx-idle{display:flex;flex-direction:column;align-items:center;gap:12px}
+.chx-odds{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;font-size:13px;color:#a8987f;margin:0;padding:0;list-style:none}
+.chx-odds li{display:inline-flex;align-items:center;gap:6px}
+.chx-odds i{width:9px;height:9px;border-radius:50%}
+.chx-err{margin:0;padding:8px 14px;border-radius:9px;background:#f3d2c8;color:#5a1a0e;font-weight:700;font-size:14px;text-align:center;max-width:520px}
+.chx-res{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;max-width:600px}
+.chx-rar{display:flex;align-items:center;gap:10px}
+.chx-rar>span:first-child{font-size:13px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--rc)}
+.chx-stars{display:flex;gap:3px}
+.chx-stars svg{width:16px;height:16px}
+.chx-stars .star{animation:chx-star .35s cubic-bezier(.2,.8,.3,1.4) both}
+.chx-name{font:400 40px/1.05 var(--f-disp);color:#f2e7cd;margin:0;text-wrap:balance}
+.chx-sub{font-size:15px;font-weight:700;color:#d9cdb6}
+.chx-dup{font-size:15px;font-weight:800;color:#ead08a}
+.chx-res .up{animation:chx-up .45s ease-out both}
+.chx-actions{position:absolute;right:32px;bottom:28px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;animation:chx-up .45s ease-out both}
+
+/* pièces qui volent vers le compteur (doublon) */
+.chx-fly{position:absolute;inset:0;z-index:26;pointer-events:none}
+.chx-cn{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%);
+  box-shadow:inset 0 0 0 1.5px rgba(90,60,10,.6);animation:chx-coin .9s cubic-bezier(.5,0,.6,1) var(--d) both}
+.chx-coin.bump{animation:chx-bump .3s ease-out 1s 3}
+
+@keyframes chx-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes chx-shake{0%,100%{transform:rotate(0)}15%{transform:rotate(-2.5deg)}30%{transform:rotate(2.5deg)}45%{transform:rotate(-2deg)}60%{transform:rotate(2deg)}75%{transform:rotate(-1deg)}}
+@keyframes chx-hum{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes chx-spin{to{transform:rotate(360deg)}}
+@keyframes chx-burst{from{transform:scale(.3);opacity:1}to{transform:scale(3.2);opacity:0}}
+@keyframes chx-spark{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
+@keyframes chx-rise{0%{transform:translateY(150px) scale(.4);opacity:0}100%{transform:none;opacity:1}}
+@keyframes chx-float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-10px) rotate(2deg)}}
+@keyframes chx-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes chx-star{0%{transform:scale(0);opacity:0}70%{transform:scale(1.3);opacity:1}100%{transform:none;opacity:1}}
+@keyframes chx-melt{to{transform:scale(.15);opacity:0}}
+@keyframes chx-coin{0%{transform:translate(0,0) scale(.6);opacity:0}15%{opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.5);opacity:.2}}
+@keyframes chx-bump{0%,100%{transform:none}40%{transform:scale(1.3)}}
+
+/* écran moyen ou téléphone : boutons sous le résultat */
+@media (max-width:1099px){
+  .chx-bottom{min-height:216px}
+  .chx-actions{position:static;justify-content:center;width:100%}
+}
+/* téléphone : en-tête resserré, sur une seule ligne (la scène ne doit pas changer d'échelle en cours d'animation) */
+@media (max-width:719px){
+  .chx-top{padding:10px 16px;min-height:64px;gap:8px 10px;flex-wrap:nowrap}
+  .chx-top .chx-ghost{padding:0 12px;flex:none}
+  .chx-coins,.chx-x{flex:none}
+  .chx-head{flex-direction:column;gap:0}
+  .chx-title{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .chx-left{font-size:13px}
+  .chx-coins{padding:0 10px;gap:6px}
+  .chx-coins b{font-size:20px}
+  .chx-bottom{min-height:236px;padding:0 16px 16px;gap:12px}
+  .chx-name{font-size:30px}
+  .chx-gold{font-size:17px;padding:0 22px;min-height:48px}
+  .chx-ghost{min-height:48px;padding:0 16px}
+  .chx-actions>button{flex:1 1 auto}
+}
+
+@media (max-width:479px){.chx-coins span:last-child{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
+
+@media (prefers-reduced-motion:reduce){
+  .chx,.chx *{animation-duration:.01s!important;animation-iteration-count:1!important;transition:none!important}
+  .chx-rays>div{animation:none!important}
+}

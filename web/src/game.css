@@ -844,3 +844,21 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
   .zoom{flex-direction:column;gap:8px}.zoom .card{--s:.95}
   .zoom .zfiche{width:min(300px,calc(100vw - 32px))}
 }
+
+/* Fin de partie : récompenses de la garde-robe (maquette FinPartie) */
+.frews{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+.frw .fitem,.fchest .fitem{width:64px;height:64px;flex:none;display:grid;place-items:center;line-height:0}
+.frw .fitem{border-radius:50%;box-shadow:0 0 0 2px #1b140e,0 0 0 4px #ead08a}
+.fchest{display:flex;align-items:center;gap:16px;padding:14px 18px;border-radius:12px;background:rgba(0,0,0,.32);border:1px solid rgba(111,179,208,.45);animation:inL calc(.35s * var(--spd,1)) calc(2.8s * var(--spd,1)) ease-out both}
+.fchest>span{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fchest .chestbtn{width:72px;height:64px;flex:none;padding:0;border:0;background:transparent;cursor:pointer;animation:wob 1.2s calc(3.4s * var(--spd,1)) ease-in-out 2}
+.fchest .chestbtn svg{width:72px;height:64px}
+.fchest .abtn{align-self:flex-start;min-height:44px}
+.ftag.blue{color:#6fb3d0}
+.fct{font-size:15px;color:#efe6d2}.fct2{font:400 22px/1.05 var(--f-disp);color:#f2e7cd}
+.fcoins{display:inline-flex;align-items:center;gap:6px}
+.finov .coin{display:inline-block;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%);box-shadow:inset 0 0 0 1px rgba(90,60,10,.6)}
+@keyframes wob{0%,100%{transform:rotate(0)}20%{transform:rotate(-6deg)}40%{transform:rotate(5deg)}60%{transform:rotate(-3deg)}}
+@keyframes popIn{0%{opacity:0;transform:scale(.6) rotate(-8deg)}70%{transform:scale(1.08)}100%{opacity:1;transform:none}}
+.fchest .pop{animation:popIn .5s cubic-bezier(.2,.8,.3,1.2) both}
+@media (prefers-reduced-motion:reduce){.fchest,.fchest .chestbtn,.fchest .pop{animation:none!important}}

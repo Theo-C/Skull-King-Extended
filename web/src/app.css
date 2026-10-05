@@ -481,3 +481,61 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 @media (max-width:720px){.fcard{padding:20px 16px}.fhead h2{font-size:30px}.fpod{width:24%}.fpodium{gap:6px}}
 @media (prefers-reduced-motion:reduce){.finov *,.finov{animation:none!important}}
 .fbox.fxl{justify-content:flex-start}
+
+/* Garde-robe du profil (maquette Profil) */
+.wardrobe{border-color:rgba(234,208,138,.45)}
+.wardrobe .whead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
+.wardrobe .whead>span:first-child{display:flex;flex-direction:column;gap:2px}
+.wardrobe .wpills{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.wardrobe .pill{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:999px;background:rgba(0,0,0,.3);border:1px solid rgba(234,208,138,.25);font-size:14px;color:#d9cdb6}
+.wardrobe .pill b{color:var(--brass2)}
+.wardrobe .coin{display:inline-block;width:13px;height:13px;border-radius:50%;flex:none;background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%);box-shadow:inset 0 0 0 1px rgba(90,60,10,.6)}
+.wardrobe #wChest svg{width:20px;height:20px}
+.wardrobe .wgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:24px;align-items:start}
+.wardrobe .wgrid>.wright{grid-column:span 2}
+@media (max-width:767px){.wardrobe .wgrid>.wright{grid-column:auto}}
+.wardrobe .wprev{display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px 18px;border-radius:14px;background:radial-gradient(ellipse at 50% 35%,#2a6066 0%,#102c31 100%);border:1px solid rgba(234,208,138,.18)}
+.wardrobe .tableplate{display:flex;align-items:center;gap:10px;padding:8px 12px 8px 8px;border-radius:40px 12px 12px 40px;background:linear-gradient(180deg,#2c221a,#1a130e);border:1px solid rgba(234,208,138,.3)}
+.wardrobe .tableplate>span{display:flex;flex-direction:column}.wardrobe .tableplate b{color:#f2e7cd}
+.wardrobe .wbtns{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}.wardrobe .wbtns .abtn{min-height:44px}
+.wardrobe .wright{display:flex;flex-direction:column;gap:14px;min-width:0}
+.wardrobe .wtabs{display:flex;flex-wrap:wrap;gap:6px;padding:4px;border-radius:12px;background:rgba(0,0,0,.3);align-self:flex-start}
+.wardrobe .wtabs button{min-height:44px;padding:0 14px;border-radius:9px;border:1px solid transparent;background:transparent;color:#d9cdb6;font:800 15px var(--f-body);cursor:pointer}
+.wardrobe .wtabs button.on{background:rgba(201,161,74,.14);border-color:rgba(234,208,138,.45);color:var(--brass2)}
+.wardrobe .wtabs .cnt{margin-left:6px;padding:1px 6px;border-radius:999px;background:#ead08a;color:#2b2117;font-size:11px}
+.wardrobe #wpanel{display:flex;flex-direction:column;gap:16px}
+.wardrobe .brow{display:flex;flex-direction:column;gap:8px}
+.wardrobe .opts{display:flex;flex-wrap:wrap;gap:8px}
+.wardrobe .sw{width:44px;height:44px;border-radius:50%;border:2px solid #1b140e;cursor:pointer;padding:0}
+.wardrobe .sw.on{box-shadow:0 0 0 2px #1b140e,0 0 0 4px #ead08a}
+.wardrobe .bt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;border-radius:12px;border:2px solid transparent;background:rgba(0,0,0,.25);color:#d9cdb6;font:700 12px var(--f-body);cursor:pointer}
+.wardrobe .bt.on{border-color:#ead08a;color:var(--brass2)}
+.wardrobe .items{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+.wardrobe .it{display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 0 9px;border-radius:12px;background:rgba(0,0,0,.25);border:2px solid color-mix(in srgb,var(--rar) 55%,transparent)}
+.wardrobe .it.on{border-color:#ead08a;box-shadow:0 0 0 2px #ead08a,0 0 16px rgba(234,208,138,.35)}
+.wardrobe .it.lock{border-style:dashed;background:rgba(0,0,0,.4)}
+.wardrobe .itb{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;padding:10px 6px 0;border:0;border-radius:10px;background:transparent;color:inherit;font:inherit;text-align:center;cursor:pointer}
+.wardrobe .it:not(.lock) .itb:hover{background:rgba(201,161,74,.08)}
+.wardrobe .it.lock .itb{cursor:default}
+.wardrobe .ipw{position:relative;line-height:0;width:72px;height:72px;display:flex;align-items:center;justify-content:center}
+.wardrobe .ipw .lock{position:absolute;inset:0;margin:auto;width:26px;height:26px}
+.wardrobe .new{position:absolute;right:-8px;top:-6px;padding:2px 6px;border-radius:999px;background:#ead08a;color:#2b2117;font-size:10px;font-weight:800;line-height:1.2}
+.wardrobe .inm{font-weight:800;font-size:13.5px;color:#f2e7cd;line-height:1.15}
+.wardrobe .rar{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.wardrobe .how{font-size:11.5px;line-height:1.25;color:var(--muted)}
+.wardrobe .vars{display:flex;gap:2px}
+.wardrobe .vsw{width:24px;height:24px;padding:5px;border:0;border-radius:50%;background-clip:content-box!important;box-shadow:inset 0 0 0 5px transparent;cursor:pointer;position:relative}
+.wardrobe .vsw::after{content:'';position:absolute;inset:5px;border-radius:50%;box-shadow:0 0 0 1.5px #1b140e}
+.wardrobe .vsw.on::after{box-shadow:0 0 0 2px #1b140e,0 0 0 3.5px #ead08a}
+.wardrobe .shoprow{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px 14px;border-radius:12px;background:rgba(0,0,0,.25);border:1px dashed rgba(234,208,138,.3)}
+.wardrobe .shoprow .sh{display:flex;flex-direction:column}.wardrobe .shoprow .sh b{color:#f2e7cd}
+.wardrobe .shop{display:flex;align-items:center;gap:8px;min-height:52px;padding:6px 12px 6px 6px;border-radius:999px;border:1px solid rgba(234,208,138,.35);background:rgba(0,0,0,.25);color:#f2e7cd;font:400 13.5px var(--f-body);cursor:pointer;text-align:left}
+.wardrobe .shop>span{display:flex;flex-direction:column;align-items:flex-start}.wardrobe .shop .lbl{display:flex;align-items:center;gap:4px}
+.wardrobe .shop[aria-disabled="true"]{opacity:.45;cursor:default}
+.avatar.locked{filter:grayscale(1) brightness(.35)}
+/* badge « coffre à ouvrir » sur la pastille de profil */
+#pill{position:relative}
+#pill .cbadge{position:absolute;right:-6px;top:-6px;display:inline-flex;align-items:center;gap:2px;min-width:22px;height:22px;padding:0 5px;border-radius:999px;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;box-shadow:0 0 0 2px #1b140e,0 0 10px rgba(234,208,138,.6);animation:cbadge 2.4s ease-in-out infinite}
+#pill .cbadge svg{width:14px;height:14px}#pill .cbadge b{font-size:11px;font-weight:800}
+@keyframes cbadge{0%,100%{transform:none}50%{transform:translateY(-2px)}}
+@media (prefers-reduced-motion:reduce){#pill .cbadge{animation:none}}
