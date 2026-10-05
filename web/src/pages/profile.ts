@@ -308,3 +308,37 @@ async function wardrobe(box: HTMLElement, uid: string, p: Profile, onSaved: (s: 
   paint();
   callGame('shop.list', {}).then((s: any) => { st.shop = s.items; st.coins = s.coins; st.chests = s.chests; paint(); }, () => { st.shop = []; paint(); });
 }
+
+/* ---------- Profil public d'un autre joueur (#/joueur/<id>, lien « Profil › » de l'aperçu au survol) ---------- */
+export async function playerPage(root: HTMLElement, id: string) {
+  root.innerHTML = '<section class="apage"><p class="empty">Chargement du profil…</p></section>';
+  const [c, mine, all] = await Promise.all([
+    callGame<any>('player.card', { id }).catch(() => null),
+    sb.from('user_achievements').select('code').eq('user_id', id).then(r => r.data || []),
+    sb.from('achievements').select('code, name, description, sort').order('sort').then(r => r.data || []),
+  ]);
+  if (!c) { root.innerHTML = '<section class="apage"><div class="apanel"><h2>Joueur introuvable</h2><p class="lbl">Ce profil n\'existe pas ou n\'est pas encore disponible.</p><a class="abtn ghost" href="#/classement">Retour au classement</a></div></section>'; return; }
+  const x = xpLine(c.xp), trend = Math.round(c.trend), got = new Set((mine as any[]).map(a => a.code));
+  root.innerHTML = `<section class="apage profile">
+    <section class="phero">
+      <div class="pav">${avatarHTML({ look: c.look, kind: c.avatar_kind, art: c.avatar_art, letter: c.pseudo, color: c.color }, 120, `0 0 0 3px #1b140e,0 0 0 6px ${c.color}`)}</div>
+      <div class="pid">
+        <div class="pline"><h1>${esc(c.pseudo)}</h1><span class="chip1">${esc(x.title)} · niveau ${x.level}</span>
+          <span class="chip2">Élo ${c.elo}${trend ? ` <span class="${trend > 0 ? 'up' : 'down'}">${trend > 0 ? '▲' : '▼'} ${Math.abs(trend)}</span>` : ''}</span></div>
+        <div class="psub">${c.games} partie${c.games > 1 ? 's' : ''} jouée${c.games > 1 ? 's' : ''} · tendance sur les 5 dernières parties classées</div>
+        <div class="pxp"><div class="xpbar"><span style="width:${x.pct}%"></span></div><b>${x.text} XP</b></div>
+      </div>
+    </section>
+    <div class="tiles">
+      ${tile(String(c.games), `partie${c.games > 1 ? 's' : ''} jouée${c.games > 1 ? 's' : ''}`)}
+      ${tile(String(c.wins), `victoire${c.wins > 1 ? 's' : ''}${c.games ? ` · ${Math.round(100 * c.wins / c.games)} %` : ''}`)}
+      ${tile(c.bids_total ? Math.round(100 * c.bids_made / c.bids_total) + ' %' : '—', 'mises tenues')}
+      ${tile(String(c.elo), 'Élo')}
+    </div>
+    <section class="apanel">
+      <div class="hrow"><h2>Hauts faits</h2><span>${got.size} sur ${(all as any[]).length}</span></div>
+      <div class="achs">${(all as any[]).map(a => `<div class="ach ${got.has(a.code) ? '' : 'off'}"><span class="amedal">${STAR}</span><span><b>${esc(a.name)}</b><span class="lbl">${esc(a.description)}</span><span class="sr">${got.has(a.code) ? 'obtenu' : 'à débloquer'}</span></span></div>`).join('')}</div>
+    </section>
+    <p><a class="abtn ghost" href="#/classement">‹ Classement</a></p>
+  </section>`;
+}

@@ -1,6 +1,6 @@
 # État des lieux : intégration du prompt maître
 
-Étape 0 de `docs/PROMPT-MAITRE.md`. État au 5 octobre 2026, sur le commit `ff5eb8a` (master).
+Étape 0 de `docs/PROMPT-MAITRE.md`, tenu à jour après chaque lot (branche `prompt-maitre`, 5 octobre 2026).
 
 Légende :
 - **Fait** : conforme à la spécification et aux maquettes à jour de `docs/maquettes/` ;
@@ -30,7 +30,7 @@ Ces maquettes sont identiques à celles déjà intégrées : Accueil, AccueilMob
 | A4 | Lise Fil-de-Soie : mains adverses face cachée cliquables, « Imposée par … » chez la cible, carte choisie montrée à tous | **Fait** | Les éventails face cachée sont mélangés avec une permutation secrète. La cible voit sa carte soulevée avec l'étiquette. Les autres voient la position choisie et l'étiquette « Imposée ». Le bloc du pouvoir s'affiche au centre de la table. | `web/src/table.ts`, `supabase/functions/_shared/engine.ts` |
 | A5 | Taille des cartes de la main proportionnelle à la hauteur du bloc | **Fait** | `ResizeObserver` et `handLayout`. Limite : avec 10 cartes sur un écran de 390 px, chaque carte ne montre que 35 px (au lieu de 44) avec 40 px de large ; la place manque. | `web/src/table.ts`, `web/src/game.css` |
 | A6 | Zoom après 450 ms de survol : carte de 300 px et fiche parchemin avec nom et règle | **Fait** | Le zoom s'ouvre après 450 ms de survol, 380 ms d'appui au doigt, ou au focus clavier. La carte s'affiche sur 300 px avec, à côté, une fiche parchemin qui donne le nom et la règle. La règle vient de `DESC` et `PIRATES[…].pw`, sans répéter le nom. Une pastille de verdict s'affiche sous la carte. Sur téléphone, la fiche passe sous la carte. | `web/src/zoom.ts`, `web/src/cards.ts` (`ruleOf`), `web/src/game.css` |
-| A7 | Aperçu d'un joueur au survol (maquette `ApercuJoueur`, action `player.card`) | **À faire** | Rien en place : ni action serveur, ni cache, ni carte d'aperçu. Dépend de C3 (Élo) et de D (objets portés). | à créer : `web/src/playercard.ts` ; à modifier : `supabase/functions/_shared/service.ts`, une migration, `web/src/table.ts` |
+| A7 | Aperçu d'un joueur au survol (maquette `ApercuJoueur`, action `player.card`) | **Fait** | L'aperçu s'ouvre après 250 ms de survol d'une plaque, ou au toucher dans le bandeau du téléphone. Il se ferme en quittant la zone, par un clic ailleurs ou avec Échap. Il ne passe jamais sur la main ni sur la barre de partie, et se place à côté du pli. Contenu : identité (avatar porté, niveau, titre, Élo et tendance sur les 5 dernières parties classées, présence en ligne par Realtime) ; cette partie (place, score, barre manche par manche) ; victoires, mises tenues et parties ; objets rares portés ; lien « Profil › » vers la nouvelle page `#/joueur/<id>`. Version courte pour les bots. Les fiches sont mises en cache pour toute la partie. | `web/src/playercard.ts`, `web/src/table.ts` (`seatInfo`, `setOnline`), `web/src/pages/game.ts`, `web/src/pages/profile.ts` (`playerPage`), `web/src/main.ts`, `supabase/migrations/20261005000100_player_card.sql`, `service.ts` |
 
 ## B. Cartes illustrées
 
@@ -69,7 +69,7 @@ Choix validés le 5 octobre :
 | D6 | Animation d'ouverture en 6 étapes, boutons « Passer », « Ouvrir le suivant » et « Équiper », mouvement réduit | **Fait** | Secousse 0,9 s, lueur blanche de 1,5 à 2,5 s selon la rareté, teinte, ouverture avec étincelles, objet, doublon qui fond en pièces. Les sons sont synthétisés et coupés si l'option Sons est désactivée. Le focus est piégé dans la fenêtre. | `web/src/chest.ts`, `web/src/chest.css` |
 | D7 | Accès au coffre : fin de partie, garde-robe, badge dans l'en-tête | **Fait** | Bouton « Ouvrir le coffre » en fin de partie, bouton « Ouvrir N coffres de victoire » dans la garde-robe, et badge en forme de coffre sur la pastille de profil. | `web/src/table.ts`, `web/src/pages/profile.ts`, `web/src/account.ts` |
 | D8 | Garde-robe : 7 onglets, silhouettes verrouillées avec condition, variantes, Au hasard / Annuler / Enregistrer, échoppe de 3 objets par jour | **Fait** | Grand aperçu et aperçu « à la table ». Badge « Nouveau » sur les objets reçus depuis moins de 3 jours. Accessible au clavier : onglets et choix au focus itinérant, boutons de 44 px. | `web/src/pages/profile.ts`, `web/src/app.css` |
-| D9 | Avatars composés partout : table, listes, classement, aperçu | **Fait** (sauf l'aperçu au survol, qui est A7) | La colonne `look` est lue partout : table, accueil, salon, historique, détail, classement. Si la migration n'est pas appliquée, la requête est refaite sans elle. | `web/src/avatar.ts`, `web/src/account.ts` (`withLook`), `web/src/pages/*.ts` |
+| D9 | Avatars composés partout : table, listes, classement, aperçu | **Fait** | La colonne `look` est lue partout : table, accueil, salon, historique, détail, classement. Si la migration n'est pas appliquée, la requête est refaite sans elle. | `web/src/avatar.ts`, `web/src/account.ts` (`withLook`), `web/src/pages/*.ts` |
 | D10 | Tests : probabilités (graine fixe), refus à 0 coffre, doublons, idempotence, look invalide | **Fait** | Couverts : probabilités sur 200 000 tirages ; refus sans coffre ; coffre impossible à ouvrir deux fois ; doublon converti en pièces ; récompenses non doublées ; look invalide ; échoppe ; concordance du catalogue ; formule de niveau des objets rétroactifs. | `tests/account.test.ts`, `tests/service.test.ts`, `tests/sql.test.ts` |
 
 ## Déjà connu et hors liste
@@ -77,15 +77,26 @@ Choix validés le 5 octobre :
 - Abandon en cours de partie et Élo (spec du compte) : non géré.
 - Bouton « Supprimer mon compte » : absent. Supprimer un compte effacerait aussi les parties qu'il a créées, et donc l'historique des autres joueurs (`games.host` est en cascade).
 - Contrôle final avec deux comptes réels : pas encore fait.
-- Déploiement : appliquer les migrations `20261004000000_account_audit.sql` et `20261005000000_wardrobe.sql`, puis redéployer la fonction `game`.
+- Déploiement : appliquer les migrations `20261004000000_account_audit.sql`, `20261005000000_wardrobe.sql` et `20261005000100_player_card.sql`, puis redéployer la fonction `game`.
 
-## Ordre des lots proposé
+## Avancement
 
-Il suit le prompt maître :
-1. Fermer A3 et A2 : déjà faits, rien à coder.
-2. **B**, cartes illustrées (B1 à B5), puis la fiche parchemin du zoom (A6).
-3. **C5**, une fois que le lot D fournit le coffre.
-4. **D**, garde-robe et coffre (D1 à D10).
-5. **A7**, aperçu au survol.
+Lots faits, un commit chacun, avec Unknown command: "test"
 
-Un commit par lot. Après chaque lot : `npm test`, `npm run build`, puis mise à jour de ce fichier.
+
+Did you mean this?
+  npm test # Test a package
+To see a list of supported npm commands, run:
+  npm help et  au vert après chacun :
+1. B : cartes illustrées, et A6 (zoom avec fiche).
+2. D côté serveur, puis D côté site, avec C5 (coffre en fin de partie).
+3. A7 : aperçu au survol.
+
+A2, A3, A4, A5, C1 à C4 étaient déjà faits.
+
+**Reste, hors code :** le contrôle final du prompt maître avec deux comptes réels, après le déploiement ci-dessus. Il s'agit de jouer une partie complète, puis de vérifier :
+- les cartes, le zoom, Lise et l'Alt-Tab ;
+- la fin de partie, avec l'XP, l'Élo et le coffre ;
+- l'ouverture du coffre et l'équipement de l'objet ;
+- que l'objet est visible chez l'autre joueur, à la table et dans l'aperçu au survol ;
+- l'affichage en 1366 × 768, 1920 × 1080 et 390 × 844.

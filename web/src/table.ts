@@ -10,6 +10,7 @@ import { avatarHTML, type AvatarData } from './avatar';
 import { BY_ID, RARITY } from '@shared/cosmetics.ts';
 import { itemPreview } from './objects';
 import { openChestOverlay, type ChestResult } from './chest';
+import { installPlayerCards, type PlayerCard } from './playercard';
 import { levelFor, xpToReach, LEVEL_TITLES, fmt, xpReason as xpLabel } from './xp';
 
 
@@ -32,6 +33,8 @@ export interface TableBackend {
   /** Règlement de fin de partie relu au serveur (history.get) quand il tarde à arriver par l'état de la partie. */
   settled?(): Promise<any>;
   /** Coffre de victoire (partie en ligne) : ouverture côté serveur, objet porté tout de suite, état du porte-monnaie. */
+  /** Aperçu d'un joueur au survol (action player.card, mise en cache par l'appelant pour toute la partie). */
+  playerCard?(uid: string): Promise<PlayerCard>;
   chest?: { open(): Promise<ChestResult>; equip(r: ChestResult): Promise<void>; wallet(): Promise<{ coins: number; chests: number }> };
 }
 /** Réactions proposées (les seules acceptées, y compris depuis le réseau). */
@@ -100,6 +103,7 @@ export class TableView {
   private choice: { id: number; need: string[]; move: any } | null = null;
   private shownRound = 0; private shownEnd = false;
   // éléments conservés d'un rendu à l'autre
+  private cards?: { hide(): void; destroy(): void }; private online: Set<string> | null = null;
   private seatEls: HTMLElement[] = []; private centerEl: HTMLElement | null = null;
   private tcards = new Map<string, HTMLElement>(); private collectTo: number | null = null;
   private handEls = new Map<number, HTMLElement>(); private handRound = -1;
@@ -168,6 +172,18 @@ export class TableView {
     const paintSound = () => { bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff; bs.setAttribute('aria-label', soundOn() ? 'Couper le son' : 'Activer le son'); bs.title = bs.getAttribute('aria-label')!; };
     paintSound(); bs.onclick = () => { setSound(!soundOn()); paintSound(); if (soundOn()) sfx.coin(); };
     installCardZoom(); setZoomNote(card => this.zoomNote(card)); preloadArt();
+    this.cards = installPlayerCards(this.root, {
+      seatOf: el => { const i = this.seatEls.indexOf(el as HTMLElement), j = this.oppEls.indexOf(el as HTMLElement); return i >= 0 ? i : j >= 0 ? j : null; },
+      info: seat => this.seatInfo(seat),
+      load: this.backend.playerCard ? uid => this.backend.playerCard!(uid) : undefined,
+      // ni la main, ni le pli en cours
+      avoid: () => {
+        const rail = this.root.querySelector('.rail')?.getBoundingClientRect() ?? null;
+        const rs = [...this.tcards.values(), ...(this.centerEl ? [this.centerEl] : [])].filter(e => e.isConnected).map(e => e.getBoundingClientRect()).filter(r => r.width);
+        const trick = rs.length ? new DOMRect(Math.min(...rs.map(r => r.left)), Math.min(...rs.map(r => r.top)), Math.max(...rs.map(r => r.right)) - Math.min(...rs.map(r => r.left)), Math.max(...rs.map(r => r.bottom)) - Math.min(...rs.map(r => r.top))) : null;
+        return [rail, trick];
+      },
+    });
     $('#bRules', root).onclick = () => modal(rulesHTML());
     $('#bExit', root).onclick = () => this.onExit();
     $('#layer', root).addEventListener('click', ev => {
@@ -186,7 +202,20 @@ export class TableView {
   }
   private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
   private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
-  destroy() { this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
+  /** Joueurs connectés au canal de la partie (présence Realtime), pour l'aperçu au survol. */
+  setOnline(uids: string[]) { this.online = new Set(uids); }
+  private seatInfo(seat: number) {
+    const pb = this.pub; const p = pb?.players[seat]; if (!pb || !p) return null;
+    const uid = this.backend.seatUids?.[seat] ?? null, me = seat === this.mySeat;
+    return {
+      seat, uid, bot: p.bot, me, name: p.name, color: this.colorOf(seat), avatar: { ...(this.avatars[seat] || {}), letter: p.name, color: this.colorOf(seat) },
+      place: 1 + pb.players.filter(q => q.score > p.score).length, score: p.score, won: p.won, round: pb.round,
+      bid: pb.bidsRevealed ? p.bid : me ? this.priv?.bid ?? null : null,
+      // manches terminées à l'écran (l'état affiché n'a pas l'historique : il vient du dernier état reçu, sans rien dévoiler d'avance)
+      hist: ((this.latest?.pub.players[seat]?.hist ?? p.hist ?? []) as any[]).filter(h => h.r < pb.round || pb.phase === 'end').map(h => ({ bid: h.bid, won: h.won })), online: this.online && uid ? this.online.has(uid) : null,
+    };
+  }
+  destroy() { this.cards?.destroy(); this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {

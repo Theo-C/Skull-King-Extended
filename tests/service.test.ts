@@ -177,6 +177,10 @@ ok('échoppe : achat payé et objet ajouté', buy.coins === 500 - shop.items[0].
 await expectErr('échoppe : pas deux fois le même objet', handle(store, U.eve, { action: 'shop.buy', id: shop.items[0].id }), 400);
 await expectErr('échoppe : objet hors vente refusé', handle(store, U.eve, { action: 'shop.buy', id: 'hat:couronne' }), 400);
 ok('garde-robe : un joueur ne voit pas les objets des autres', (await as(U.eve, 'select * from user_cosmetics where user_id=$1', [loser])).length === 0);
+// aperçu au survol : identité, Élo, statistiques et look
+const card = await handle(store, U.eve, { action: 'player.card', id: loser });
+ok('aperçu : identité, Élo, statistiques et look', card.id === loser && card.games === 1 && typeof card.elo === 'number' && typeof card.trend === 'number' && card.look?.hat === 'bandana', card);
+await expectErr('aperçu : identifiant invalide', handle(store, U.eve, { action: 'player.card', id: 'x' }), 404);
 
 // ---------- Historique, détail, revanche, profil ----------
 const hist = await handle(store, U.alice, { action: 'history.list' });

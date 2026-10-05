@@ -5,7 +5,7 @@ import { sb, configured, currentUser } from './api';
 import { $, esc, toast } from './util';
 import { loginPage, verifyPage } from './pages/auth';
 import { shell } from './account';
-import { profilePage } from './pages/profile';
+import { profilePage, playerPage } from './pages/profile';
 import { historyPage } from './pages/history';
 import { leaderboardPage } from './pages/leaderboard';
 import { salonByCode } from './pages/salon';
@@ -55,6 +55,7 @@ async function route() {
     case 'rejoindre': if (!user) return needAuth('Connectez-vous pour rejoindre la partie de votre ami.'); shell(user, 'home'); return joinPage(view, (parts[1] || '').toUpperCase());
     case 'partie': if (!user) return needAuth(); shell(user, 'home'); return gamePage(view, parts[1], user.id);
     case 'profil': if (!user) return needAuth(); shell(user, 'profile'); return profilePage(view, user.id, user.email ?? '');
+    case 'joueur': if (!user) return needAuth(); if (parts[1] === user.id) { go('#/profil'); return; } shell(user, 'lb'); return playerPage(view, parts[1] || '');
     default: if (!user) return needAuth(); shell(user, 'home'); return homePage(view, user.id);
   }
 }

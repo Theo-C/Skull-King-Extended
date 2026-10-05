@@ -20,7 +20,7 @@ export interface Store {
   secret(gameId: string): Promise<E.State | null>;
   commit(gameId: string, expectedVersion: number, c: Commit): Promise<number | null>; // null : conflit de version
   /** Appel d'une fonction SQL réservée au serveur (settle_inputs, game_settle, history_page, history_get, profile_update, unsettled_games,
-   *  rematch_claim, chest_open, shop_buy, wardrobe_state). */
+   *  rematch_claim, chest_open, shop_buy, wardrobe_state, player_card). */
   rpc(name: string, args: Record<string, unknown>): Promise<any>;
 }
 export class HttpError extends Error { constructor(public status: number, msg: string) { super(msg); } }
@@ -52,6 +52,7 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'chest.open': return chestOpen(store, uid);
     case 'shop.list': return shopList(store, uid);
     case 'shop.buy': return shopBuy(store, uid, body);
+    case 'player.card': return playerCard(store, body);
     default: throw bad('Action inconnue.');
   }
 }
@@ -320,5 +321,13 @@ async function shopBuy(store: Store, uid: string, body: any) {
   if (r?.error === 'coins') throw bad("Pas assez de pièces.");
   return r;
 }
+/* ---------- Aperçu d'un joueur au survol (table) ---------- */
+async function playerCard(store: Store, body: any) {
+  if (typeof body?.id !== 'string' || !UUID.test(body.id)) throw new HttpError(404, 'Joueur introuvable.');
+  const c = await store.rpc('player_card', { p_user: body.id });
+  if (!c) throw new HttpError(404, 'Joueur introuvable.');
+  return c;
+}
+
 /** Pour les tests : ouverture avec un tirage reproductible. */
 export const _chestOpenWith = chestOpen;

@@ -13,6 +13,7 @@ import { go, setCleanup } from '../main';
 
 export async function gamePage(root: HTMLElement, id: string, uid: string) {
   let channel: RealtimeChannel | null = null, table: TableView | null = null, mode: 'lobby' | 'table' | null = null;
+  const cards = new Map<string, Promise<any>>(); // fiches de l'aperçu au survol, gardées pour toute la partie
   let lastEventId = 0, syncing = false, again = false, timer: any = null, stopped = false;
   const stop = () => { stopped = true; if (channel) sb.removeChannel(channel); clearInterval(timer); table?.destroy(); };
   setCleanup(stop);
@@ -59,6 +60,11 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       rematch: async () => (await callGame<{ id: string }>('rematch', { id })).id,
       // règlement de fin de partie relu au serveur (il le refait s'il a été interrompu)
       settled: async () => (await callGame<any>('history.get', { id }))?.state?.settled ?? null,
+      // aperçu au survol : une requête par joueur pour toute la partie
+      playerCard: u => {
+        if (!cards.has(u)) cards.set(u, callGame('player.card', { id: u }).catch(e => { cards.delete(u); throw e; }));
+        return cards.get(u)!;
+      },
       chest: {
         open: () => callGame('chest.open', {}),
         wallet: async () => (await sb.from('user_wallet').select('coins, chests').eq('user_id', uid).maybeSingle()).data ?? { coins: 0, chests: 0 },
@@ -88,14 +94,16 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
   const seatOk = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 9;
   // un canal resté ouvert pour cette partie (page reconstruite) serait réutilisé déjà abonné : on le ferme d'abord
   sb.getChannels().filter(c => c.topic === 'realtime:partie-' + id).forEach(c => sb.removeChannel(c));
-  channel = sb.channel('partie-' + id, { config: { broadcast: { self: false } } })
+  // présence : chaque joueur s'annonce sur le canal (clé = son identifiant), pour « en ligne » dans l'aperçu au survol
+  channel = sb.channel('partie-' + id, { config: { broadcast: { self: false }, presence: { key: uid } } })
+    .on('presence', { event: 'sync' }, () => { if (channel) table?.setOnline(Object.keys(channel.presenceState())); })
     .on('broadcast', { event: 'emote' }, ({ payload }) => { if (seatOk(payload?.seat) && typeof payload.text === 'string') table?.showEmote(payload.seat, payload.text); })
     .on('broadcast', { event: 'ready' }, ({ payload }) => { if (seatOk(payload?.seat) && Number.isInteger(payload?.round)) table?.markReady(payload.seat, payload.round); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${id}` }, ping)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${id}` }, ping)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_events', filter: `game_id=eq.${id}` }, ping)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hands', filter: `game_id=eq.${id}` }, ping)
-    .subscribe();
+    .subscribe(status => { if (status === 'SUBSCRIBED') channel?.track({ at: Date.now() }).catch(() => { }); });
   timer = setInterval(sync, 15000); // filet de sécurité si le temps réel décroche
   const onVis = () => { if (!document.hidden) sync(); };
   document.addEventListener('visibilitychange', onVis);
