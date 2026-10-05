@@ -6,7 +6,8 @@ import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
 import { installCardZoom, setZoomNote } from './zoom';
-import { avatarHTML, type AvatarData, type Look } from './avatar';
+import { avatarHTML, CATALOG, type AvatarData, type Look } from './avatar';
+import { objectSVG } from './objects';
 import { mountAmbiance, fitProps, getAmbiance, setAmbiance } from './ambiance';
 import { levelFor, xpToReach, LEVEL_TITLES, fmt, xpReason as xpLabel } from './xp';
 import { openChestOverlay, type ChestResult } from './chest';
@@ -1255,7 +1256,7 @@ export class TableView {
         <span class="felo"><span class="o">${Math.round(elo.before)}</span><span class="o">→</span><span class="n">${Math.round(elo.after)}</span><b class="${elo.delta >= 0 ? 'pos' : 'neg'}">${signed(Math.round(elo.delta))}</b></span>
         ${((elo.vs || []) as any[]).map(v => `<div class="fvs"><span>${vsLabel(v)}</span><b class="${v.delta >= 0 ? 'pos' : 'neg'}">${signedOne(v.delta)}</b></div>`).join('')}</div>`
         : `<div class="fbox"><span class="ftag">Élo</span><span class="lbl">Partie non classée : ${UNRANKED[s.unranked] ?? UNRANKED.solo}.</span></div>`}
-      ${ach ? `<div class="fach"><span class="medal2">${ACH_STAR}</span><span><span class="ftag dark">Haut fait débloqué</span><b>${esc(ach.name)}</b><span>${esc(ach.description)}${s.achievements.length > 1 ? ` · et ${s.achievements.length - 1} autre${s.achievements.length > 2 ? 's' : ''}` : ''}</span></span></div>` : ''}
+      ${this.rewardsHTML(s, ach)}
       ${s.chests > 0 && this.backend.openChest ? `<div class="fchest" id="fchest" data-state="closed"><button type="button" id="fchestBtn" class="fchestbtn" aria-label="Ouvrir le coffre de victoire">
         <svg viewBox="0 0 72 64" aria-hidden="true"><rect x="8" y="28" width="56" height="30" rx="3" fill="#6b4226" stroke="#2a170b" stroke-width="2"/><path d="M8 28c0-12 10-18 28-18s28 6 28 18z" fill="#7d4f2c" stroke="#2a170b" stroke-width="2"/><path d="M8 28h56M20 12v46M52 12v46" stroke="#c9a14a" stroke-width="3"/><rect x="31" y="30" width="10" height="12" rx="2" fill="#e3c47a" stroke="#8a6620"/></svg>
       </button><span class="fchest-txt"><span class="ftag">Coffre de victoire</span><b>Un objet pour votre pirate vous attend.</b><button class="abtn gold" id="fchestOpen">Ouvrir le coffre</button></span></div>` : ''}
@@ -1288,6 +1289,26 @@ export class TableView {
       (ov.querySelector('#fchestOpen') as HTMLButtonElement).onclick = open;
     }
   }
+  /** Fin de partie (maquette FinPartie) : chaque objet gagné avec un haut fait ou un titre, dessiné avec sa rareté ;
+   *  les hauts faits sans objet gardent leur médaille. */
+  private rewardsHTML(s: any, first: any) {
+    const cos = (s.cosmetics || []) as { cosmetic_id: string; source: string }[], achs = (s.achievements || []) as any[];
+    const color = this.colorOf(this.mySeat ?? 0);
+    const items = cos.map(c => {
+      const it = CATALOG.byId[c.cosmetic_id]; if (!it) return '';
+      const ach = c.source.startsWith('achievement:') ? achs.find(a => 'achievement:' + a.code === c.source) : null;
+      const lvl = c.source.startsWith('title:') ? Number(c.source.slice(6)) : null, title = lvl ? LEVEL_TITLES.find(([l]) => l === lvl)?.[1] : null;
+      const [rar, ring] = RAR[it.rarity] ?? RAR.c;
+      const tag = ach ? `Haut fait · ${ach.name}` : title ? `Nouveau titre · ${title}` : 'Nouvel objet';
+      const sub = `Objet ${rar}, ${ach ? 'réservé à ce haut fait' : title ? 'obtenu avec votre nouveau titre' : 'ajouté à votre garde-robe'}`;
+      return `<div class="fach"><span class="medal2 obj" style="--rar:${ring}">${objectSVG(it.slot, it.value, 56, it.variants?.[0] ?? '#2f5f8a', color)}</span>
+        <span><span class="ftag dark">${esc(tag)}</span><b>${esc(it.name)}</b><span>${esc(sub)}</span></span></div>`;
+    }).join('');
+    // hauts faits sans objet : la médaille, comme avant (le premier, puis « et N autres »)
+    const rest = achs.filter(a => !cos.some(c => c.source === 'achievement:' + a.code)), a = rest[0] ?? (items ? null : first);
+    const medal = a ? `<div class="fach"><span class="medal2">${ACH_STAR}</span><span><span class="ftag dark">Haut fait débloqué</span><b>${esc(a.name)}</b><span>${esc(a.description)}${rest.length > 1 ? ` · et ${rest.length - 1} autre${rest.length > 2 ? 's' : ''}` : ''}</span></span></div>` : '';
+    return items + medal;
+  }
   private maybeFinal() { if (this.pub?.phase === 'end' && !this.shownEnd) { this.shownEnd = true; this.finalOverlay(); } }
   scoreSheet() {
     const ps = this.latest?.pub.players || this.pub?.players || []; if (!ps.length) return;
@@ -1297,6 +1318,8 @@ export class TableView {
     modal(h);
   }
 }
+/** Rareté des objets (libellé, couleur de l'anneau), pour l'écran de fin de partie. */
+const RAR: Record<string, [string, string]> = { c: ['commun', '#d6dde4'], r: ['rare', '#4fa8ff'], e: ['épique', '#c27dff'], l: ['légendaire', '#ffc94a'] };
 /** Raison d'une partie non classée (settle.ts). */
 const UNRANKED: Record<string, string> = { solo: 'il faut au moins deux joueurs humains', bots: 'des bots étaient à la table', rounds: 'elle comptait moins de 10 manches' };
 const sgn = (v: number) => `<span class="${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${v}</span>`;

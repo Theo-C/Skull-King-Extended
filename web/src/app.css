@@ -570,3 +570,6 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 .sheetlike .rnote.ok{color:#2b6a33;background:rgba(47,122,69,.12);border-color:rgba(47,122,69,.45)}
 .sheetlike .rnote.maybe{color:#7a5208;background:rgba(138,94,14,.12);border-color:rgba(138,94,14,.45)}
 .sheetlike .rnote.no{color:#4a3b2a;background:rgba(43,33,23,.07);border-color:rgba(43,33,23,.3)}
+/* fin de partie : objet gagné (haut fait ou titre), anneau à la couleur de sa rareté */
+.medal2.obj{background:#1b140e;overflow:hidden;box-shadow:0 0 0 2px #1b140e,0 0 0 4px var(--rar,#ead08a),0 6px 14px rgba(0,0,0,.3)}
+.medal2.obj svg,.medal2.obj>span{max-width:56px;max-height:56px}

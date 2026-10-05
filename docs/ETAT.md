@@ -13,7 +13,7 @@ Légende :
 |---|---|---|---|
 | A. Table | A1 à A6, A8, A9 | A7 | – |
 | B. Cartes | B1 à B6 | – | – |
-| C. Compte | C1 à C4 | C5 | – |
+| C. Compte | C1 à C5 | – | – |
 | D. Garde-robe et coffre | D1, D2, D9 | D3, D4, D5, D6, D7, D8, D10 | D11 |
 
 ## A. Table de jeu
@@ -49,7 +49,7 @@ Légende :
 | C2 | **Fait** | – XP : 50 / 10 / 100 / 25 ; niveau suivant à 250 × L ; titres. Le tout est testé. | `supabase/functions/_shared/xp.ts`, `settle.ts`, `web/src/xp.ts` |
 | C3 | **Fait** | – Formule et affichage partout. Ne comptent pas pour l'Élo : les parties avec un bot ou de moins de 10 manches (choix validé). La règle « abandon = dernière place » de la spec est sans objet, puisqu'on ne peut pas quitter une partie commencée. | `supabase/functions/_shared/elo.ts`, `settle.ts`, pages |
 | C4 | **Fait** | – Tables, règlement côté serveur idempotent (testé), classement amis / tous. Les descriptions des hauts faits relèvent de B6. | `supabase/migrations/`, `settle.ts`, `service.ts` |
-| C5 | **Partiel** | L'objet gagné avec un haut fait n'est pas montré : la maquette FinPartie affiche « Cadre Tentacules · objet légendaire ». Le serveur l'envoie bien (`cosmetics`), mais la table ne le lit pas. Le reste est en place : podium, XP, Élo par adversaire, haut fait, « Ouvrir le coffre ». | `web/src/table.ts` (`fillSettled`) |
+| C5 | **Fait** | – Podium, XP, Élo par adversaire, « Ouvrir le coffre » ; chaque objet gagné avec un haut fait ou un titre est dessiné avec sa rareté (« Haut fait · Pari du Kraken — Tentacules, objet légendaire, réservé à ce haut fait »), les hauts faits sans objet gardent leur médaille (lot 4). | `web/src/table.ts` (`rewardsHTML`), `web/src/app.css` |
 
 ## D. Garde-robe et coffre
 
@@ -63,7 +63,7 @@ La mention « à faire en entier » du prompt n'est plus vraie : D1 à D10 exist
 | D4 | **Partiel** (pool de coffre laissé pour la passe dédiée) | Probabilités, couleurs et doublons sont conformes. Mais : 1. le pool Légendaire ne contient que le Poulpe, et le pool Commun que deux objets ; 2. les Perles et le Poulpe, objets de haut fait « uniques et non achetables », peuvent sortir d'un coffre. | `20261006000000_cosmetics_v2.sql` |
 | D5 | **Partiel** | 1. Il n'y a pas d'action `shop.list` : l'échoppe passe par `profile.wardrobe`. 2. L'échoppe ne pioche que parmi 3 objets, avec remise : toujours les mêmes, parfois en double. 3. Faille : les couleurs de variante acceptent n'importe quelle valeur hexadécimale, si bien qu'on peut porter une variante sans l'avoir. Le reste est en place : coffre au gagnant (idempotent), `chest.open` transactionnel, `shop.buy`, refus d'un look non possédé. | `supabase/functions/_shared/service.ts`, migrations |
 | D6 | **Partiel** | 1. Défaut avec `prefers-reduced-motion` : l'objet obtenu ne s'affiche pas (il reste masqué). 2. Le coffre ne s'assombrit pas une fois l'objet sorti. 3. Les sons sont génériques : pas de grincement, de souffle, ni d'accord plus riche pour Épique et Légendaire. Le reste est en place : les 6 étapes avec leurs durées, et les boutons « Passer », « Ouvrir le suivant », « Équiper ». | `web/src/chest.ts` |
-| D7 | **Partiel** | 1. Le badge du coffre est masqué sur téléphone. 2. Il n'est pas mis à jour après une ouverture. 3. L'objet du haut fait n'est pas montré en fin de partie (voir C5). | `web/src/account.ts`, `web/src/table.ts` |
+| D7 | **Partiel** | 1. Le badge du coffre est masqué sur téléphone. 2. Il n'est pas mis à jour après une ouverture. 3. ~~L'objet du haut fait n'est pas montré en fin de partie~~ : fait au lot 4 (C5). | `web/src/account.ts`, `web/src/table.ts` |
 | D8 | **Partiel** | Défauts mineurs : 1. une condition de haut fait s'affiche avec son code brut, par exemple « Haut fait · siren_hunter » ; 2. il reste un bloc « Le porter » mort dans le code. Le reste est en place : 7 onglets, silhouettes avec condition, variantes, « Au hasard », « Annuler », « Enregistrer », échoppe. | `web/src/pages/profile.ts` |
 | D9 | **Fait** | – Avatars composés à la table, dans les listes, au classement, dans l'en-tête et dans l'aperçu au survol. | pages, `web/src/playercard.ts` |
 | D10 | **Partiel** | Tests manquants : 1. la fréquence de tirage d'un Légendaire ; 2. un test qui passe par l'action `chest.open` elle-même ; 3. l'idempotence des objets de titre et de haut fait ; 4. le refus d'une variante non possédée. | `tests/service.test.ts` |
