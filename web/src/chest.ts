@@ -51,7 +51,8 @@ function installStyles() {
 .chov .crays>span{display:block;width:100%;height:100%;border-radius:50%;animation:cspin 18s linear infinite;transition:background 1s}
 @keyframes cspin{to{transform:rotate(360deg)}}
 .chov .crays>span{-webkit-mask:radial-gradient(circle,#000 0%,rgba(0,0,0,.45) 30%,transparent 64%);mask:radial-gradient(circle,#000 0%,rgba(0,0,0,.45) 30%,transparent 64%)}
-.chov .cchest{position:relative;z-index:5;width:320px;height:340px;transform-origin:50% 95%;transition:opacity .8s}
+.chov .cchest{position:relative;z-index:5;width:320px;height:340px;transform-origin:50% 95%;transition:opacity .8s,filter .8s}
+.chov .cchest.dim{filter:brightness(.45) saturate(.7)}
 .chov .cchest.bob{animation:cbob 2.6s ease-in-out infinite}
 @keyframes cbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 .chov .cchest.shake{animation:cshake .45s ease-in-out 2}
@@ -99,6 +100,7 @@ function installStyles() {
 @keyframes ccoin{0%{transform:translate(0,0) scale(.6);opacity:0}15%{opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.5);opacity:.2}}
 .chov .csock{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:min(500px,70vw);pointer-events:none;z-index:0}
 @media (prefers-reduced-motion:reduce){.chov *{animation:none!important;transition:none!important}}
+.chov .citem.shown{opacity:1}
 @media (max-width:720px){.chov .chead{padding:12px 14px}.chov .chead h2{font-size:20px}.chov .ctext{bottom:90px}.chov .ctext .cname{font-size:28px}.chov .cact{right:12px;bottom:12px}.chov .cact button{min-height:46px;padding:0 14px;font-size:14px}.chov .cchest{width:260px;height:280px;transform:scale(.8)}}
 `;
   const el = document.createElement('style'); el.setAttribute('data-chov', ''); el.textContent = css; document.head.append(el);
@@ -234,6 +236,14 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
         else if (a === 'again') { busy = true; b.disabled = true; cb.onOpenNext!().then((n) => { busy = false; render(n); }, (e) => { busy = false; b.disabled = false; alert((e as any)?.message || 'Erreur à l\'ouverture.'); }); }
       };
     };
+    /** Objet sorti, sans animation de montée (Passer, ou prefers-reduced-motion) : couvercle ouvert, teinte de rareté. */
+    const reveal = () => {
+      timers.forEach(clearTimeout); timers.length = 0;
+      chest.classList.remove('bob', 'shake', 'hum'); chest.classList.add('dim');
+      lid.classList.remove('crack'); lid.classList.add('open');
+      setGlow(R.color, R.soft, 1, 1); seam.style.opacity = '1'; raysWrap.style.opacity = '.35';
+      itemEl.hidden = false; itemEl.classList.add('shown'); itemEl.style.filter = `drop-shadow(0 0 24px ${R.color})`;
+    };
     const convert = () => {
       itemEl.classList.add('melt');
       coinsEl.hidden = false;
@@ -247,16 +257,16 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
       burst.classList.add('go');
       sparksEl.hidden = false;
       chest.classList.remove('hum');
-      try { sfx.deal(1); } catch { /* son indisponible */ }
+      try { sfx.open(); } catch { /* son indisponible */ }
       later(350, () => {
-        itemEl.hidden = false; itemEl.classList.add('rise');
+        itemEl.hidden = false; itemEl.classList.add('rise'); chest.classList.add('dim');
         itemEl.style.filter = `drop-shadow(0 0 24px ${R.color})`;
         if (r.duplicate) later(1000, convert); else later(900, done);
       });
     };
     const tint = () => {
       setGlow(R.color, R.soft, 1, 1); raysEl.style.transition = 'background 1s';
-      try { sfx.card(); } catch { /* son indisponible */ }
+      try { sfx.chord(r.rarity); } catch { /* son indisponible */ }
       later(1000, open);
     };
     const glow = () => {
@@ -265,11 +275,12 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
       setGlow(WHITE, WHITE_SOFT, .55, 1);
       seam.style.opacity = '1'; seam.style.boxShadow = `0 0 30px 8px ${WHITE}`;
       raysWrap.style.opacity = '.35';
+      try { sfx.breath(R.hold / 1000); } catch { /* son indisponible */ }
       later(R.hold, tint);
     };
     const shake = () => {
       chest.classList.remove('bob'); chest.classList.add('shake');
-      try { sfx.deal(2); } catch { /* son indisponible */ }
+      try { sfx.creak(); } catch { /* son indisponible */ }
       setGlow(WHITE, WHITE_SOFT, .2, .8); seam.style.opacity = '.5';
       later(900, glow);
     };
@@ -280,7 +291,8 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
     const start = () => {
       skipBtn.hidden = false;
       (ov.querySelector('.cidle') as HTMLElement).innerHTML = '';
-      if (reduced) { done(); return; }
+      // résultat direct : l'objet est montré tel quel, sans fonte en pièces
+      if (reduced) { reveal(); done(); return; }
       shake();
     };
     const idle = ov.querySelector('.cidle') as HTMLElement;
@@ -288,7 +300,7 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
       <div class="codds">${Object.entries(RAR).map(([, R]) => `<span><i style="background:${R.color}"></i>${esc(R.label)} ${R.p}</span>`).join('')}</div>`;
     (idle.querySelector('.ciopen') as HTMLButtonElement).onclick = start;
     (idle.querySelector('.ciopen') as HTMLButtonElement).focus();
-    skipBtn.onclick = () => { timers.forEach(clearTimeout); timers.length = 0; chest.classList.remove('bob','shake','hum'); lid.classList.remove('crack'); lid.classList.add('open'); itemEl.hidden = false; itemEl.classList.add('rise'); itemEl.style.filter = `drop-shadow(0 0 24px ${R.color})`; if (r.duplicate) convert(); else done(); };
+    skipBtn.onclick = () => { reveal(); if (r.duplicate) convert(); else done(); };
   };
 
   render(initial);
