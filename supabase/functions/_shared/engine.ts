@@ -415,7 +415,11 @@ function resolveTrick(S: State) {
     if (!R.mode) {
       w.bonus.push(...R.bonus);
       R.bonus.forEach(b => logBonus(wi, b));
-      for (const e of R.captured) if (e.card.kind === 'loot' && e.p !== wi) { S.alliances.push([e.p, wi]); log(S, [`Pacte de Butin : ${nm(S, e.p)} & ${w.name}`]); }
+      for (const e of R.captured) if (e.card.kind === 'loot' && e.p !== wi) {
+        S.alliances.push([e.p, wi]);
+        // une ligne de bonus pour chacun des deux alliés (le +20 n'est compté qu'en fin de manche, si les deux mises sont tenues)
+        logBonus(e.p, [20, `Pacte de Butin avec ${w.name}`]); logBonus(wi, [20, `Pacte de Butin avec ${nm(S, e.p)}`]);
+      }
       if (S.opts.powers) {
         let list: string[] = [];
         if (R.winner.card.kind === 'pirate') list = [R.winner.card.pid!];

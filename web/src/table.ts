@@ -100,6 +100,9 @@ const PENDING_LABEL: Record<string, string> = {
   conpick: 'choisit un pouvoir à voler avec Con',
 };
 
+/** Fin de manche déjà affichée, par partie en ligne (clé : identifiant de la partie). */
+const SHOWN = new Map<string, number>();
+
 export class TableView {
   pub: PublicView | null = null; priv: PrivateView | null = null;
   private latest: { pub: PublicView; priv: PrivateView | null } | null = null;
@@ -108,7 +111,12 @@ export class TableView {
   private logLines: { s: LogSeg[]; cls?: string }[] = [];
   private pick: { k: number; sel: Set<number> } | null = null;
   private choice: { id: number; need: string[]; move: any } | null = null;
-  private shownRound = 0; private shownEnd = false;
+  private shownEnd = false;
+  /** Dernière fin de manche affichée, conservée d'une instance à l'autre pour la même partie (bug d'Alt-Tab : une table
+   *  recréée ne doit jamais réafficher une fin de manche déjà vue). */
+  private localShown = 0; // entraînement : chaque partie repart de zéro
+  private get shownRound() { const id = this.backend.gameId; return id ? SHOWN.get(id) ?? 0 : this.localShown; }
+  private set shownRound(r: number) { const id = this.backend.gameId; if (id) SHOWN.set(id, Math.max(r, SHOWN.get(id) ?? 0)); else this.localShown = r; }
   // éléments conservés d'un rendu à l'autre
   private seatEls: HTMLElement[] = []; private centerEl: HTMLElement | null = null;
   private tcards = new Map<string, HTMLElement>(); private collectTo: number | null = null;
