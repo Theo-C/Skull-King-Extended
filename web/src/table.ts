@@ -56,6 +56,9 @@ const ICON = {
 };
 /** Portrait de Marie Thorne (maquette Marie Thorne : silhouette sur médaillon prune). */
 const LISE_PORTRAIT = '<span class="lport" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M14 100c3-26 18-36 36-36s33 10 36 36z" fill="#15110E"/><ellipse cx="50" cy="48" rx="14" ry="17" fill="#15110E"/><path d="M24 40c8-16 44-16 52 0-9 3-43 3-52 0z" fill="#15110E"/><path d="M25 40c11 3 39 3 50 0" stroke="#C9A24A" stroke-width="2.5" fill="none"/></svg></span>';
+/** Pli en ligne : flèche entre deux places, couronne de « prend le pli ». */
+const ARROW = '<svg viewBox="0 0 20 20"><path d="M4 10h11M11 5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CROWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18l2-10 5 4 2-7 2 7 5-4 2 10z" fill="currentColor"/></svg>';
 const SEAL = '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 4l3 13 13 3-13 3-3 13-3-13-13-3 13-3z" fill="#c9a14a"/></svg>';
 /** Plateau dessiné en 1040 × 520 (comme la maquette) puis mis à l'échelle. */
 const BW = 1040, BH = 520;
@@ -108,6 +111,8 @@ export class TableView {
   // éléments conservés d'un rendu à l'autre
   private seatEls: HTMLElement[] = []; private centerEl: HTMLElement | null = null;
   private tcards = new Map<string, HTMLElement>(); private collectTo: number | null = null;
+  /** Pli en ligne : places vides (joueurs qui doivent encore jouer) et flèches entre les places. */
+  private tempty = new Map<string, HTMLElement>(); private arrowEls: HTMLElement[] = [];
   private handEls = new Map<number, HTMLElement>(); private handRound = -1;
   private flyFrom: { id: number; rect: DOMRect } | null = null; private sendingId: number | null = null;
   private prevScores: (number | undefined)[] = [];
@@ -417,7 +422,7 @@ export class TableView {
       let st: string;
       if (pb.bidsRevealed && p.bid != null) st = `<b class="og ${p.won > p.bid ? 'over' : p.won === p.bid ? 'ok' : ''}">${p.won}/${p.bid}</b>`;
       else st = `<span class="ost">${p.hasBid ? 'a misé' : 'réfléchit…'}</span>`;
-      setHTML(el, `<div class="oh">${this.avatar(i, p.name, 30)}<span class="onm">${esc(p.name)}</span>${pb.leader != null && pb.leader === i && pb.phase !== 'end' ? '<span class="oent" title="Commence le prochain pli">1</span>' : ''}</div>
+      setHTML(el, `<div class="oh"><span class="oav">${this.avatar(i, p.name, 30)}${this.rankBadge(i)}</span><span class="onm">${esc(p.name)}</span>${pb.leader != null && pb.leader === i && pb.phase !== 'end' ? '<span class="oent" title="Commence le prochain pli">1</span>' : ''}</div>
         <div class="ob">${st}<span>${p.score} pts</span></div>`);
     }
   }
@@ -472,7 +477,7 @@ export class TableView {
       else { right = `<div class="bidst"><div class="sealed">${SEAL}</div></div>`; status = `mise scellée : ${this.priv.bid}`; }
     } else if (p.hasBid) { right = `<div class="bidst"><div class="sealed">${SEAL}</div></div>`; status = 'a misé'; }
     else { right = '<div class="bidst"><div class="think"><i></i><i></i><i></i></div></div>'; status = 'réfléchit…'; }
-    return `<div class="av">${ring}${this.avatar(i, p.name, 56)}</div>
+    return `<div class="av">${ring}${this.avatar(i, p.name, 56)}${this.rankBadge(i)}</div>
       <div class="pinfo"><div class="pn"><span class="nm">${esc(p.name)}</span></div><div class="ps ${gold ? 'gold' : ''}">${status}</div></div>${right}${lead}`;
   }
   renderTable() {
@@ -480,11 +485,7 @@ export class TableView {
     this.fitBoard();
     const tbl = $('#table', this.root), layer = $('#layer', this.root);
     const n = pb.players.length, mob = this.mob, b = this.bottom(), geo = mob ? mobileGeometry(n) : geometry(n);
-    // taille des cartes du pli, en px du plateau. Agrandie (108/100/92 au lieu de 92/84/76) : les illustrations
-    // restent lisibles même avec 7 joueurs. Mobile pareil, 88/76/66 au lieu de 74/62/54.
-    const ts = (mob ? (n <= 5 ? 88 : n <= 7 ? 76 : 66) : (n <= 4 ? 108 : n <= 6 ? 100 : 92)) / 252;
-    tbl.style.setProperty('--ts', ts.toFixed(3));
-    if (this.seatEls.length && !this.seatEls[0].isConnected) { this.seatEls = []; this.centerEl = null; this.tcards.clear(); }
+    if (this.seatEls.length && !this.seatEls[0].isConnected) { this.seatEls = []; this.centerEl = null; this.tcards.clear(); this.tempty.clear(); this.arrowEls = []; }
 
     this.renderOpps();
     this.renderLise(mob ? null : geometry(n), mob);
@@ -518,57 +519,81 @@ export class TableView {
       }
       this.prevScores[i] = p.score;
     });
-    // pli en cours, en croix : chaque carte devant son joueur (élément conservé, qui arrive en volant et repart vers le gagnant)
+    // pli en ligne (maquette PliOrdre) : les cartes s'alignent au centre, de gauche à droite dans l'ordre de pose ; une place
+    // en pointillés pour chaque joueur qui doit encore jouer ; la Dernière Bordée s'ajoute en fin de ligne. Les cartes arrivent
+    // en volant depuis la plaque du joueur et repartent vers le gagnant (éléments conservés d'un rendu à l'autre).
     if (this.playedRound !== pb.round) { this.playedRound = pb.round; this.playedMine.clear(); }
-    const t = pb.trick, want = new Set<string>(), cw = 252 * ts, ch = 352 * ts;
-    const slotOf = (seat: number) => geo[(seat - b + n) % n];
-    const lead = { at: null as [number, number] | null };
-    if (t) {
-      const base = `${pb.round}-${pb.trickNo}`, cnt: Record<number, number> = {}, seen: Record<number, number> = {};
-      t.entries.forEach(e => { cnt[e.p] = (cnt[e.p] || 0) + 1; });
-      const li = this.leadIndex();
-      t.entries.forEach((e, idx) => {
-        const key = `${base}-${idx}`; want.add(key); if (e.p === this.mySeat) this.playedMine.add(e.card.id);
-        const j = seen[e.p] = (seen[e.p] ?? -1) + 1, g = slotOf(e.p);
-        const x = g.sx + (j - (cnt[e.p] - 1) / 2) * cw * .55, y = g.sy;
-        let w = this.tcards.get(key); const fresh = !w;
-        if (!w) {
-          w = elFrom(`<div class="tslot">${cardHTML(e.card, e)}${e.imposed ? '<span class="imptag">Imposée</span>' : ''}<span class="who" style="--pc:${this.colorOf(e.p)}"></span></div>`);
-          (w.firstElementChild as HTMLElement).style.rotate = `${g.r}deg`;
-          layer.append(w); this.tcards.set(key, w);
-        }
-        w.style.left = x + 'px'; w.style.top = y + 'px'; w.style.zIndex = String(10 + idx);
-        const c = w.firstElementChild as HTMLElement, res = t.res;
-        c.classList.toggle('win', !!res && res.winner === idx);
-        c.classList.toggle('gone', res ? (!!res.removed?.includes(idx) || !!res.discarded) : !!t.removals?.includes(idx));
-        if (li === idx) lead.at = [x, y + ch / 2 + 16];
-        const who = w.querySelector('.who') as HTMLElement;
-        who.textContent = pb.players[e.p].name + (mob && li === idx ? ' · en tête' : ''); who.classList.toggle('lead', mob && li === idx);
-        who.hidden = !(mob || n > 4);
-        if (fresh) this.flyIn(c, e.p, e.card.id);
-      });
-      this.collectTo = t.res ? (t.res.winner != null ? t.entries[t.res.winner].p : -1) : null;
-    }
+    const t = pb.trick, want = new Set<string>(), slots = this.trickSlots(), li = this.leadIndex();
+    // au-delà de 4 joueurs, les plaques sont sur une ellipse centrée en y = 262 : la ligne passe entre celles du haut et du bas
+    const W = mob ? MW : BW, cx = W / 2, cy = mob ? MH / 2 - 6 : n <= 4 ? 252 : 262;
+    // largeur des cartes : la ligne tient entre les plaques de gauche et de droite (cartes plus petites au-delà de 4 joueurs)
+    const gap = mob ? 12 : 22, base = mob ? (n <= 4 ? 74 : 64) : (n <= 4 ? 104 : 96);
+    // la plus grande largeur pour laquelle la ligne (en-têtes et étiquettes compris) ne touche aucune plaque du plateau
+    const cnt = Math.max(slots.length, 1), lo = mob ? 36 : 48;
+    const fits = (w: number) => {
+      const half = (cnt * w + (cnt - 1) * gap) / 2 + 6, h = w * 352 / 252, top = cy - h / 2 - 30, bot = cy + h / 2 + 26;
+      if (cx - half < 10 || cx + half > W - 10) return false;
+      return mob || geo.every(g => g.px + 124 < cx - half || g.px - 124 > cx + half || g.py + 39 < top || g.py - 39 > bot);
+    };
+    let cw = base; while (cw > lo && !fits(cw)) cw -= 2;
+    const ch = cw * 352 / 252;
+    tbl.style.setProperty('--ts', (cw / 252).toFixed(3));
+    tbl.style.setProperty('--tw', cw.toFixed(1) + 'px');
+    const xAt = (k: number) => cx - ((cnt - 1) * (cw + gap)) / 2 + k * (cw + gap);
+    const next = t && !t.res && pb.phase === 'play' && !pb.pending ? pb.current : null;
+    const seen = new Set<string>(), arrows: number[] = [];
+    slots.forEach((s, k) => {
+      const x = xAt(k), name = s.seat === this.mySeat ? 'Vous' : pb.players[s.seat].name, rank = k + 1;
+      if (k) arrows.push(x - (cw + gap) / 2);
+      if (s.idx == null) {
+        // place vide : celle du prochain joueur pulse
+        const key = 'e' + k + '-' + s.seat; seen.add(key);
+        let el = this.tempty.get(key);
+        if (!el) { el = document.createElement('div'); el.className = 'tslot empty'; layer.append(el); this.tempty.set(key, el); }
+        const isNext = s.seat === next;
+        el.classList.toggle('next', isNext);
+        setHTML(el, `${this.slotHead(s.seat, rank, name, isNext)}<div class="tcw"><div class="tph">${isNext ? (s.seat === this.mySeat ? 'À vous de jouer' : esc(name) + ' réfléchit…') : s.extra ? 'Dernière Bordée' : 'en attente'}</div></div><div class="tft"></div>`);
+        el.style.left = x + 'px'; el.style.top = cy + 'px';
+        return;
+      }
+      const e = t!.entries[s.idx], key = `${pb.round}-${pb.trickNo}-${s.idx}`; want.add(key);
+      if (e.p === this.mySeat) this.playedMine.add(e.card.id);
+      let w = this.tcards.get(key); const fresh = !w;
+      if (!w) {
+        w = elFrom(`<div class="tslot">${this.slotHead(e.p, rank, name, false)}<div class="tcw">${cardHTML(e.card, e)}${e.imposed ? '<span class="imptag">Imposée</span>' : ''}<span class="topen" hidden>ouvre</span></div><div class="tft"></div></div>`);
+        layer.append(w); this.tcards.set(key, w);
+      }
+      w.style.left = x + 'px'; w.style.top = cy + 'px'; w.style.zIndex = String(10 + s.idx);
+      const c = w.querySelector('.card') as HTMLElement, res = t!.res, win = li === s.idx;
+      c.classList.toggle('win', win);
+      c.classList.toggle('gone', res ? (!!res.removed?.includes(s.idx) || !!res.discarded) : !!t!.removals?.includes(s.idx));
+      w.classList.toggle('behind', li != null && !win);
+      (w.querySelector('.topen') as HTMLElement).hidden = s.idx !== 0;
+      setHTML(w.querySelector('.tft') as HTMLElement, win ? `<span class="twin">${CROWN}prend le pli</span>` : '');
+      if (fresh) this.flyIn(c, e.p, e.card.id);
+    });
+    for (const [key, el] of this.tempty) if (!seen.has(key)) { el.remove(); this.tempty.delete(key); }
+    // petites flèches entre les places
+    while (this.arrowEls.length > arrows.length) this.arrowEls.pop()!.remove();
+    arrows.forEach((ax, k) => {
+      let a = this.arrowEls[k]; if (!a || !a.isConnected) { a = elFrom(`<div class="tarrow" aria-hidden="true">${ARROW}</div>`); layer.append(a); this.arrowEls[k] = a; }
+      a.style.left = ax + 'px'; a.style.top = cy + 'px';
+    });
+    if (t) this.collectTo = t.res ? (t.res.winner != null ? t.entries[t.res.winner].p : -1) : null;
     let out = 0;
     for (const [key, w] of this.tcards) if (!want.has(key)) { this.tcards.delete(key); this.flyOut(w, this.collectTo, out++); }
     if (!t) this.collectTo = null;
 
-    // « En tête » : une seule étiquette, qui glisse d'une carte à l'autre
-    const tag = this.piece('leadEl', 'leadtag2', 'En tête');
-    tag.hidden = !lead.at || mob; if (lead.at) { tag.style.left = lead.at[0] + 'px'; tag.style.top = lead.at[1] + 'px'; }
-    // couleur demandée, au-dessus de la croix
+    // couleur demandée, au-dessus du pli ; sous le pli, pourquoi la carte en tête mène
+    const rowTop = cy - ch / 2 - 30, rowBottom = cy + ch / 2 + 30;
     const chip = this.piece('chipEl', 'askchip', '');
-    const topY = Math.min(...geo.map(g => g.sy)) - ch / 2 - 18;
-    chip.style.left = (mob ? MW : BW) / 2 + 'px'; chip.style.top = Math.max(14, topY) + 'px';
+    chip.style.left = cx + 'px'; chip.style.top = Math.max(14, rowTop - 20) + 'px';
     const ls = t && t.entries.length ? leadSuitOf(t.entries) : null;
-    chip.hidden = !(pb.phase === 'play' && t && t.entries.length);
-    setHTML(chip, ls ? `<i class="s-${ls}"></i>${SUIT[ls].n} demandé` : 'Aucune couleur demandée');
+    chip.hidden = !(pb.phase === 'play' && t);
+    setHTML(chip, !t || !t.entries.length ? 'La première carte fixe la couleur' : ls ? `<span>Couleur demandée</span><i class="s-${ls}"></i><b>${SUIT[ls].n}</b>` : 'Aucune couleur demandée');
     chip.classList.toggle('none', !ls);
-    // emplacement vide « Votre carte » quand c'est à vous
-    const empty = this.piece('emptyEl', 'yourslot', 'Votre carte');
-    const mine = this.mySeat != null && pb.phase === 'play' && !pb.pending && pb.current === this.mySeat && !this.sendingId;
-    empty.hidden = !mine;
-    if (mine) { const g = slotOf(this.mySeat!); empty.style.left = g.sx + 'px'; empty.style.top = g.sy + 'px'; empty.style.width = cw + 'px'; empty.style.height = ch + 'px'; empty.style.rotate = g.r + 'deg'; }
+    const why = this.piece('whyEl', 'twhy', ''), wt = pb.phase === 'play' && t && !this.banner ? this.whyLeads() : '';
+    why.hidden = !wt; why.textContent = wt; why.style.left = cx + 'px'; why.style.maxWidth = Math.max(240, cnt * cw + (cnt - 1) * gap + 40) + 'px'; why.style.top = rowBottom + (mob ? 10 : 16) + 'px';
 
     let mid = ''; const lm = this.banner ? null : this.liseMid();
     if (this.banner) {
@@ -662,6 +687,60 @@ export class TableView {
     el.className = 'hint ' + (p ? p.tone : '');
     el.textContent = p ? p.text : TOUCH() ? 'Touchez une carte pour voir si elle prend le pli, touchez-la encore pour la jouer' : 'Survolez une carte pour voir si elle prend le pli';
   }
+  /** Places du pli en ligne : un joueur par place dans l'ordre de jeu (à partir de celui qui ouvre), puis la Dernière Bordée
+   *  en fin de ligne, avec son propre numéro (et une place vide tant que le joueur concerné n'a pas rejoué). */
+  private trickSlots(): { seat: number; idx: number | null; extra?: boolean }[] {
+    const pb = this.pub, t = pb?.trick; if (!pb || !t) return [];
+    const n = pb.players.length, start = t.entries[0]?.p ?? pb.current ?? pb.leader;
+    const out: { seat: number; idx: number | null; extra?: boolean }[] = Array.from({ length: n }, (_, k) => {
+      const seat = (start + k) % n, idx = t.entries.findIndex(e => e.p === seat && !e.extra);
+      return { seat, idx: idx >= 0 ? idx : null };
+    });
+    t.entries.forEach((e, i) => { if (e.extra) out.push({ seat: e.p, idx: i, extra: true }); });
+    if (t.stage === 'volley' && !t.res && pb.current != null && out.every(x => x.idx != null)) out.push({ seat: pb.current, idx: null, extra: true });
+    return out;
+  }
+  /** Rang d'un joueur dans le pli en cours (pastille sur sa plaque) : couleur du joueur s'il a joué, or s'il doit jouer. */
+  private rankBadge(i: number) {
+    const pb = this.pub; if (!pb?.trick || pb.phase !== 'play') return '';
+    const slots = this.trickSlots(), k = slots.findIndex(x => x.seat === i && !x.extra); if (k < 0) return '';
+    const played = slots[k].idx != null, next = !played && !pb.trick.res && pb.current === i;
+    return `<span class="prank ${played ? 'played' : next ? 'next' : ''}" style="--pc:${this.colorOf(i)}" title="${k + 1}${k ? 'e' : 'er'} à jouer dans ce pli">${k + 1}</span>`;
+  }
+  /** En-tête d'une place du pli : rang dans la couleur du joueur, puis son nom. */
+  private slotHead(seat: number, rank: number, name: string, next: boolean) {
+    return `<div class="thd${next ? ' next' : ''}"><span class="tn" style="--pc:${this.colorOf(seat)}">${rank}</span><span class="tnm">${esc(name)}</span></div>`;
+  }
+  /** Phrase sous le pli : qui mène et pourquoi (même calcul que le moteur, avec resolve). */
+  private whyLeads(): string {
+    const pb = this.pub, t = pb?.trick; if (!pb || !t || !t.entries.length) return '';
+    let R: ReturnType<typeof resolve>;
+    try { R = resolve(t.entries, (t.removals || []).map(i => t.entries[i])); } catch { return ''; }
+    const me = (p: number) => p === this.mySeat, who = (p: number) => me(p) ? 'Vous' : pb.players[p].name;
+    const v = (p: number, moi: string, lui: string) => me(p) ? moi : lui;
+    const card = (e: Entry) => e.card.kind === 'num' && !e.card.wild ? 'le ' + cname(e.card, e) : cname(e.card, e);
+    const ls = leadSuitOf(t.entries), w = R.winner, first = t.entries[0];
+    if (R.mode === 'kraken') return 'Le Kraken détruit le pli : personne ne le remporte.';
+    if (t.entries.length === 1 && w === first) {
+      return `${who(first.p)} ${v(first.p, 'ouvrez', 'ouvre')} avec ${card(first)}${ls ? ` : la couleur demandée est ${SUIT[ls].n}` : first.card.kind === 'num' ? '' : ' : pas encore de couleur demandée'}.`;
+    }
+    if (!w) return R.discarded ? 'Le pli sera défaussé : personne ne le remporte.' : '';
+    const k = w.card.kind, as = w.as === 'pirate' || k === 'pirate', has = (x: string) => t.entries.some(e => e.card.kind === x);
+    let why: string;
+    if (R.mode === 'whale') why = 'la Baleine Fantôme annule les cartes spéciales, la plus haute carte numérotée l\'emporte';
+    else if (R.mode === 'stingray') why = 'la Raie Étoilée annule les cartes spéciales, la plus petite carte numérotée l\'emporte';
+    else if (k === 'num' && w.card.wild) why = 'le Grand Quinze vaut 15 dans la couleur demandée';
+    else if (k === 'num' && w.card.suit === 'black' && ls !== 'black') why = 'le Pavillon noir est l\'atout';
+    else if (k === 'num') why = 'c\'est la plus forte carte de la couleur demandée';
+    else if (k === 'mermaid') why = has('sk') ? 'la sirène capture Skull King' : 'la sirène bat les cartes numérotées';
+    else if (k === 'sk') why = 'Skull King bat les pirates et les cartes numérotées';
+    else if (k === 'con') why = 'Con le belliqueux bat tout, sauf Skull King et les sirènes';
+    else if (as) why = t.entries.filter(e => e.card.kind === 'pirate' || e.as === 'pirate').length > 1 ? 'entre pirates, le premier joué l\'emporte' : 'un pirate bat les cartes numérotées et les sirènes';
+    else why = 'que des fuites : la première jouée l\'emporte';
+    if (t.res) return `${who(w.p)} ${v(w.p, 'remportez', 'remporte')} le pli avec ${card(w)} : ${why}.`;
+    const last = t.entries[t.entries.length - 1];
+    return last === w ? `${who(w.p)} ${v(w.p, 'prenez', 'prend')} la main avec ${card(w)} : ${why}.` : `${who(w.p)} ${v(w.p, 'menez', 'mène')} toujours avec ${card(w)} : ${why}.`;
+  }
   /** Carte qui gagne le pli pour l'instant (calculée avec les règles du moteur), ou le gagnant une fois le pli résolu. */
   private leadIndex(): number | null {
     const t = this.pub?.trick; if (!t || !t.entries.length) return null;
@@ -695,7 +774,7 @@ export class TableView {
   }
   /** Fin du pli : les cartes filent vers la plaque du gagnant en rétrécissant (600 ms), ou coulent vers le centre (Kraken, pli défaussé). */
   private flyOut(w: HTMLElement, seat: number | null, i: number) {
-    const c = w.firstElementChild as HTMLElement;
+    const c = (w.querySelector('.card') ?? w.firstElementChild) as HTMLElement;
     if (!this.animMs) { w.remove(); return; }
     w.classList.add('leaving'); w.style.zIndex = String(30 + i);
     const pl = seat != null && seat >= 0 ? this.anchor(seat) : null;

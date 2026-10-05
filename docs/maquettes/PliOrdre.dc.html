@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Pli en ligne, ordre de pose</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible{outline:2px solid #ead08a;outline-offset:3px}
+.btn{min-height:40px;padding:0 16px;border-radius:9px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.35);color:#f2e7cd;font-weight:800;font-size:14px;cursor:pointer}
+.btn.gold{border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117}
+@keyframes drop{from{transform:translateY(-60px) scale(.85);opacity:0}to{transform:none;opacity:1}}
+.drop{animation:drop .35s cubic-bezier(.2,.9,.3,1.1) both}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 2px rgba(234,208,138,.5)}50%{box-shadow:0 0 0 2px #ead08a,0 0 22px rgba(234,208,138,.6)}}
+.next{animation:pulse 1.4s ease-in-out infinite}
+@keyframes crown{from{transform:translateY(-6px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+.crown{animation:crown .3s ease-out both}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; background: radial-gradient(ellipse at 38% 40%, #2a1f17 0%, #120e0b 70%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+
+<header style="position: absolute; left: 0; top: 0; width: 1440px; height: 56px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 20px; border-bottom: 1px solid rgba(234,208,138,.16); background: rgba(18,14,11,.85);">
+<span style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">Manche 5</span><span style="font-size: 14px; color: #a8987f;">sur 10 · pli 2 sur 5</span>
+</header>
+
+<div style="position: absolute; left: 24px; top: 72px; width: 1040px; height: 520px; border-radius: 50%; background: linear-gradient(180deg, #8a5833, #5e381d 55%, #4a2b16); box-shadow: 0 26px 50px rgba(0,0,0,.7);"></div>
+<div style="position: absolute; left: 50px; top: 98px; width: 988px; height: 468px; border-radius: 50%; background: radial-gradient(ellipse at 50% 46%, #2a6066 0%, #1f4c50 42%, #102c31 100%); box-shadow: inset 0 0 50px rgba(0,0,0,.6);"></div>
+
+<!-- plaques des joueurs, avec leur rang dans le pli -->
+<sc-for list="{{pods}}" as="p" hint-placeholder-count="4">
+<div style="position: absolute; left: {{p.x}}px; top: {{p.y}}px; width: 236px; height: 72px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border-radius: 40px 14px 14px 40px; background: linear-gradient(180deg, #2c221a, #1a130e); border: 1px solid {{p.bd}}; box-shadow: {{p.sh}}; z-index: 5;">
+<div style="position: relative;">
+<div style="width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'IM Fell English SC', serif; font-size: 22px; color: #1b140e; background: {{p.c}}; box-shadow: 0 0 0 2px #1b140e, 0 0 0 4px {{p.c}};">{{p.init}}</div>
+<span style="position: absolute; right: -6px; top: -6px; min-width: 22px; height: 22px; padding: 0 4px; box-sizing: border-box; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; background: {{p.rankBg}}; color: {{p.rankInk}}; box-shadow: 0 0 0 2px #1b140e;">{{p.order}}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><b style="font-size: 16px; color: #f2e7cd;">{{p.name}}</b><span style="font-size: 13px; color: {{p.subInk}};">{{p.sub}}</span></div>
+</div>
+</sc-for>
+
+<!-- le pli : une ligne, de gauche à droite, dans l'ordre de pose -->
+<div style="position: absolute; left: 196px; top: 150px; width: 696px; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 6;">
+<div style="display: flex; align-items: center; gap: 10px; padding: 5px 14px; border-radius: 999px; background: rgba(8,20,22,.6); border: 1px solid rgba(234,208,138,.25); font-size: 14px;">
+<span style="color: #a8987f;">Couleur demandée</span>
+<span style="display: inline-flex; align-items: center; gap: 6px; font-weight: 800; color: {{leadInk}};"><span style="width: 12px; height: 12px; border-radius: 50%; background: {{leadDot}};"></span>{{leadLabel}}</span>
+</div>
+<div style="display: flex; align-items: flex-start; gap: 6px;">
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 6px;">
+<sc-if value="{{s.arrow}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 20 20" style="width: 18px; height: 18px; margin-top: 0;" aria-hidden="true"><path d="M4 10h11M11 5l5 5-5 5" fill="none" stroke="rgba(234,208,138,.55)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></sc-if>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 110px;">
+<div style="display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 4px; border-radius: 999px; background: {{s.tagBg}}; border: 1px solid {{s.tagBd}};">
+<span style="width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11.5px; background: {{s.c}}; color: #1b140e;">{{s.n}}</span>
+<span style="font-weight: 800; font-size: 13px; color: {{s.tagInk}}; white-space: nowrap;">{{s.name}}</span>
+</div>
+<div style="position: relative; width: 100px; height: 140px;">
+<sc-if value="{{s.played}}" hint-placeholder-val="{{true}}">
+<div class="{{s.dropCls}}" style="border-radius: 9px; box-shadow: {{s.cardSh}}; filter: {{s.filter}}; transition: box-shadow .3s, filter .3s;"><dc-import name="Card" card="{{s.card}}" w="{{100}}" hint-size="100px,140px"></dc-import></div>
+<sc-if value="{{s.lead}}" hint-placeholder-val="{{false}}"><span style="position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); padding: 2px 8px; border-radius: 999px; background: #1b140e; border: 1px solid rgba(234,208,138,.45); font-size: 11px; font-weight: 800; color: #ead08a; white-space: nowrap;">ouvre</span></sc-if>
+</sc-if>
+<sc-if value="{{s.empty}}" hint-placeholder-val="{{false}}">
+<div class="{{s.emptyCls}}" style="width: 100px; height: 140px; box-sizing: border-box; border-radius: 8px; border: 2px dashed rgba(234,208,138,.35); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 13px; color: #a8987f; padding: 8px;">{{s.wait}}</div>
+</sc-if>
+</div>
+<div style="height: 22px;"><sc-if value="{{s.win}}" hint-placeholder-val="{{false}}"><span class="crown" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;"><svg viewBox="0 0 24 24" style="width: 14px; height: 14px;" aria-hidden="true"><path d="M3 18l2-10 5 4 2-7 2 7 5-4 2 10z" fill="#2b2117"></path></svg>prend le pli</span></sc-if></div>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="font-size: 13.5px; color: #d9cdb6; text-align: center; max-width: 560px; line-height: 1.4;">{{why}}</div>
+</div>
+
+<!-- panneau d'explication -->
+<div style="position: absolute; left: 1090px; top: 80px; width: 326px; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">Le pli se lit de gauche à droite</div>
+<div style="font-size: 14px; color: #d9cdb6; line-height: 1.5;">On garde la table ronde pour l'ambiance, mais les cartes du pli ne vont plus devant chaque joueur : elles s'alignent au centre, dans l'ordre où elles sont posées, comme sur BGA.</div>
+<div style="display: flex; gap: 8px;"><button class="btn gold" onClick="{{step}}">{{stepLabel}}</button><button class="btn" onClick="{{reset}}">Recommencer</button></div>
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="5">
+<div style="display: flex; gap: 10px;"><span style="flex: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;">{{n.i}}</span><span style="font-size: 13.5px; color: #d9cdb6; line-height: 1.4;"><b style="color: #f2e7cd;">{{n.t}}</b> · {{n.d}}</span></div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 24px; top: 684px; width: 1040px; height: 204px; border-radius: 16px; background: linear-gradient(180deg, #5a3720, #3a2214); box-shadow: inset 0 2px 0 rgba(255,220,170,.15); border: 1px solid #2a170b;"></div>
+<div style="position: absolute; left: 44px; top: 698px; font-family: 'IM Fell English SC', serif; font-size: 17px; color: #f2e7cd;">Votre main</div>
+<sc-for list="{{hand}}" as="c" hint-placeholder-count="4">
+<div style="position: absolute; left: {{c.x}}px; top: 712px; z-index: {{c.z}};"><dc-import name="Card" card="{{c.card}}" w="{{124}}" hint-size="124px,174px"></dc-import></div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  state = { k: 3 };
+  renderVals() {
+    var k = this.state.k;
+    // ordre de jeu : Maëlle ouvre, puis Corentin, Ysolde, Vous
+    var P = [
+      { id: 'left', name: 'Maëlle', init: 'M', c: '#7ab874', x: 32, y: 293, card: { kind: 'num', suit: 'green', rank: 14 } },
+      { id: 'top', name: 'Corentin', init: 'C', c: '#c8644b', x: 426, y: 64, card: { kind: 'num', suit: 'green', rank: 12 } },
+      { id: 'right', name: 'Ysolde', init: 'Y', c: '#5c9db6', x: 820, y: 293, card: { kind: 'pirate', name: 'Harry le géant' } },
+      { id: 'you', name: 'Vous', init: 'T', c: '#d9b25a', x: 426, y: 522, card: { kind: 'mermaid', name: 'Alyra' } }
+    ];
+    var WIN = [0, 0, 2, 2], WHY = ['', 'Maëlle ouvre au Perroquet avec le 14.', 'Corentin suit la couleur avec un 12 : le 14 reste le plus fort.', 'Ysolde coupe avec un pirate : il bat les cartes numérotées.', 'Votre sirène perd contre le pirate : Ysolde prend le pli.'];
+    var win = k > 0 ? WIN[k - 1] : -1;
+    var slots = P.map((p, i) => { var played = i < k, next = i === k;
+      return { n: i + 1, name: p.name, c: p.c, card: p.card, played: played, empty: !played, arrow: i > 0, lead: i === 0 && played, win: played && i === win,
+        dropCls: played && i === k - 1 ? 'drop' : '', emptyCls: next ? 'next' : '', wait: next ? (p.id === 'you' ? 'À vous de jouer' : p.name + ' réfléchit…') : 'en attente',
+        tagBg: next ? 'rgba(234,208,138,.18)' : 'rgba(0,0,0,.4)', tagBd: next ? '#ead08a' : 'rgba(234,208,138,.2)', tagInk: next ? '#ead08a' : '#efe6d2',
+        cardSh: played && i === win ? '0 0 0 3px #ead08a, 0 0 26px rgba(234,208,138,.65)' : '0 6px 14px rgba(0,0,0,.5)',
+        filter: played && win >= 0 && i !== win ? 'brightness(.82)' : 'none' }; });
+    var pods = P.map((p, i) => { var played = i < k, next = i === k;
+      return { name: p.name, init: p.init, c: p.c, x: p.x, y: p.y, order: i + 1,
+        sub: played ? (i === win ? 'prend le pli' : 'a joué') : next ? 'doit jouer' : 'joue en ' + (i + 1) + 'e',
+        subInk: next || (played && i === win) ? '#ead08a' : '#a8987f',
+        rankBg: played ? p.c : next ? '#ead08a' : '#3a2e22', rankInk: played || next ? '#1b140e' : '#a8987f',
+        bd: next ? '#ead08a' : 'rgba(234,208,138,.3)', sh: next ? '0 0 0 2px #ead08a, 0 0 22px rgba(234,208,138,.45), 0 8px 18px rgba(0,0,0,.55)' : '0 8px 18px rgba(0,0,0,.55)' }; });
+    return {
+      pods: pods, slots: slots, why: WHY[k],
+      leadLabel: 'Perroquet', leadDot: '#3e8e4e', leadInk: '#9bd69f',
+      step: () => this.setState({ k: k >= 4 ? 0 : k + 1 }), stepLabel: k >= 4 ? 'Rejouer le pli' : 'Carte suivante', reset: () => this.setState({ k: 0 }),
+      notes: [
+        { i: 1, t: 'Ordre de pose', d: 'les cartes s\'alignent de gauche à droite, numérotées 1, 2, 3… avec le nom du joueur au-dessus' },
+        { i: 2, t: 'Places réservées', d: 'les cases vides montrent qui doit encore jouer ; la prochaine pulse' },
+        { i: 3, t: 'Couleur demandée', d: 'rappelée au-dessus du pli, et « ouvre » sous la première carte' },
+        { i: 4, t: 'Qui mène', d: 'la carte gagnante est entourée d\'or avec « prend le pli », les autres s\'assombrissent un peu' },
+        { i: 5, t: 'Sur les plaques', d: 'une pastille donne le rang de chaque joueur dans le pli en cours' }
+      ],
+      hand: [{ kind: 'num', suit: 'green', rank: 9 }, { kind: 'num', suit: 'yellow', rank: 7 }, { kind: 'pirate', name: 'Rosie la douce' }, { kind: 'num', suit: 'black', rank: 5 }].map((c, i) => ({ card: c, x: 296 + i * 132, z: i + 1 }))
+    };
+  }
+}
+</script>
+</body>
+</html>

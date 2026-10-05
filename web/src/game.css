@@ -909,3 +909,52 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .zoom.with-info{align-items:flex-start}
 @media (max-width:720px){.zoom{flex-direction:column;align-items:center}.zoom .zinfo{width:min(300px,86vw)}}
 @media (max-width:719px){.lisemid{width:260px}.lisemid .lport{width:48px;height:48px}.lisemid b{font-size:18px}.lisemid span{font-size:13px}}
+
+/* Pli en ligne (maquette PliOrdre, docs/table-v2/PLI-EN-LIGNE.md) : les cartes s'alignent au centre dans l'ordre de pose.
+   Chaque place : en-tête (rang + nom), carte (ou place vide en pointillés), étiquette « ouvre », couronne « prend le pli ».
+   --tw : largeur des cartes du pli en px du plateau (calculée pour tenir entre les plaques). */
+.tslot{gap:6px;transform:translate(-50%,-50%)}
+.tslot .thd{display:flex;align-items:center;gap:6px;height:24px;max-width:calc(var(--tw,100px) + 18px);box-sizing:border-box;padding:0 10px 0 4px;border-radius:999px;
+  background:rgba(0,0,0,.45);border:1px solid rgba(234,208,138,.2)}
+.tslot .thd.next{background:rgba(234,208,138,.18);border-color:#ead08a}
+.tslot .tn{flex:none;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font:800 11.5px/1 var(--f-body);background:var(--pc);color:#1b140e}
+.tslot .tnm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:800 13px/1 var(--f-body);color:#efe6d2}
+.tslot .thd.next .tnm{color:#ead08a}
+.tslot .tcw{position:relative;width:var(--tw,100px);display:flex;justify-content:center}
+.tslot .tph{width:var(--tw,100px);height:calc(var(--tw,100px) * 352 / 252);box-sizing:border-box;border-radius:8px;border:2px dashed rgba(234,208,138,.35);
+  display:flex;align-items:center;justify-content:center;text-align:center;padding:6px;font-size:12.5px;line-height:1.25;color:var(--muted)}
+.tslot.empty.next .tph{color:#ead08a;border-color:rgba(234,208,138,.6);animation:tpulse calc(1.4s * var(--spd,1)) ease-in-out infinite}
+@keyframes tpulse{0%,100%{box-shadow:0 0 0 2px rgba(234,208,138,.35)}50%{box-shadow:0 0 0 2px #ead08a,0 0 22px rgba(234,208,138,.55)}}
+.tslot .topen{position:absolute;left:50%;bottom:-10px;transform:translateX(-50%);z-index:4;padding:2px 8px;border-radius:999px;background:#1b140e;border:1px solid rgba(234,208,138,.45);
+  font:800 11px/1.2 var(--f-body);color:#ead08a;white-space:nowrap}
+.tslot .tft{height:22px;display:flex;align-items:center}
+.tslot .twin{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;background:#ead08a;color:#2b2117;font:800 12px/1.3 var(--f-body);white-space:nowrap;
+  animation:tcrown .3s ease-out both}
+.tslot .twin svg{width:14px;height:14px}
+@keyframes tcrown{from{transform:translateY(-6px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+.tslot.behind .card:not(.gone){filter:brightness(.82);transition:filter .3s}
+.tslot .imptag{top:-11px}
+.tslot.leaving .thd,.tslot.leaving .tft,.tslot.leaving .topen{opacity:0;transition:opacity .2s}
+.tarrow{position:absolute;z-index:3;transform:translate(-50%,-50%);width:18px;height:18px;color:rgba(234,208,138,.55);pointer-events:none}
+.tarrow svg{width:18px;height:18px;display:block}
+.twhy{position:absolute;z-index:4;transform:translateX(-50%);width:max-content;max-width:min(560px,90%);text-align:center;font-size:13.5px;line-height:1.4;color:#d9cdb6;
+  text-shadow:0 1px 2px rgba(0,0,0,.6);pointer-events:none}
+.askchip span{color:var(--muted);font-weight:600}.askchip b{font-weight:800}
+/* rang dans le pli, sur la plaque */
+.prank{position:absolute;right:-6px;top:-6px;z-index:4;min-width:22px;height:22px;padding:0 4px;box-sizing:border-box;border-radius:11px;display:grid;place-items:center;
+  font:800 13px/1 var(--f-body);background:#3a2e22;color:var(--muted);box-shadow:0 0 0 2px #1b140e}
+.prank.played{background:var(--pc);color:#1b140e}.prank.next{background:#ead08a;color:#1b140e}
+.oav{position:relative;display:inline-flex;flex:none}
+.oav .prank{right:-5px;top:-5px;min-width:16px;height:16px;font-size:10px;padding:0 3px;border-radius:8px}
+@media (max-width:719px){
+  .tslot{gap:4px}
+  .tslot .thd{height:20px;gap:4px;padding:0 6px 0 2px}
+  .tslot .tn{width:15px;height:15px;font-size:10px}
+  .tslot .tnm{font-size:11px}
+  .tslot .tph{font-size:10.5px;padding:3px}
+  .tslot .tft{height:18px}.tslot .twin{font-size:10.5px;padding:1px 6px}.tslot .twin svg{width:11px;height:11px}
+  .tslot .topen{font-size:9.5px;bottom:-8px}
+  .tarrow,.tarrow svg{width:12px;height:12px}
+  .twhy{font-size:12px;max-width:94%}
+}
+@media (prefers-reduced-motion:reduce){.tslot.empty.next .tph,.tslot .twin{animation:none}}

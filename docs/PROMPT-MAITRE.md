@@ -31,6 +31,7 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
   - les autres joueurs voient quelle carte a été choisie.
 - [ ] A5. Cartes de la main : leur taille suit la hauteur du bloc (prompt 1 de `docs/ecrans-compte/PROMPT-claude-code.md`), sans agrandir le bloc.
 - [ ] A6. Zoom au survol long (450 ms) : la carte s'affiche sur 300 px de large, avec à côté une fiche parchemin qui donne le nom et la règle.
+- [ ] A8. Pli en ligne : les cartes du pli s'alignent au centre de gauche à droite, dans l'ordre de pose, avec le rang et le nom de chaque joueur, des places vides pour ceux qui doivent encore jouer et la carte qui mène entourée d'or. Détails dans `docs/table-v2/PLI-EN-LIGNE.md`, maquette `PliOrdre`.
 - [ ] A7. Aperçu d'un joueur au survol (maquette `ApercuJoueur`) :
   - contenu : identité, niveau, titre, Élo et tendance, présence en ligne ; barre manche par manche de la partie en cours ; 3 stats (victoires, mises tenues, parties) ; objets rares portés ; lien vers le profil ;
   - comportement : ouverture après 250 ms de survol ou au toucher, une version courte pour les bots ;
@@ -43,6 +44,7 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
 - [ ] B3. Pastille de pouvoir dorée sur le médaillon en haut à gauche des personnages (contenu dans `pastilles.json`). Morgane n'en a pas.
 - [ ] B4. Coins arrondis et ombre de `.card` alignés sur l'image. Les anciennes faces restent comme solution de repli, et le dos est inchangé.
 - [ ] B5. Le Grand Quinze garde son « 15 » dessiné : n'ajoute aucun chiffre par-dessus.
+- [ ] B6. Les noms des personnages dans le code correspondent exactement à ceux écrits sur les cartes : Rosie la douce, Bendt le Ripate, Rascal le Flambeur, Juanita Jade, Harry le géant, Marie Thorne, Con le belliqueux, Skull King, sirènes Alyra et Circé, Morgane la Louve. Cela concerne le moteur, les règles, le journal, le zoom et les bots. Les maquettes utilisent encore d'anciens noms (Lise Fil-de-Soie, Barbe-Cendre…) : ce sont des exemples, les noms des cartes font foi.
 
 ### C. Compte et progression (`docs/ecrans-compte/SPEC.md`, prompt 2)
 - [ ] C1. Pages Accueil, AccueilMobile, Salon, Profil, Historique, DetailPartie, Classement, avec la barre `AppBar` sur ordinateur et la barre d'onglets en bas sur téléphone.
@@ -87,7 +89,7 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
 
 ## Ordre conseillé
 
-Commence par l'étape 0. Ensuite : A3 et A2 (corrections rapides), B (cartes), A1 / A4 à A6, C, D, puis A7 en dernier, car il dépend de l'Élo et des objets.
+Commence par l'étape 0. Ensuite : A3 et A2 (corrections rapides), B (cartes), A1 / A4 à A6 / A8, C, D, puis A7 en dernier, car il dépend de l'Élo et des objets.
 
 ## Contrôle final
 
