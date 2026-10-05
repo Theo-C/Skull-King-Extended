@@ -6,8 +6,8 @@
 @keyframes sway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
 @keyframes flicker{0%,100%{opacity:.92}18%{opacity:.78}22%{opacity:.96}47%{opacity:.84}52%{opacity:1}76%{opacity:.88}}
 @keyframes flame{0%,100%{transform:scaleY(1) translateX(0)}35%{transform:scaleY(1.12) translateX(-.6px)}70%{transform:scaleY(.94) translateX(.6px)}}
-@keyframes swell{from{transform:translateX(0)}to{transform:translateX(-60px)}}
-@keyframes swell2{from{transform:translateX(-60px)}to{transform:translateX(0)}}
+@keyframes swell{from{transform:translateX(0)}to{transform:translateX(-33%)}}
+@keyframes swell2{from{transform:translateX(-33%)}to{transform:translateX(0)}}
 
 /* 1. Fond : cloison en planches, halo chaud de lanterne en haut à gauche, vignettage */
 body.at-table .tablepage:not(.sobre){position:relative;isolation:isolate;
@@ -35,9 +35,10 @@ body.at-table .tablepage:not(.sobre)::after{content:'';position:absolute;inset:0
 .amb-lantern .amb-halo{position:absolute;left:-40px;top:30px;width:140px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(255,200,110,.35),transparent 65%);animation:flicker 2.4s ease-in-out infinite}
 .amb-porthole{border-radius:50%;overflow:hidden;background:linear-gradient(180deg,#0c1a33 0%,#1a2f55 55%,#0e2a3a 56%,#081a24 100%);
   box-shadow:0 0 0 7px #b08a4a,0 0 0 9px #5e4422,inset 0 0 18px rgba(0,0,0,.7)}
-.amb-porthole .amb-moon{position:absolute;left:62px;top:16px;width:18px;height:18px;border-radius:50%;background:#f3e8cf;box-shadow:0 0 16px rgba(243,232,207,.7)}
-.amb-porthole .amb-swell{position:absolute;left:0;top:54px;width:180px;height:14px;animation:swell 3s linear infinite}
-.amb-porthole .amb-swell2{position:absolute;left:-60px;top:66px;width:180px;height:12px;animation:swell2 4s linear infinite}
+/* Positions en pourcentages pour que le hublot (taille réglable dans ambiance.ts) soit scalable sans casser le cadrage. */
+.amb-porthole .amb-moon{position:absolute;left:60%;top:15%;width:17%;height:17%;border-radius:50%;background:#f3e8cf;box-shadow:0 0 16px rgba(243,232,207,.7)}
+.amb-porthole .amb-swell{position:absolute;left:0;top:52%;width:170%;height:10%;animation:swell 3s linear infinite}
+.amb-porthole .amb-swell2{position:absolute;left:-33%;top:63%;width:170%;height:8%;animation:swell2 4s linear infinite}
 .amb-porthole .amb-glass{position:absolute;inset:0;border-radius:50%;background:linear-gradient(135deg,rgba(255,255,255,.12),transparent 45%)}
 .amb-dagger svg{width:100%;height:100%;display:block}
 /* coins masqués sous 1100 px et dans la version téléphone */

@@ -46,7 +46,7 @@ export const DAGGER_SVG = `<svg viewBox="0 0 170 110" aria-hidden="true">
 /** Accessoires des coins, dans le repère du plateau (x, y, largeur, hauteur) : la table masque ceux qui toucheraient une plaque. */
 export const PROPS: { cls: string; html: string; box: [number, number, number, number] }[] = [
   { cls: 'amb-lantern', html: `${LANTERN_SVG}<span class="amb-halo"></span>`, box: [40, 0, 60, 120] },
-  { cls: 'amb-porthole', html: PORTHOLE_HTML, box: [920, 12, 104, 104] },
+  { cls: 'amb-porthole', html: PORTHOLE_HTML, box: [898, -12, 150, 150] },
   { cls: 'amb-dagger', html: DAGGER_SVG, box: [12, 404, 170, 110] },
 ];
 
