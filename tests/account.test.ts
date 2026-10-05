@@ -66,8 +66,20 @@ ok('XP : titres', titleFor(13) === 'Second' && titleFor(29) === 'Amiral' && titl
   ok('XP : pas de victoire pour le 3e', !st.xp.some(x => x.user_id === 'u1' && x.reason === 'win'));
   ok('bots : rien', st.results.length === 2 && !st.xp.some(x => !x.user_id.startsWith('u')));
   ok('places : le bot compte dans les places', st.results.find(r => r.user_id === 'u1')!.place === 3);
-  ok('Élo : entre humains seulement, 1er devant 3e', st.results[0].elo_delta! > 0 && st.results[1].elo_delta! < 0 && near(st.results[0].elo_delta! + st.results[1].elo_delta!, 0));
-  ok('résumé : niveaux avant / après', st.public.u0.levelBefore === 1 && st.public.u0.levelAfter === 2 && st.public.u0.elo.vs[0].name === 'Maëlle', st.public.u0);
+  // un bot à la table : partie non classée (XP oui, Élo non)
+  ok('bots : partie non classée', st.results.every(r => r.elo_delta === null) && st.stats.every(x => !x.ranked) && st.public.u0.unranked === 'bots', st.public.u0.unranked);
+  // trois humains, 10 manches : partie classée
+  const S3 = structuredClone(S); S3.players[2].bot = false;
+  const seats3 = [seats[0], seats[1], { seat: 2, user_id: 'u2', bot: false, name: 'Ysolde' }];
+  const in3 = { ...inputs, u2: { ...inputs.u0, zero_bids_made: 0 } };
+  const r3 = settleGame(S3, seats3, in3), d = (u: string) => r3.results.find(r => r.user_id === u)!.elo_delta!;
+  ok('Élo : humains seulement, 1er devant 3e, somme nulle', d('u0') > 0 && d('u1') < 0 && near(d('u0') + d('u1') + d('u2'), 0) && r3.public.u0.unranked === null, r3.results);
+  ok('résumé : niveaux avant / après', r3.public.u0.levelBefore === 1 && r3.public.u0.levelAfter === 2 && r3.public.u0.elo.vs.some((v: any) => v.name === 'Maëlle'), r3.public.u0);
+  // moins de 10 manches : non classée, même sans bot
+  const S5 = structuredClone(S3); S5.opts = E.normalizeOpts({ rounds: 5 });
+  const r5 = settleGame(S5, seats3, in3);
+  ok('moins de 10 manches : partie non classée', r5.results.every(r => r.elo_delta === null) && r5.public.u0.unranked === 'rounds', r5.public.u0.unranked);
+  ok('options : nombre de manches borné à 1–10, 10 par défaut', E.normalizeOpts({ rounds: 0 }).rounds === 10 && E.normalizeOpts({ rounds: 12 }).rounds === 10 && E.normalizeOpts({ rounds: 3 }).rounds === 3 && E.normalizeOpts({}).rounds === 10);
   // une seule personne : XP oui, Élo non
   const solo = settleGame(S, [seats[0], { ...seats[1], user_id: null, bot: true }, seats[2]], { u0: inputs.u0 });
   ok('un seul humain : XP sans Élo', solo.results[0].elo_delta === null && solo.stats[0].ranked === false && solo.xp.length > 0);

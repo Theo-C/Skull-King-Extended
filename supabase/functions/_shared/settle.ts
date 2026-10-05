@@ -1,5 +1,5 @@
 // Règlement d'une partie terminée (fonction pure) : places, mises tenues, XP, hauts faits, Élo, cosmétiques et résumé pour l'écran de fin.
-// Les bots ne reçoivent rien ; une partie avec un seul humain donne de l'XP mais ne compte pas pour l'Élo.
+// Les bots ne reçoivent rien. Une partie avec un seul humain, avec des bots ou de moins de 10 manches donne de l'XP mais ne compte pas pour l'Élo.
 // Le résultat est écrit par la fonction SQL game_settle (idempotente) : voir supabase/migrations/20261003000000_profiles_xp.sql
 // et 20261005000000_cosmetics.sql pour la partie coffre, pièces et objets.
 import * as E from './engine.ts';
@@ -60,7 +60,9 @@ export interface Settlement {
 export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<string, SettleInput>): Settlement {
   const ranks = E.finalRanks(S);
   const humans = seats.filter(s => s.user_id && !s.bot && inputs[s.user_id]);
-  const ranked = humans.length >= 2;
+  // partie classée (Élo) : au moins deux humains, aucun bot, les 10 manches ; sinon la raison est affichée en fin de partie
+  const unranked = humans.length < 2 ? 'solo' : seats.some(s => s.bot) ? 'bots' : E.roundsOf(S.opts) < E.MAX_ROUNDS ? 'rounds' : null;
+  const ranked = !unranked;
   const elo = ranked ? eloDeltas(humans.map(s => ({ id: s.user_id!, elo: Number(inputs[s.user_id!].elo), games: inputs[s.user_id!].ranked_games, place: ranks[s.seat] }))) : [];
   const out: Settlement = { results: [], xp: [], achievements: [], stats: [], cosmetics: [], wallet: [], public: {} };
   const nameOf = (uid: string) => humans.find(h => h.user_id === uid)?.name ?? '?';
@@ -120,7 +122,7 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
       xp: lines, xpTotal: gain, xpBefore: inp.xp, xpAfter: inp.xp + gain,
       levelBefore, levelAfter,
       achievements: fresh.map(code => ({ code, ...ACHIEVEMENTS[code] })),
-      elo: e ? { before: e.before, after: e.after, delta: e.delta, vs: e.vs.map(v => ({ ...v, name: nameOf(v.id) })) } : null,
+      elo: e ? { before: e.before, after: e.after, delta: e.delta, vs: e.vs.map(v => ({ ...v, name: nameOf(v.id) })) } : null, unranked,
       coins, chests, cosmetics: cos,
     };
   }

@@ -61,7 +61,8 @@ let games = 0, maxEv = 0;
 for (let g = 0; g < 60; g++) {
   const n = 3 + (g % 7); const humans = g % 3; // 0, 1 ou 2 humains simulés, le reste en bots
   const seats = Array.from({ length: n }, (_, i) => ({ name: 'J' + i, bot: i >= humans }));
-  let S = E.newGame(seats, { powers: true, exp: true }, 1000 + g);
+  const rounds = g % 4 === 3 ? 1 + (g % 9) : 10; // une partie sur quatre en moins de 10 manches
+  let S = E.newGame(seats, { powers: true, exp: true, rounds }, 1000 + g);
   let seed = g * 7 + 1; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   E.runBots(S);
   let steps = 0;
@@ -78,7 +79,7 @@ for (let g = 0; g < 60; g++) {
     steps++;
   }
   ok('partie terminée', S.phase === 'end', { g, round: S.round, phase: S.phase });
-  ok('10 manches notées', S.players.every(p => p.hist.length === 10));
+  ok('manches notées = nombre de manches choisi', S.players.every(p => p.hist.length === rounds), { g, rounds, got: S.players[0].hist.length });
   ok('scores cohérents', S.players.every(p => p.score === p.hist.reduce((s: number, h: any) => s + h.tot, 0)));
   games++;
 }

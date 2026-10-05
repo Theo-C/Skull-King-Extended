@@ -3,7 +3,7 @@
 // #/salon/CODE y mène aussi.
 import { sb, callGame, inviteLink } from '../api';
 import { $, esc, toast, copyText, modal } from '../util';
-import { optionsHTML, readOptions, wireOptions } from '../options';
+import { optionsHTML, readOptions, wireOptions, paintRanked, type TableMix } from '../options';
 import { avatarHTML, fromProfile } from '../avatar';
 import { levelFor } from '../xp';
 import { qrSVG } from '../qr';
@@ -32,6 +32,8 @@ async function profilesOf(ids: string[]) {
 interface Live { g: any; seats: any[]; html: string[]; keys: string[]; opts: string }
 const live = new WeakMap<HTMLElement, Live>();
 
+/** Humains présents, bots et places libres du salon (une place libre est prise par un bot au lancement). */
+const mixOf = (seats: any[]): TableMix => ({ humans: seats.filter(s => !s.bot && s.user_id).length, bots: seats.filter(s => s.bot).length, free: seats.filter(s => !s.bot && !s.user_id).length });
 export async function renderSalon(root: HTMLElement, g: any, seats: any[], uid: string, sync: () => Promise<void>) {
   const host = g.host === uid;
   const prof = await profilesOf(seats.filter(s => s.user_id).map(s => s.user_id));
@@ -73,8 +75,13 @@ export async function renderSalon(root: HTMLElement, g: any, seats: any[], uid: 
   const optsBox = $('#optsBox', box), oj = JSON.stringify(g.options ?? null);
   if (oj !== st.opts && !optsBox.contains(document.activeElement)) {
     st.opts = oj; optsBox.innerHTML = optionsHTML(g.options, host, 'lo');
-    if (host) wireOptions(box, 'lo', async () => { try { await callGame('lobby', { id: g.id, options: readOptions(box!, 'lo') }); } catch (e: any) { toast(e.message, 'err'); } });
+    if (host) wireOptions(box, 'lo', async () => {
+      paintRanked(box!, 'lo', mixOf(st!.seats));
+      try { await callGame('lobby', { id: g.id, options: readOptions(box!, 'lo') }); } catch (e: any) { toast(e.message, 'err'); }
+    });
   }
+  // partie classée ou non (Élo), selon les places et le nombre de manches : dit clairement avant le lancement
+  paintRanked(box, 'lo', mixOf(seats));
   if (host) {
     ($('#addSeat', box) as HTMLButtonElement).disabled = seats.length >= 9;
     ($('#rmSeat', box) as HTMLButtonElement).disabled = seats.length <= 3;

@@ -11,8 +11,13 @@ export interface Entry { p: number; card: Card; as?: 'pirate' | 'escape'; val?: 
 export interface Opts {
   kraken: boolean; whale: boolean; loot: boolean; powers: boolean; score: 'sk' | 'rascal';
   exp: boolean; con: boolean; volley: boolean; ray: boolean; davy: boolean; plank: boolean;
+  /** nombre de manches (1 à 10) : une partie de moins de 10 manches ne compte pas pour l'Élo */
+  rounds: number;
 }
-export const DEFAULT_OPTS: Opts = { kraken: true, whale: true, loot: true, powers: true, score: 'sk', exp: true, con: true, volley: true, ray: true, davy: true, plank: true };
+export const DEFAULT_OPTS: Opts = { kraken: true, whale: true, loot: true, powers: true, score: 'sk', exp: true, con: true, volley: true, ray: true, davy: true, plank: true, rounds: 10 };
+export const MAX_ROUNDS = 10;
+/** Nombre de manches d'une partie (10 pour les parties créées avant l'option). */
+export const roundsOf = (o?: Partial<Opts> | null) => { const r = Math.round(Number(o?.rounds)); return r >= 1 && r <= MAX_ROUNDS ? r : MAX_ROUNDS; };
 export type LogSeg = string | { c: Card; e?: Partial<Entry> };
 export interface LogLine { s: LogSeg[]; cls?: string }
 export interface Pending { t: string; seat: number; data?: any }
@@ -72,7 +77,8 @@ export const BOT_NAMES = ['Ysolde', 'Corentin', 'Maëlle', 'Elouan', 'Lucie', 'A
 
 export function normalizeOpts(o: Partial<Opts> | undefined): Opts {
   const x: Opts = { ...DEFAULT_OPTS, ...(o || {}) } as Opts;
-  for (const k of Object.keys(DEFAULT_OPTS) as (keyof Opts)[]) if (k !== 'score') (x as any)[k] = !!(x as any)[k];
+  for (const k of Object.keys(DEFAULT_OPTS) as (keyof Opts)[]) if (k !== 'score' && k !== 'rounds') (x as any)[k] = !!(x as any)[k];
+  x.rounds = roundsOf(x);
   x.score = x.score === 'rascal' ? 'rascal' : 'sk';
   if (!x.exp) { x.con = x.volley = x.ray = x.davy = x.plank = false; }
   // Le Casier/Fosse ne s'utilise qu'avec au moins un monstre des abysses dans le paquet (règle FR de l'extension)
@@ -452,7 +458,7 @@ function endRound(S: State) {
   log(S, ['Scores : ' + S.players.map(p => `${p.name} ${p.hist.at(-1).tot >= 0 ? '+' : ''}${p.hist.at(-1).tot}`).join(' · ')]);
   S.trick = null;
   emit(S, 'round', { round: S.round });
-  if (S.round >= 10) { S.phase = 'end'; log(S, ['Partie terminée'], 'rnd'); emit(S, 'end'); }
+  if (S.round >= roundsOf(S.opts)) { S.phase = 'end'; log(S, ['Partie terminée'], 'rnd'); emit(S, 'end'); }
   else startRound(S);
 }
 /** Classement final : rang partagé en cas d'égalité. */

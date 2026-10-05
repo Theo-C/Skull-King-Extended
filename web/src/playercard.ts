@@ -21,7 +21,7 @@ export interface SeatSnapshot {
   seat: number; isBot: boolean; isMe: boolean;
   name: string; color: string;
   placeNow: { place: number; score: number; total: number } | null;
-  hist: { bid: number; won: number; made: boolean; played: boolean }[]; // 10 cases
+  hist: { bid: number; won: number; made: boolean; played: boolean }[]; // une case par manche de la partie
   current: { round: number; bid: number | null; won: number } | null;
 }
 
@@ -222,7 +222,7 @@ function itemHTML(it: any, color: string, variantColor: string | undefined): str
 
 function histHTML(hist: SeatSnapshot['hist'], current: SeatSnapshot['current']): string {
   let s = '<div class="pc-rounds" aria-label="Bilan manche par manche">';
-  for (let r = 1; r <= 10; r++) {
+  for (let r = 1; r <= hist.length; r++) {
     const h = hist[r - 1];
     const cur = !!current && current.round === r && !h?.played;
     const cls = h?.played ? (h.made ? 'ok' : 'ko') : (cur ? 'now' : 'empty');
