@@ -46,7 +46,11 @@ export const DAGGER_SVG = `<svg viewBox="0 0 170 110" aria-hidden="true">
 /** Accessoires des coins, dans le repère du plateau (x, y, largeur, hauteur) : la table masque ceux qui toucheraient une plaque. */
 export const PROPS: { cls: string; html: string; box: [number, number, number, number] }[] = [
   { cls: 'amb-lantern', html: `${LANTERN_SVG}<span class="amb-halo"></span>`, box: [40, 0, 60, 120] },
-  { cls: 'amb-porthole', html: PORTHOLE_HTML, box: [898, -12, 150, 150] },
+  // position choisie pour rester visible dans toutes les configurations de 3 à 9 joueurs (fitProps masque un prop qui
+   // touche une plaque) : y+h = 100, pile au-dessus du bord supérieur de la plaque haute-droite en 6 et 9 joueurs ;
+   // x > 929 pour passer à droite de la plaque de 8 joueurs. Déborde un peu en haut du plateau comme un vrai hublot
+   // fixé sur la paroi.
+  { cls: 'amb-porthole', html: PORTHOLE_HTML, box: [930, -25, 125, 125] },
   { cls: 'amb-dagger', html: DAGGER_SVG, box: [12, 404, 170, 110] },
 ];
 
