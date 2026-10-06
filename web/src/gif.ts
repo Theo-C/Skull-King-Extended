@@ -150,6 +150,8 @@ export class GifCtl {
     sway.append(mediaEl);
     sway.insertAdjacentHTML('beforeend', `<div class="gf-who"><span style="background:${esc(who.color)}">${esc((who.name[0] || '?').toUpperCase())}</span>${esc(who.name)}</div>`);
     f.append(sway); layer.append(f); this.shown.set(seat, f);
+    // vidéo préchargée hors de la page : la lecture automatique ne repart pas toute seule une fois ajoutée
+    if (mediaEl instanceof HTMLVideoElement) { mediaEl.muted = true; mediaEl.loop = true; mediaEl.playsInline = true; mediaEl.play().catch(() => { /* image figée en repli */ }); }
     setTimeout(() => { f.remove(); if (this.shown.get(seat) === f) this.shown.delete(seat); }, 3300);
   }
 }
