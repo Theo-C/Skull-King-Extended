@@ -2,7 +2,7 @@
 import * as E from './engine.ts';
 import { settleGame, type SettleInput } from './settle.ts';
 
-export interface GameRow { id: string; code: string; host: string; status: 'lobby' | 'playing' | 'finished'; options: any; state: any; version: number }
+export interface GameRow { id: string; code: string; host: string; status: 'lobby' | 'playing' | 'finished'; options: any; state: any; version: number; /** dernier coup enregistré */ updated_at?: string }
 export interface SeatRow { seat: number; user_id: string | null; bot: boolean; name: string; final_score?: number | null; rank?: number | null }
 export interface Commit {
   patch: { status?: string; options?: any; state?: any };
@@ -174,6 +174,8 @@ async function act(store: Store, uid: string, body: any) {
   const seats = (await store.seats(g.id)).sort((a, b) => a.seat - b.seat);
   const me = seats.find(s => s.user_id === uid); if (!me) throw new HttpError(403, 'Vous ne jouez pas dans cette partie.');
   const S = await store.secret(g.id); if (!S) throw new HttpError(500, 'État de partie manquant.');
+  // temps de réflexion pour une carte : depuis le coup précédent (début du tour), mesuré par le serveur
+  const thinkMs = body.move?.t === 'play' && g.updated_at ? Date.now() - Date.parse(g.updated_at) : null;
   try { E.apply(S, me.seat, body.move); }
   catch (e) { if (e instanceof E.RuleError) throw bad(e.message); throw e; }
   E.runBots(S);
@@ -187,6 +189,9 @@ async function act(store: Store, uid: string, body: any) {
   }
   const v = await store.commit(g.id, g.version, { patch, secret: S, events, seats: outSeats, ...snapshotsFor(S, seats) });
   if (v == null) return 'conflict';
+  if (thinkMs != null && thinkMs >= 0) {
+    try { await store.rpc('play_time_add', { p_user: uid, p_ms: Math.min(Math.round(thinkMs), 120000) }); } catch (e) { console.error('temps de jeu', e); }
+  }
   if (S.phase === 'end') {
     // fin de partie : XP, hauts faits, statistiques et Élo (une erreur ici ne doit pas annuler le dernier coup : history.get réessaiera)
     try { await settleFinished(store, g.id, S, seats); } catch (e) { console.error('règlement de fin de partie', e); }

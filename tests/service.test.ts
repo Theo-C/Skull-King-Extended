@@ -32,7 +32,7 @@ const store: Store = {
     try { return (await db.query<any>('insert into games(code,host,options) values($1,$2,$3) returning id,code,host,status,options,state,version', [row.code, row.host, JSON.stringify(row.options)])).rows[0]; }
     catch (e: any) { if (String(e.code) === '23505') return null; throw e; }
   },
-  async gameById(id) { return (await db.query<any>('select id,code,host,status,options,state,version from games where id=$1', [id])).rows[0] ?? null; },
+  async gameById(id) { return (await db.query<any>('select id,code,host,status,options,state,version,updated_at from games where id=$1', [id])).rows[0] ?? null; },
   async gameByCode(code) { return (await db.query<any>('select id,code,host,status,options,state,version from games where code=$1', [code])).rows[0] ?? null; },
   async seats(g) { return (await db.query<any>('select seat,user_id,bot,name,final_score,rank from game_players where game_id=$1 order by seat', [g])).rows; },
   async secret(g) { return (await db.query<any>('select state from game_secrets where game_id=$1', [g])).rows[0]?.state ?? null; },
@@ -137,6 +137,10 @@ ok('partie terminée', fin.status === 'finished', fin.status);
 ok('10 manches jouées (plus les départages)', fin.state.players.every((p: any) => p.hist.length === 10 + (fin.state.extra ?? 0)));
 const lb = (await db.query<any>('select games, wins from player_stats')).rows;
 ok('statistiques alimentées', lb.length === 4 && lb.every((x: any) => x.games === 1) && lb.reduce((s: number, x: any) => s + x.wins, 0) >= 1, lb);
+const pt = (await db.query<any>('select user_id, plays, play_ms from player_stats')).rows;
+ok('temps de jeu : cartes mesurées pour chaque joueur', pt.length === 4 && pt.every((x: any) => x.plays > 0 && Number(x.play_ms) >= 0), pt);
+const pcard = await handle(store, U.bob, { action: 'player.card', user_id: U.alice });
+ok("temps de jeu : moyenne dans l'aperçu", typeof pcard.avg_play_ms === 'number' || (pcard.avg_play_ms === null && pt.find((x: any) => x.user_id === U.alice).plays < 10), pcard.avg_play_ms);
 const evLeft = (await db.query<any>('select count(*)::int as n from game_events')).rows[0].n;
 ok('événements nettoyés en fin de partie', evLeft < 40, evLeft);
 

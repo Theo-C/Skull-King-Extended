@@ -15,7 +15,7 @@ const CORS = {
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
 function fail(e: { message: string } | null, what: string): never { throw new Error(`${what} : ${e?.message ?? 'erreur inconnue'}`); }
-const GAME_COLS = 'id, code, host, status, options, state, version';
+const GAME_COLS = 'id, code, host, status, options, state, version, updated_at';
 
 const store: Store = {
   origin: URL_,

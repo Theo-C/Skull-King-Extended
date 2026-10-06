@@ -16,6 +16,8 @@ export interface PlayerCardData {
   bids_made: number; bids_total: number;
   last_delta: number | null;
   cosmetics: string[];
+  /** Temps moyen pour poser une carte (ms), null tant qu'il y a moins de 10 cartes mesurées. */
+  avg_play_ms?: number | null;
 }
 
 export interface SeatSnapshot {
@@ -213,6 +215,7 @@ function fullCardHTML(d: PlayerCardData, s: SeatSnapshot, isMe: boolean): string
     <div class="pc-tile"><b>${bidPct == null ? '—' : bidPct + ' %'}</b><span>mises tenues</span></div>
     <div class="pc-tile"><b>${d.games}</b><span>partie${d.games > 1 ? 's' : ''}</span></div>
   </div>
+  ${d.avg_play_ms != null ? `<span class="pc-sub">Pose une carte en ${playTime(d.avg_play_ms)} en moyenne</span>` : ''}
   <div class="pc-items">
     ${worn.length ? worn.map(it => itemHTML(it, d.color, (look as any)[it.variantKey ?? ''])).join('') : '<span class="pc-ilbl">Pas encore d\'objet rare porté.</span>'}
     ${worn.length ? '<span class="pc-ilbl">Objets rares portés</span>' : ''}
@@ -244,5 +247,8 @@ function sumHist(hist: SeatSnapshot['hist']): string {
   if (!played.length) return 'aucune manche terminée';
   return `${made} mise${made > 1 ? 's' : ''} tenue${made > 1 ? 's' : ''} sur ${played.length}`;
 }
+
+/** « 4 s », « 12 s », « 1 min 05 ». */
+function playTime(ms: number) { const s = Math.max(1, Math.round(ms / 1000)); return s < 60 ? s + ' s' : Math.floor(s / 60) + ' min ' + String(s % 60).padStart(2, '0'); }
 
 function ring(color: string) { return `0 0 0 2px #1b140e,0 0 0 4px ${color}`; }
