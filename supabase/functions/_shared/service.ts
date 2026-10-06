@@ -43,6 +43,8 @@ export interface GifApi {
 }
 /** Catégories du sélecteur → recherche (« tendances » = GIF du moment). */
 export const GIF_CATS: Record<string, string> = { tendances: '', bravo: 'bravo', rire: 'rire', rage: 'rage', pirate: 'pirate' };
+/** Média KLIPY en https (seul domaine accepté pour un GIF, côté serveur comme côté site). */
+export function gifUrlOk(u: unknown): u is string { try { const x = new URL(String(u)); return x.protocol === 'https:' && (x.hostname === 'klipy.com' || x.hostname.endsWith('.klipy.com')); } catch { return false; } }
 /** Débit et domaine autorisé des médias (le site refuse tout GIF hors de ce domaine). */
 export const GIF = { cooldownS: 10, host: 'klipy.com' } as const;
 export class HttpError extends Error { constructor(public status: number, msg: string) { super(msg); } }
@@ -410,10 +412,14 @@ async function gifSend(store: Store, uid: string, body: any) {
   const g = await mustGame(store, body.gameId ?? body.id);
   if (g.status !== 'playing') throw bad("La partie n'est pas en cours.");
   const me = (await store.seats(g.id)).find(s => s.user_id === uid); if (!me) throw new HttpError(403, 'Vous ne jouez pas dans cette partie.');
-  const item = await store.gif.get(gifId); if (!item) throw bad('GIF introuvable.');
-  const wait = Number(await store.rpc('gif_rate_take', { p_user: uid }));
+  // le GIF : retrouvé côté serveur (recherche récente ou KLIPY), sinon l'adresse envoyée par le site si c'est un média KLIPY
+  let item = await store.gif.get(gifId).catch(e => { console.error('gif.get', e); return null; });
+  if (!item && gifUrlOk(body.url)) item = { id: gifId, preview: body.url, full: body.url, w: Number(body.w) || 160, h: Number(body.h) || 120 };
+  if (!item) throw bad('GIF introuvable chez KLIPY : choisissez-en un autre.');
+  const wait = Number(await store.rpc('gif_rate_take', { p_user: uid }).catch(e => { console.error('gif : débit', e); throw new HttpError(502, 'Compteur des GIF indisponible (migration 20261015000000_gif.sql appliquée ?).'); }));
   if (wait > 0) throw new HttpError(429, `Un GIF toutes les ${GIF.cooldownS} s : encore ${wait} s.`);
-  await store.broadcast('partie-' + g.id, 'gif', { type: 'gif', userId: uid, seat: me.seat, gifUrl: item.full, w: item.w, h: item.h, at: Date.now() });
+  try { await store.broadcast('partie-' + g.id, 'gif', { type: 'gif', userId: uid, seat: me.seat, gifUrl: item.full, w: item.w, h: item.h, at: Date.now() }); }
+  catch (e) { console.error('gif : diffusion Realtime', e); throw new HttpError(502, "Le GIF n'a pas pu être diffusé à la table (Realtime). Réessayez."); }
   return { ok: true, cooldown: GIF.cooldownS };
 }
 async function chestOpen(store: Store, uid: string) {

@@ -40,15 +40,19 @@ export function klipy(key: string): GifApi {
     if (!res.ok) throw new Error(`KLIPY ${res.status}`);
     return res.json();
   };
-  const list = (j: any) => ((j?.results ?? j?.data?.data ?? []) as any[]).map(toItem).filter((x): x is GifItem => !!x);
+  // GIF déjà renvoyés à la recherche : l'envoi les retrouve sans rappeler KLIPY
+  const seen = new Map<string, GifItem>();
+  const list = (j: any) => { const out = ((j?.results ?? j?.data?.data ?? []) as any[]).map(toItem).filter((x): x is GifItem => !!x); for (const g of out) { seen.set(g.id, g); if (seen.size > 3000) seen.delete(seen.keys().next().value!); } return out; };
   return {
     search(q, cursor) {
       const pos = cursor ? `&pos=${encodeURIComponent(cursor)}` : '';
       const path = q ? `search?q=${encodeURIComponent(q)}&limit=24${pos}` : `featured?limit=24${pos}`;
       return cached('s:' + path, async () => { const j = await get(path); return { items: list(j), next: j?.next ? String(j.next) : null }; });
     },
-    get(id) {
-      return cached('g:' + id, async () => list(await get(`posts?ids=${encodeURIComponent(id)}`))[0] ?? null);
+    async get(id) {
+      const known = seen.get(id); if (known) return known;
+      try { return await cached('g:' + id, async () => list(await get(`posts?ids=${encodeURIComponent(id)}`))[0] ?? null); }
+      catch (e) { console.error('KLIPY : GIF par identifiant', id, e); return null; }
     },
   };
 }

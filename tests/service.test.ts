@@ -258,6 +258,7 @@ async function playUntil(id: string, users: string[], stop: (pub: E.PublicView) 
   ok('gif : recherche', gs.items.length === 5 && gs.next === '24', gs);
   await expectErr('gif : hors de la partie → refus', handle(store, U.alice, { action: 'gif.send', gameId: J, gifId: 'gif1' }), 403);
   await expectErr('gif : identifiant inconnu → refus', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'zzz' }), 400);
+  await expectErr('gif : adresse hors KLIPY → refus', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'zzz', url: 'https://evil.example/x.gif' }), 400);
   await expectErr('gif : identifiant mal formé → refus', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'https://evil.example/x.gif' }), 400);
   // pendant son tour (sa mise n'est pas encore faite) : permis
   const gsend = await handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'gif2' });
