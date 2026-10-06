@@ -88,7 +88,8 @@ ok('XP : titres', titleFor(13) === 'Second' && titleFor(29) === 'Amiral' && titl
   ok('objets : tricorne au niveau 5 et cadre du haut fait kraken_bet', cosOf(settleGame(S, seats, gab), 'u0') === 'frame:tentacules<achievement:kraken_bet,hat:tricorne<title:5', cosOf(settleGame(S, seats, gab), 'u0'));
   ok('objets : rien de redonné quand ils sont déjà possédés', cosOf(settleGame(S, seats, { ...gab, u0: { ...gab.u0, cosmetics: ['hat:tricorne', 'frame:tentacules'] } }), 'u0') === '');
   ok('objets : un haut fait déjà obtenu ne redonne pas son objet', cosOf(settleGame(S, seats, { ...inputs, u1: { ...inputs.u1, achievements: ['first_game', 'siren_hunter'] } }), 'u1') === '');
-  ok('un seul humain : XP sans Élo', solo.results[0].elo_delta === null && solo.stats[0].ranked === false && solo.xp.length > 0);
+  ok('un seul humain : ni Élo, ni XP, ni hauts faits, ni pièces, ni coffre', solo.results[0].elo_delta === null && solo.stats[0].ranked === false && solo.xp.length === 0 && solo.achievements.length === 0 && solo.cosmetics.length === 0 && solo.wallet.every(w => w.coins === 0 && w.chests === 0) && solo.public.u0.noRewards === true, solo);
+  ok('deux humains et un bot : récompenses gardées', st.xp.length > 0 && st.wallet.some(w => w.coins > 0) && !st.public.u0.noRewards);
 }
 
 console.log(`Compte : ${passes} vérifications réussies, ${fails} échec(s).`);

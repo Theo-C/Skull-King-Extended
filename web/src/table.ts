@@ -1316,6 +1316,8 @@ export class TableView {
     const nextT = LEVEL_TITLES.find(([l]) => l > after.level);
     const elo = s.elo;
     const ach = (s.achievements as any[])[0];
+    // seul face à des bots : rien à gagner, on le dit simplement
+    if (s.noRewards) { grid.innerHTML = '<div class="fbox"><span class="ftag">Partie contre des bots</span><span class="lbl">Seul face à des bots : la partie est dans votre historique, mais elle ne rapporte ni XP, ni pièces, ni coffre, ni Élo.</span></div>'; return; }
     grid.innerHTML = `<div class="fbox">${xpRows}
         <div class="fxt"><b>Niveau ${before.level} · ${esc(before.title)}</b><b class="big">+${s.xpTotal} XP</b></div>
         <div class="fbar"><span style="--from:${from}%;--to:${to}%"></span></div>

@@ -62,6 +62,8 @@ export function rankedStatus(o: Opts, t: TableMix): { cls: 'ok' | 'maybe' | 'no'
   if (r < MAX_ROUNDS) why.push(`elle dure ${r} manche${r > 1 ? 's' : ''} au lieu de 10`);
   if (t.bots) why.push(`${t.bots === 1 ? 'un bot est' : `${t.bots} bots sont`} à la table`);
   if (!t.bots && t.humans + t.free < 2) why.push('il faut au moins deux joueurs humains');
+  // seul humain (en ligne) : ni Élo ni récompenses (settle.ts)
+  if (t.humans + t.free < 2) return { cls: 'no', text: "Seul face à des bots : la partie ne rapporte ni Élo, ni XP, ni pièces, ni coffre. Invitez au moins un ami pour jouer pour de vrai." };
   if (why.length) {
     const list = why.length > 1 ? why.slice(0, -1).join(', ') + ' et ' + why[why.length - 1] : why[0];
     return { cls: 'no', text: `Partie non classée : elle ne comptera pas pour l'Élo, car ${list}. L'XP, les pièces et le coffre de victoire comptent quand même.` };

@@ -63,6 +63,9 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
   // partie classée (Élo) : au moins deux humains, aucun bot, les 10 manches ; sinon la raison est affichée en fin de partie
   const unranked = humans.length < 2 ? 'solo' : seats.some(s => s.bot) ? 'bots' : E.roundsOf(S.opts) < E.MAX_ROUNDS ? 'rounds' : null;
   const ranked = !unranked;
+  // seul humain face à des bots : la partie est enregistrée (historique, statistiques) mais ne rapporte rien
+  // (ni XP, ni hauts faits, ni pièces, ni coffre)
+  const rewards = humans.length >= 2;
   const elo = ranked ? eloDeltas(humans.map(s => ({ id: s.user_id!, elo: Number(inputs[s.user_id!].elo), games: inputs[s.user_id!].ranked_games, place: ranks[s.seat] }))) : [];
   const out: Settlement = { results: [], xp: [], achievements: [], stats: [], cosmetics: [], wallet: [], public: {} };
   const nameOf = (uid: string) => humans.find(h => h.user_id === uid)?.name ?? '?';
@@ -77,7 +80,7 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
     const earned: string[] = [];
     const check = (code: string, cond: boolean) => { if (cond) earned.push(code); };
     check('first_game', true);
-    check('perfect', hist.length === 10 && made === 10);
+    check('perfect', hist.length >= 10 && made === hist.length);
     check('kraken_bet', !!last && last.bid === 0 && last.won === 0);
     check('siren_hunter', inp.sirens_captured + f.sirens >= 10);
     check('grand_quinze', f.wild > 0);
@@ -86,11 +89,11 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
     check('abyss', f.abyss > 0);
     check('mermaid_king', f.mermaidKing > 0);
     check('velvet', inp.zero_bids_made + zeroMade >= 5);
-    const fresh = earned.filter(c => !inp.achievements.includes(c));
+    const fresh = rewards ? earned.filter(c => !inp.achievements.includes(c)) : [];
 
-    const lines: { reason: string; amount: number }[] = [{ reason: 'game', amount: XP.game }];
-    if (made) lines.push({ reason: 'bids', amount: XP.bid * made });
-    if (win) lines.push({ reason: 'win', amount: XP.win });
+    const lines: { reason: string; amount: number }[] = rewards ? [{ reason: 'game', amount: XP.game }] : [];
+    if (rewards && made) lines.push({ reason: 'bids', amount: XP.bid * made });
+    if (rewards && win) lines.push({ reason: 'win', amount: XP.win });
     for (const c of fresh) lines.push({ reason: 'ach:' + c, amount: XP.achievement });
     const gain = lines.reduce((a, x) => a + x.amount, 0);
     const levelBefore = levelFor(inp.xp).level, levelAfter = levelFor(inp.xp + gain).level;
@@ -107,7 +110,7 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
     }
 
     // Pièces : +10 par partie, +5 par mise tenue ; coffre : 1 au vainqueur humain.
-    const coins = WALLET.gameCoins + WALLET.bidCoin * made, chests = win ? WALLET.winChest : 0;
+    const coins = rewards ? WALLET.gameCoins + WALLET.bidCoin * made : 0, chests = rewards && win ? WALLET.winChest : 0;
 
     const e = elo.find(x => x.id === uid);
     out.results.push({ user_id: uid, place, score: p.score, bids_made: made, rounds: hist.length, players: seats.length,
@@ -123,7 +126,7 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
       levelBefore, levelAfter,
       achievements: fresh.map(code => ({ code, ...ACHIEVEMENTS[code] })),
       elo: e ? { before: e.before, after: e.after, delta: e.delta, vs: e.vs.map(v => ({ ...v, name: nameOf(v.id) })) } : null, unranked,
-      coins, chests, cosmetics: cos,
+      coins, chests, cosmetics: cos, noRewards: !rewards,
     };
   }
   return out;
