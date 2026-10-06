@@ -1140,7 +1140,7 @@ export class TableView {
     const cancel = { label: 'Annuler', cls: 'alt', on: () => { this.choice = null; this.render(); } };
     if (k === 'as') this.setAction('Morgane la Louve : la jouer comme…', [{ label: '☠ Pirate', cls: 'gold big', on: () => done('as', 'pirate') }, { label: '🏳 Fuite', cls: 'big', on: () => done('as', 'escape') }, cancel]);
     if (k === 'val') this.setAction('0/14 : quelle valeur ?', [{ label: '0', on: () => done('val', 0) }, { label: '14', on: () => done('val', 14) }, cancel]);
-    if (k === 'ws') this.setAction('Le Grand Quinze : de quelle couleur est-il ?<small>Il fixe la couleur demandée du pli.</small>', [...WILD_SUITS.map(s => ({ label: SUIT[s].n, on: () => done('ws', s) })), cancel]);
+    if (k === 'ws') this.setAction('Le Grand Quinze : de quelle couleur est-il ?<small>Il fixe la couleur demandée du pli.</small>', [...WILD_SUITS.map(s => ({ label: SUIT[s].n, cls: 'suitbtn s-' + s, on: () => done('ws', s) })), cancel]);
   }
   private async send(move: Action) {
     if (this.busy) return; this.busy = true;

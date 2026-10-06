@@ -2,7 +2,7 @@
 // pour toutes les cartes ; seul le dos garde la face « Mers Sauvages », qui sert aussi de repli si une image ne se charge pas.
 // Le médaillon du coin haut-droit des cartes numérotées est vide dans l'image : c'est le code qui écrit le chiffre.
 import { ALT2, ALT2B, NUM2 } from './cardsdata';
-import { cname, DESC, PIRATES, SUIT, type Card, type Entry } from '@engine';
+import { cname, DESC, PIRATES, type Card, type Entry } from '@engine';
 import { esc } from './util';
 
 const wrapF = (b: number, h: string) => `<div class="fb${b}">${h}</div>`;
@@ -87,7 +87,8 @@ export function cardHTML(c: Partial<Card>, e?: Partial<Entry> | null, extra = ''
   let tag = '';
   if (e && e.as) tag = e.as === 'pirate' ? 'Pirate' : 'Fuite';
   if (e && c.zf && e.val != null) tag = 'vaut ' + e.val;
-  if (e && c.wild && e.ws) tag = SUIT[e.ws].n;
+  // Grand Quinze (le capucin) : plus d'étiquette, un liseré de la couleur choisie (le nom reste dans le libellé accessible)
+  if (e && c.wild && e.ws) cl += ' ws-' + e.ws;
   // données pour le zoom au survol long : nom affichable (noms officiels du moteur) + règle en français
   const key = cardKey(c);
   let dataAttrs = '';
