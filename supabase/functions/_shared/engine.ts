@@ -13,8 +13,10 @@ export interface Opts {
   exp: boolean; con: boolean; volley: boolean; ray: boolean; davy: boolean; plank: boolean;
   /** nombre de manches (1 à 10) : une partie de moins de 10 manches ne compte pas pour l'Élo */
   rounds: number;
+  /** partie à l'envers : la première manche se joue avec le plus de cartes, la dernière avec une seule */
+  reverse: boolean;
 }
-export const DEFAULT_OPTS: Opts = { kraken: true, whale: true, loot: true, powers: true, score: 'sk', exp: true, con: true, volley: true, ray: true, davy: true, plank: true, rounds: 10 };
+export const DEFAULT_OPTS: Opts = { kraken: true, whale: true, loot: true, powers: true, score: 'sk', exp: true, con: true, volley: true, ray: true, davy: true, plank: true, rounds: 10, reverse: false };
 export const MAX_ROUNDS = 10;
 /** Nombre de manches d'une partie (10 pour les parties créées avant l'option). */
 export const roundsOf = (o?: Partial<Opts> | null) => { const r = Math.round(Number(o?.rounds)); return r >= 1 && r <= MAX_ROUNDS ? r : MAX_ROUNDS; };
@@ -36,7 +38,13 @@ export interface State {
   lastTrick: any; log: LogLine[]; ev?: any[]; rng?: number;
   /** Dernier pouvoir de Marie Thorne : qui a choisi, dans quelle main, à quelle position de l'éventail face cachée. */
   lastLise?: LiseInfo | null;
+  /** Manches ajoutées après les manches prévues : départage d'une égalité en tête (10 cartes chacune). */
+  extra?: number;
 }
+/** Nombre de manches prévues à ce stade, manches de départage comprises. */
+export const plannedRounds = (S: { opts: Partial<Opts> | null; extra?: number }) => roundsOf(S.opts) + (S.extra ?? 0);
+/** Au-delà, une égalité persistante reste une égalité (garde-fou contre une partie sans fin). */
+export const MAX_TOTAL_ROUNDS = 20;
 export interface LiseInfo { by: number; seat: number; pos: number; round: number; trickNo: number }
 
 /* ---------- Données ---------- */
@@ -269,7 +277,7 @@ export function publicView(S: State, lite = false, withHist = true) {
   const t = S.trick;
   return {
     round: S.round, cards: S.cards, phase: S.phase, dealer: S.dealer, leader: S.leader, trickNo: S.trickNo, n: S.n,
-    bidsRevealed: S.bidsRevealed, opts: S.opts, deckCount: S.deck.length,
+    bidsRevealed: S.bidsRevealed, opts: S.opts, deckCount: S.deck.length, extra: S.extra ?? 0,
     players: S.players.map(p => ({ name: p.name, bot: p.bot, score: p.score, hist: withHist ? p.hist.slice() : undefined, won: p.won, bid: S.bidsRevealed ? p.bid : null, hasBid: p.bid != null, handCount: p.hand.length, rascal: p.rascal })),
     // copies : chaque instantané doit garder le pli tel qu'il était à ce moment (sinon les bots semblent jouer tous ensemble)
     trick: t ? { entries: t.entries.slice(), stage: t.stage, removals: t.removals.slice(), res: t.res } : null,
@@ -301,11 +309,14 @@ const nm = (S: State, i: number) => S.players[i].name;
 /* ---------- Déroulement ---------- */
 function startRound(S: State) {
   const deck = shuffle(S, buildDeck(S.opts));
-  S.round++; S.cards = Math.min(S.round, Math.floor(deck.length / S.n));
+  S.round++;
+  // manches prévues : 1, 2, 3… cartes (ou l'inverse en partie à l'envers) ; manche de départage : 10 cartes
+  const R = roundsOf(S.opts), want = S.round > R ? MAX_ROUNDS : S.opts.reverse ? R - S.round + 1 : S.round;
+  S.cards = Math.min(want, Math.floor(deck.length / S.n));
   S.players.forEach(p => { p.hand = sortHand(deck.splice(0, S.cards)); p.bid = null; p.won = 0; p.bonus = []; p.rascal = 0; });
   S.deck = deck; S.forced = {}; S.forcedBy = {}; S.alliances = []; S.trickNo = 0; S.bidsRevealed = false; S.trick = null; S.pending = []; S.lastTrick = null; S.lastLise = null;
   S.dealer = (S.dealer + 1 + S.n) % S.n; S.leader = (S.dealer + 1) % S.n; S.phase = 'bid';
-  log(S, [`Manche ${S.round} — ${S.cards} carte${S.cards > 1 ? 's' : ''} par joueur`], 'rnd');
+  log(S, [`Manche ${S.round}${S.round > R ? ' (départage)' : ''} — ${S.cards} carte${S.cards > 1 ? 's' : ''} par joueur`], 'rnd');
   S.players.forEach(p => { if (p.bot) p.bid = botBid(S, p); });
   emit(S, 'deal');
   checkBids(S);
@@ -459,7 +470,16 @@ function endRound(S: State) {
   log(S, ['Scores : ' + S.players.map(p => `${p.name} ${p.hist.at(-1).tot >= 0 ? '+' : ''}${p.hist.at(-1).tot}`).join(' · ')]);
   S.trick = null;
   emit(S, 'round', { round: S.round });
-  if (S.round >= roundsOf(S.opts)) { S.phase = 'end'; log(S, ['Partie terminée'], 'rnd'); emit(S, 'end'); }
+  if (S.round >= plannedRounds(S)) {
+    // égalité en tête : tout le monde rejoue une manche de 10 cartes, autant de fois qu'il le faut
+    const top = Math.max(...S.players.map(p => p.score));
+    if (S.players.filter(p => p.score === top).length > 1 && S.round < MAX_TOTAL_ROUNDS) {
+      S.extra = (S.extra ?? 0) + 1;
+      log(S, [`Égalité en tête à ${top} points : manche de départage`], 'rnd');
+      startRound(S); return;
+    }
+    S.phase = 'end'; log(S, ['Partie terminée'], 'rnd'); emit(S, 'end');
+  }
   else startRound(S);
 }
 /** Classement final : rang partagé en cas d'égalité. */

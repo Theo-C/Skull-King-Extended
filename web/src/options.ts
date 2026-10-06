@@ -22,6 +22,7 @@ export function optionsHTML(o: Opts = DEFAULT_OPTS, editable = true, prefix = 'o
     .map(n => `<option value="${n}" ${n === r ? 'selected' : ''}>${n === MAX_ROUNDS ? '10 manches (partie complète)' : `${n} manche${n > 1 ? 's' : ''}`}</option>`).join('');
   return `<fieldset><legend>Partie</legend>
       <label class="inline">Nombre de manches <select id="${prefix}-rounds" ${dis}>${rounds}</select></label>
+      <div class="opts">${box(['reverse', "Partie à l'envers", 'On commence avec le plus de cartes et on finit avec une seule.'])}</div>
       <p class="rnote" id="${prefix}-ranked" role="status" aria-live="polite"></p></fieldset>
     <fieldset><legend>Jeu de base</legend><div class="opts">${BASE.map(x => box(x)).join('')}
       <label style="grid-column:1/-1;align-items:center">Score <select id="${prefix}-score" style="width:auto;margin-left:6px" ${dis}><option value="sk" ${o.score === 'sk' ? 'selected' : ''}>Skull King (classique)</option><option value="rascal" ${o.score === 'rascal' ? 'selected' : ''}>Rascal (équilibré)</option></select></label></div></fieldset>
@@ -31,6 +32,7 @@ export function readOptions(root: ParentNode, prefix = 'o'): Opts {
   const g = (k: string) => (root.querySelector(`#${prefix}-${k}`) as HTMLInputElement | null)?.checked ?? false;
   const o: any = {}; for (const [k] of [...BASE, ...EXP]) o[k] = g(k as string); o.exp = g('exp');
   o.score = (root.querySelector(`#${prefix}-score`) as HTMLSelectElement | null)?.value ?? 'sk';
+  o.reverse = g('reverse');
   o.rounds = Number((root.querySelector(`#${prefix}-rounds`) as HTMLSelectElement | null)?.value ?? MAX_ROUNDS);
   return normalizeOpts(o);
 }
@@ -49,7 +51,7 @@ export function wireOptions(root: ParentNode, prefix = 'o', onChange?: () => voi
 export function optionsSummary(o: Opts) {
   const on = [...BASE, ...(o.exp ? [['exp', 'Extension', ''] as any, ...EXP] : [])].filter(([k]) => (o as any)[k]).map(([, t]) => t);
   const r = roundsOf(o);
-  return `${r} manche${r > 1 ? 's' : ''} · ` + on.join(' · ') + ` · score ${o.score === 'rascal' ? 'Rascal' : 'classique'}`;
+  return `${r} manche${r > 1 ? 's' : ''}${o.reverse ? " à l'envers" : ''} · ` + on.join(' · ') + ` · score ${o.score === 'rascal' ? 'Rascal' : 'classique'}`;
 }
 
 /** Places de la table au lancement : humains présents, bots, et sièges « Ami » encore libres (un bot les prend au lancement). */

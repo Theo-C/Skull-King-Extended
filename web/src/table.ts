@@ -1,6 +1,6 @@
 // Vue de la table, partagée par le mode en ligne et l'entraînement hors ligne.
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
-import { cname, leadSuitOf, resolve, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
+import { cname, leadSuitOf, plannedRounds, resolve, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
 import { cardHTML, cardKey, backFace, preloadArt } from './cards';
 import { ANIM, ANIM_MODES, HALO_MS, attachAnim, detachAnim, getAnimMode, onAnimMode, setAnimMode, type AnimMode } from './animatedCards';
 import { $, esc, modal, sleep, toast, signed } from './util';
@@ -306,11 +306,11 @@ export class TableView {
     setHTML($('#gRound', this.root), pb.round ? `Manche ${pb.round}` : 'Partie');
     // téléphone : « Manche 7 · pli 2/7 » ; ordinateur : « sur 10 · 7 cartes · pli 2 sur 7 »
     if (this.mob) { setHTML($('#gSub', this.root), pb.phase === 'play' && pb.trickNo ? `· pli ${pb.trickNo}/${pb.cards}` : pb.phase === 'bid' ? '· mises' : ''); }
-    const parts = [`sur ${roundsOf(pb.opts)}`]; if (pb.cards) parts.push(`${pb.cards} carte${pb.cards > 1 ? 's' : ''}`);
+    const parts = [pb.round > roundsOf(pb.opts) ? 'départage' : `sur ${plannedRounds(pb)}`]; if (pb.cards) parts.push(`${pb.cards} carte${pb.cards > 1 ? 's' : ''}`);
     if (pb.phase === 'bid') parts.push('mises'); else if (pb.phase === 'play' && pb.trickNo) parts.push(`pli ${pb.trickNo} sur ${pb.cards}`);
     else if (pb.phase === 'end') parts.splice(0, parts.length, 'partie terminée');
     if (!this.mob) setHTML($('#gSub', this.root), parts.join(' · '));
-    let h = ''; for (let r = 1; r <= roundsOf(pb.opts); r++) h += `<i class="${r < pb.round || pb.phase === 'end' ? 'done' : r === pb.round ? 'now' : ''}" title="Manche ${r}"></i>`;
+    let h = ''; for (let r = 1; r <= plannedRounds(pb); r++) h += `<i class="${r < pb.round || pb.phase === 'end' ? 'done' : r === pb.round ? 'now' : ''}${r > roundsOf(pb.opts) ? ' xtra' : ''}" title="Manche ${r}${r > roundsOf(pb.opts) ? ' (départage)' : ''}"></i>`;
     setHTML($('#gDots', this.root), h);
   }
   /** Met le plateau (1040 × 520) à l'échelle de la place disponible ; l'action et la main prennent la même largeur. */
@@ -376,7 +376,7 @@ export class TableView {
     const pb = this.pub!, p = pb.players[i], n = pb.players.length;
     const scores = pb.players.map(q => q.score);
     const place = 1 + scores.filter(s => s > p.score).length;
-    const hist: SeatSnapshot['hist'] = Array.from({ length: roundsOf(pb.opts) }, (_, k) => {
+    const hist: SeatSnapshot['hist'] = Array.from({ length: plannedRounds(pb) }, (_, k) => {
       const h = p.hist?.[k];
       return h ? { bid: h.bid, won: h.won, made: h.bid === h.won, played: true } : { bid: 0, won: 0, made: false, played: false };
     });
@@ -1171,7 +1171,7 @@ export class TableView {
   private roundEnd(snap: PublicView): Promise<void> {
     const h = snap.players[0]?.hist; if (!h || !h.length) return Promise.resolve();
     const r = h.at(-1).r; if (r <= this.shownRound) return Promise.resolve(); this.shownRound = r;
-    if (snap.phase === 'end' && r === roundsOf(snap.opts)) return Promise.resolve(); // la fenêtre finale prend le relais
+    if (snap.phase === 'end' && r === plannedRounds(snap)) return Promise.resolve(); // la fenêtre finale prend le relais
     const ps = snap.players, cards = h.at(-1).cards;
     const rankOf = (scores: number[]) => scores.map(s => 1 + scores.filter(o => o > s).length);
     const now = rankOf(ps.map(p => p.score)), before = rankOf(ps.map(p => p.score - (p.hist!.at(-1).tot)));
@@ -1193,11 +1193,11 @@ export class TableView {
     const ov = document.createElement('div'); ov.className = 'roverlay'; this.copySpd(ov);
     const back = document.activeElement as HTMLElement | null;
     // À la dernière manche, la partie est finie : plus de « prêt pour la suite », juste un bouton pour voir le résultat.
-    const last = r === roundsOf(snap.opts);
+    const last = r === plannedRounds(snap);
     const readyLabel = last ? 'Voir le résultat' : 'Je suis prêt';
     const readyBtn = this.mySeat != null ? `<button class="btn gold big" id="rReady">${readyLabel}</button>` : '';
     ov.innerHTML = `<div class="rsheet" role="dialog" aria-modal="true" aria-labelledby="rTitle">
-      <div class="rhead"><div><div class="rsub">Manche ${r} sur ${roundsOf((this.latest?.pub ?? this.pub)?.opts)} · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">${last ? 'Fin de la partie' : 'Fin de la manche'}</h2></div>
+      <div class="rhead"><div><div class="rsub">Manche ${r}${r > roundsOf(snap.opts) ? ' · départage' : ` sur ${plannedRounds(snap)}`} · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">${last ? 'Fin de la partie' : 'Fin de la manche'}</h2></div>
         <div class="rready"${last ? ' hidden' : ''}><span id="rCount"></span><div class="rbar"><i style="animation-duration:${READY_S}s"></i></div></div></div>
       <div class="rcols"><span>#</span><span>Pirate</span><span>Mise → plis</span><span>Points</span><span>Bonus</span><span class="r">Manche</span><span class="r">Total</span></div>
       <div class="rrows">${rows}</div>
@@ -1379,7 +1379,7 @@ export class TableView {
   scoreSheet() {
     const ps = this.latest?.pub.players || this.pub?.players || []; if (!ps.length) return;
     let h = `<h2>Feuille de scores</h2><p class="sub">Mise / plis remportés, puis points de la manche.</p><div class="scroll"><table class="st"><tr><th>Manche</th>${ps.map(p => `<th>${esc(p.name)}</th>`).join('')}</tr>`;
-    for (let r = 1; r <= roundsOf((this.latest?.pub ?? this.pub)?.opts); r++) h += `<tr><td>${r}</td>` + ps.map(p => { const x = p.hist?.[r - 1]; return `<td>${x ? `${x.bid}/${x.won} · ${sgn(x.tot)}` : '—'}</td>`; }).join('') + '</tr>';
+    for (let r = 1; r <= plannedRounds((this.latest?.pub ?? this.pub)!); r++) h += `<tr><td>${r}</td>` + ps.map(p => { const x = p.hist?.[r - 1]; return `<td>${x ? `${x.bid}/${x.won} · ${sgn(x.tot)}` : '—'}</td>`; }).join('') + '</tr>';
     h += `<tr class="tot"><td>Total</td>${ps.map(p => `<td>${p.score}</td>`).join('')}</tr></table></div>`;
     modal(h);
   }

@@ -134,7 +134,7 @@ for (let step = 0; step < 5000; step++) {
 }
 const fin = (await as(U.bob, 'select status, state from games'))[0];
 ok('partie terminée', fin.status === 'finished', fin.status);
-ok('10 manches jouées', fin.state.players.every((p: any) => p.hist.length === 10));
+ok('10 manches jouées (plus les départages)', fin.state.players.every((p: any) => p.hist.length === 10 + (fin.state.extra ?? 0)));
 const lb = (await db.query<any>('select games, wins from player_stats')).rows;
 ok('statistiques alimentées', lb.length === 4 && lb.every((x: any) => x.games === 1) && lb.reduce((s: number, x: any) => s + x.wins, 0) >= 1, lb);
 const evLeft = (await db.query<any>('select count(*)::int as n from game_events')).rows[0].n;

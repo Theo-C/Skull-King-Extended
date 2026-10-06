@@ -967,3 +967,6 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
   .tarrow,.tarrow svg{width:12px;height:12px}
   .twhy{font-size:12px;max-width:94%}
 }
+
+/* manches de départage (égalité en tête) : points en pointillés dorés */
+.gdots i.xtra{outline:1.5px dashed rgba(234,208,138,.65);outline-offset:1px}

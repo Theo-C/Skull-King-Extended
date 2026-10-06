@@ -79,7 +79,7 @@ for (let g = 0; g < 60; g++) {
     steps++;
   }
   ok('partie terminée', S.phase === 'end', { g, round: S.round, phase: S.phase });
-  ok('manches notées = nombre de manches choisi', S.players.every(p => p.hist.length === rounds), { g, rounds, got: S.players[0].hist.length });
+  ok('manches notées = manches choisies + départages', S.players.every(p => p.hist.length === rounds + (S.extra ?? 0)), { g, rounds, extra: S.extra, got: S.players[0].hist.length });
   ok('scores cohérents', S.players.every(p => p.score === p.hist.reduce((s: number, h: any) => s + h.tot, 0)));
   games++;
 }
@@ -104,6 +104,35 @@ for (let g = 0; g < 60; g++) {
   }
   ok('Con : plusieurs pouvoirs de pirates volés d\'un coup', multi > 0, multi);
   ok('Con : plus de choix « un seul pouvoir »', conpick === 0, conpick);
+}
+
+// Égalité en tête : manches de départage de 10 cartes jusqu'à ce qu'un joueur soit seul premier
+{
+  let tied = 0, endsTied = 0, badCards = 0;
+  for (let g = 0; g < 200; g++) {
+    const T = E.newGame(['A', 'B', 'C'].map(name => ({ name, bot: false })), { rounds: 1 }, 7000 + g);
+    let seed = g + 5; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let k = 0; k < 20000 && T.phase !== 'end'; k++) {
+      if (T.round > 1 && T.cards !== Math.min(10, Math.floor(70 / 3))) badCards++;
+      const w = E.waitingFor(T); E.apply(T, w[0], randomAction(T, w[0], r)); E.takeEvents(T);
+    }
+    if ((T.extra ?? 0) > 0) tied++;
+    const top = Math.max(...T.players.map(p => p.score));
+    if (T.players.filter(p => p.score === top).length > 1 && T.round < E.MAX_TOTAL_ROUNDS) endsTied++;
+    if (T.round !== E.plannedRounds(T)) endsTied += 100;
+  }
+  ok('départage : des égalités en tête relancent une manche', tied > 0, tied);
+  ok('départage : aucune partie ne finit avec des premiers ex aequo', endsTied === 0, endsTied);
+  ok('départage : manches de 10 cartes', badCards === 0, badCards);
+}
+// Partie à l'envers : de N cartes à 1
+{
+  const T = E.newGame(['A', 'B', 'C'].map(name => ({ name, bot: true })), { rounds: 4, reverse: true }, 4242);
+  const seen: number[] = [];
+  for (let k = 0; k < 50 && T.phase !== 'end'; k++) { if (seen[T.round - 1] == null) seen[T.round - 1] = T.cards; E.runBots(T); }
+  const H = T.players[0].hist.map((h: any) => h.cards);
+  ok("partie à l'envers : 4, 3, 2, 1 cartes", H.slice(0, 4).join() === '4,3,2,1', H);
+  ok("partie à l'envers : option conservée", E.normalizeOpts({ reverse: true }).reverse === true && E.normalizeOpts({}).reverse === false);
 }
 
 // Marie Thorne : carte choisie face cachée

@@ -102,7 +102,7 @@ async function loadLive(root: HTMLElement, uid: string) {
         if (!turn) { turn = { g, mine, rank, title }; mbHide = ' only-dk'; }
       } else badge = g.current != null ? esc(`Tour ${de(nameOf(g, g.current))}`) : 'En cours';
     }
-    let dots = ''; for (let r = 1; r <= roundsOf(g.options); r++) dots += `<i class="${g.status === 'lobby' ? '' : r < g.round ? 'd' : r === g.round ? 'n' : ''}"></i>`;
+    let dots = ''; for (let r = 1; r <= Math.max(roundsOf(g.options), g.round ?? 0); r++) dots += `<i class="${g.status === 'lobby' ? '' : r < g.round ? 'd' : r === g.round ? 'n' : ''}"></i>`;
     return `<a class="gcard${mbHide}" href="#/partie/${g.id}"><span class="stack-av">${who}</span>
       <span class="gm"><span class="gt">${esc(title)}</span><span class="gs">${sub}</span><span class="rdots" aria-hidden="true">${dots}</span></span>
       <span class="badge ${cls}">${badge}</span></a>`;
@@ -115,7 +115,7 @@ async function loadLive(root: HTMLElement, uid: string) {
     const t = turn.title === 'Votre table' ? 'à votre table' : turn.title.replace(/^Table /, 'à la table ');
     const pts = turn.mine?.score ?? 0, trick = turn.g.trickNo ? ` · pli ${turn.g.trickNo}` : '';
     $('#turn', root).innerHTML = `<a class="turnband" href="#/partie/${turn.g.id}"><span class="dot only-dk"></span>
-      <span class="tx only-dk"><b>À vous de jouer ${esc(t)}</b><span>Manche ${turn.g.round} sur ${roundsOf(turn.g.options)}${trick} · vous êtes ${nth(turn.rank)} avec ${pts} point${Math.abs(pts) > 1 ? 's' : ''}</span></span>
+      <span class="tx only-dk"><b>À vous de jouer ${esc(t)}</b><span>Manche ${turn.g.round}${turn.g.round > roundsOf(turn.g.options) ? ' (départage)' : ` sur ${roundsOf(turn.g.options)}`}${trick} · vous êtes ${nth(turn.rank)} avec ${pts} point${Math.abs(pts) > 1 ? 's' : ''}</span></span>
       <span class="tx only-mb"><span class="tk"><span class="dot2"></span>À vous de jouer</span><b>${esc(turn.title)}</b><span>Manche ${turn.g.round}${trick} · vous êtes ${nth(turn.rank)} (${pts} pts)</span></span>
       <span class="go only-dk">Reprendre</span></a>`;
   }
