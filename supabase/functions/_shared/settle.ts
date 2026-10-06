@@ -34,8 +34,10 @@ export const ACHIEVEMENT_COSMETICS: Record<string, string> = {
   captain:      'hat:couronne',
   abyss:        'pet:poulpe',
 };
-/** Pièces : +10 par partie terminée, +5 par mise tenue (SPEC). Coffre : 1 au vainqueur humain d'une partie en ligne. */
-export const WALLET = { gameCoins: 10, bidCoin: 5, winChest: 1 } as const;
+/** Pièces selon la place (1er 30, 2e 20, 3e 10, ensuite 5 ; ex aequo = même place), +5 par mise tenue.
+ *  Coffre : 1 au vainqueur humain d'une partie en ligne (il s'achète aussi 100 pièces à l'échoppe). */
+export const WALLET = { placeCoins: [30, 20, 10], otherCoins: 5, bidCoin: 5, winChest: 1, chestPrice: 100 } as const;
+export const placeCoins = (place: number) => WALLET.placeCoins[place - 1] ?? WALLET.otherCoins;
 
 export interface SettleSeat { seat: number; user_id: string | null; bot: boolean; name: string }
 /** Ce que la base sait d'un joueur avant la partie (fonction SQL settle_inputs). */
@@ -110,7 +112,7 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
     }
 
     // Pièces : +10 par partie, +5 par mise tenue ; coffre : 1 au vainqueur humain.
-    const coins = rewards ? WALLET.gameCoins + WALLET.bidCoin * made : 0, chests = rewards && win ? WALLET.winChest : 0;
+    const coins = rewards ? placeCoins(place) + WALLET.bidCoin * made : 0, chests = rewards && win ? WALLET.winChest : 0;
 
     const e = elo.find(x => x.id === uid);
     out.results.push({ user_id: uid, place, score: p.score, bids_made: made, rounds: hist.length, players: seats.length,

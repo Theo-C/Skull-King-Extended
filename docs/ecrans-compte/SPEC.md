@@ -129,7 +129,8 @@ L'avatar devient un personnage en couches SVG (voir `docs/maquettes/Avatar.dc.ht
 | Échoppe du port | 3 objets communs ou rares par jour, payés en pièces |
 
 **Pièces :**
-- +10 par partie terminée, +5 par mise tenue ;
+- selon la place : 30 au premier, 20 au deuxième, 10 au troisième, 5 ensuite (ex aequo : même place), +5 par mise tenue ; rien quand on joue seul contre des bots ;
+- coffre de victoire en vente à l'échoppe : 100 pièces ;
 - un objet déjà possédé, tiré d'un coffre, est converti en pièces (Commun 30, Rare 80, Épique 140, Légendaire 200).
 
 Rien ne s'achète en argent réel. Les objets sont purement cosmétiques et visibles partout : à la table, dans les listes, au classement.

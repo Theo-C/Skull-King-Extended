@@ -60,6 +60,7 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'chest.open': return chestOpen(store, uid);
     case 'shop.list': return { shop: await store.shopDay() };
     case 'shop.buy': return shopBuy(store, uid, body);
+    case 'chest.buy': { const r = await store.rpc('chest_buy', { p_user: uid }); if (r?.error) throw bad(r.error); return r; }
     case 'joker.buy': { const r = await store.rpc('joker_buy', { p_user: uid }); if (r?.error) throw bad(r.error); return r; }
     case 'joker.use': return withRetry(() => jokerUse(store, uid, body));
     case 'history.list': return historyList(store, uid, body);

@@ -163,12 +163,22 @@ ok('règlement rejoué : « already »', await settleFinished(store, G, S_end!, 
 const xpAfter = (await db.query<any>('select xp from profiles where id = any($1::uuid[])', [users])).rows.map((x: any) => x.xp);
 ok('règlement rejoué : XP inchangée', xpAfter.sort().join() === xpBefore.split(',').sort().join());
 
-// Porte-monnaie et objets gagnés : 1 coffre au vainqueur, 10 + 5 × mises tenues pièces, pas de double application
+// Porte-monnaie et objets gagnés : 1 coffre au vainqueur, 30 (1re place) + 5 × mises tenues pièces, pas de double application
 const winnerUid = res[0].user_id as string;
 const winnerBids = Number((await db.query<any>('select bids_made from game_results where game_id=$1 and user_id=$2', [G, winnerUid])).rows[0].bids_made);
 const wWin = await store.wallet(winnerUid);
 ok('porte-monnaie : 1 coffre au vainqueur humain', wWin.chests === 1, wWin);
-ok('porte-monnaie : 10 + 5 × mises tenues', wWin.coins === 10 + 5 * winnerBids, { wWin, winnerBids });
+ok('porte-monnaie : 30 au premier + 5 × mises tenues', wWin.coins === 30 + 5 * winnerBids, { wWin, winnerBids });
+for (const r of res) {
+  const w = await store.wallet(r.user_id), b = Number((await db.query<any>('select bids_made from game_results where game_id=$1 and user_id=$2', [G, r.user_id])).rows[0].bids_made);
+  ok(`porte-monnaie : place ${r.place} → ${[30, 20, 10][r.place - 1] ?? 5} + 5 × mises`, w.coins === ([30, 20, 10][r.place - 1] ?? 5) + 5 * b, { place: r.place, w, b });
+}
+// coffre acheté à l'échoppe : 100 pièces
+await db.exec(`update user_wallet set coins = 120, chests = 0 where user_id = '${winnerUid}'`);
+const cb = await handle(store, winnerUid, { action: 'chest.buy' });
+ok('coffre : acheté 100 pièces', cb?.ok && cb.coins === 20 && cb.chests === 1, cb);
+await expectErr('coffre : pas assez de pièces → refus', handle(store, winnerUid, { action: 'chest.buy' }), 400);
+await db.exec(`update user_wallet set coins = ${wWin.coins}, chests = ${wWin.chests} where user_id = '${winnerUid}'`);
 await settleFinished(store, G, S_end!, await store.seats(G));
 const wWin2 = await store.wallet(winnerUid);
 ok('porte-monnaie : règlement rejoué n’ajoute rien', wWin2.coins === wWin.coins && wWin2.chests === wWin.chests, { wWin, wWin2 });
