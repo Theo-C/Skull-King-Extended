@@ -89,6 +89,23 @@ for (let g = 0; g < 60; g++) {
   ok('aucune main dans la vue publique', !pub.includes('"hand"') && !pub.includes('"deck"'));
   ok('mise des autres cachée avant révélation', E.publicView(S).players.every(p => p.bid === null)); }
 
+// Con le belliqueux : il vole les pouvoirs de tous les pirates capturés (plus de choix d'un seul pouvoir)
+{
+  let multi = 0, conpick = 0;
+  for (let g = 0; g < 300 && multi < 3; g++) {
+    const T = E.newGame(['A', 'B', 'C', 'D', 'E', 'F'].map(name => ({ name, bot: false })), { powers: true, exp: true, con: true }, 9000 + g);
+    let seed = g + 11; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let k = 0; k < 4000 && T.phase !== 'end'; k++) {
+      if (T.pending.some(p => p.t === 'conpick')) conpick++;
+      const pw = T.pending.filter(p => p.t in E.PIRATES);
+      if (pw.length > 1 && pw.every(p => p.seat === pw[0].seat)) { multi++; break; }
+      const w = E.waitingFor(T); E.apply(T, w[0], randomAction(T, w[0], r)); E.takeEvents(T);
+    }
+  }
+  ok('Con : plusieurs pouvoirs de pirates volés d\'un coup', multi > 0, multi);
+  ok('Con : plus de choix « un seul pouvoir »', conpick === 0, conpick);
+}
+
 // Marie Thorne : carte choisie face cachée
 {
   // on cherche une vraie situation de jeu où un humain doit utiliser Marie Thorne

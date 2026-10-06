@@ -424,12 +424,9 @@ function resolveTrick(S: State) {
         let list: string[] = [];
         if (R.winner.card.kind === 'pirate') list = [R.winner.card.pid!];
         else if (R.winner.card.kind === 'con') list = R.captured.filter(e => e.card.kind === 'pirate').map(e => e.card.pid!);
-        // Con le Second avec plusieurs pirates capturés : le joueur choisit UN seul pouvoir à voler.
-        if (R.winner.card.kind === 'con' && list.length > 1) {
-          S.pending.push({ t: 'conpick', seat: wi, data: { pub: list.map(pid => ({ v: pid, label: PIRATES[pid].n })) } });
-        } else {
-          for (const pid of list) { S.pending.push({ t: pid, seat: wi }); log(S, [`Pouvoir de ${PIRATES[pid].n} : ${w.name} ${PIRATES[pid].pw}`]); }
-        }
+        // Con le belliqueux vole les pouvoirs de TOUS les pirates capturés, dans l'ordre où ils ont été posés.
+        // (L'ancien choix d'un seul pouvoir, « conpick », n'est plus créé ; il reste lisible pour les parties en cours.)
+        for (const pid of list) { S.pending.push({ t: pid, seat: wi }); log(S, [`Pouvoir de ${PIRATES[pid].n} : ${w.name} ${PIRATES[pid].pw}`]); }
       }
     }
   }
@@ -525,7 +522,7 @@ function choose(S: State, pd: Pending, v: any) {
     case 'harry': if (!allowed(v)) throw new RuleError('Choix invalide.'); if (v) { p.bid! += v; log(S, [`${p.name} change son pari : ${p.bid}`]); } else log(S, [`${p.name} garde son pari`]); break;
     case 'juanita': break;
     case 'conpick': {
-      // Le joueur qui a joué Con le Second choisit UN pouvoir à voler parmi les pirates capturés.
+      // Ancien choix d'un seul pouvoir (parties commencées avant que Con vole tous les pouvoirs).
       const pid = String(v); if (!allowed(pid)) throw new RuleError('Choix invalide.');
       log(S, [`${p.name} vole le pouvoir de ${PIRATES[pid].n} : ${PIRATES[pid].pw}`]);
       S.pending.push({ t: pid, seat: pd.seat });
