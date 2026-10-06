@@ -313,7 +313,9 @@ const COAT_NAMES = ['Or', 'Corail', 'Algue', 'Lagon', 'Améthyste', 'Ambre', 'É
 const LOCK_ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
 const CHEST_ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h18v9H3zM3 10c0-4 3-6 9-6s9 2 9 6M10 12h4v3h-4z" fill="none" stroke="#2b2117" stroke-width="1.8" stroke-linejoin="round"/></svg>';
 
-interface WardrobeData { owned: string[]; coins: number; chests: number; shop: { cosmetic_id: string; price: number }[] }
+interface WardrobeData { owned: string[]; coins: number; chests: number; jokers?: number; shop: { cosmetic_id: string; price: number }[] }
+/** Prix du joker (migration 20261013000000_joker.sql). */
+const JOKER_PRICE = 150;
 
 function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: WardrobeData, achNames: Map<string, string>, onSaved: (s: Partial<Profile>) => void) {
   const box = $('#wardrobe', root);
@@ -323,7 +325,7 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
     saved: { ...DEFAULT_LOOK, ...(p.look || {}) } as Look,
     color: p.color, savedColor: p.color,
     owned: new Set<string>(data.owned),
-    coins: data.coins, chests: data.chests,
+    coins: data.coins, chests: data.chests, jokers: data.jokers ?? 0,
     shop: data.shop,
     busy: false,
   };
@@ -394,6 +396,8 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
         const label = already ? it.name + ' ✓' : it.name, right = already ? 'acheté' : String(s.price);
         return `<button type="button" class="wshop-btn" data-buy="${esc(it.id)}" ${already || notEnough ? 'disabled' : ''}>${avatarHTML({ kind: 'art', letter: p.pseudo, color: st.color, look: { ...st.look, [it.slot]: it.value } }, 40)}<span><b>${esc(label)}</b><span class="lbl"><span class="coin"></span>${esc(right)}</span></span></button>`;
       }).join('')}
+      <button type="button" class="wshop-btn wjoker" id="wJoker" ${st.coins < JOKER_PRICE ? 'disabled' : ''} title="Jouez-le pendant une partie en ligne, avant la dernière manche : une manche de 10 cartes s'ajoute à la fin, pour tout le monde. Un par partie.">
+        <span class="wjk" aria-hidden="true">J</span><span><b>Joker${st.jokers ? ` · ${st.jokers} en poche` : ''}</b><span class="lbl"><span class="coin"></span>${JOKER_PRICE} · une manche de plus</span></span></button>
     </div>`;
 
     box.innerHTML = `<div class="whead">
@@ -443,6 +447,11 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
     const wChest = box.querySelector('#wChest') as HTMLButtonElement | null;
     if (wChest) wChest.onclick = () => openChestFlow(wChest);
     box.querySelectorAll<HTMLButtonElement>('[data-buy]').forEach(b => b.onclick = () => doShopBuy(b));
+    ($('#wJoker', box) as HTMLButtonElement).onclick = async () => {
+      const b = $('#wJoker', box) as HTMLButtonElement; if (st.busy) return; st.busy = true; b.disabled = true;
+      try { const r = await callGame<{ coins: number; jokers: number }>('joker.buy', {}); st.coins = r.coins; st.jokers = r.jokers; toast('Joker acheté : jouez-le pendant une partie en ligne, avant la dernière manche.'); }
+      catch (e: any) { toast(e.message, 'err'); } finally { st.busy = false; render(); }
+    };
     $('#wRand', box).onclick = () => {
       const rnd = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
       st.look = { ...st.look, skin: Math.floor(Math.random() * 6), hc: Math.floor(Math.random() * 6), hair: rnd(HAIR_OPTS.map(o => o[1])), beard: rnd(['none', 'none', 'mous', 'short', 'long']) };

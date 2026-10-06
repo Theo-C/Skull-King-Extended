@@ -577,3 +577,6 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 .pobj-v{flex:none;display:grid;place-items:center;width:56px;height:56px}
 .pobj>span:last-child{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
 .pobj b{font-size:14px;color:var(--parch)}
+
+/* échoppe : joker (consommable, toujours en vente) */
+.wshop-btn.wjoker .wjk{display:grid;place-items:center;width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#ff9ad5,#ffd36b,#8dffb0,#7fc8ff);color:#1b140e;font:400 24px 'Pirata One',serif;flex:none}

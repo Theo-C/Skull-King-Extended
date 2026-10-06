@@ -57,8 +57,8 @@ const store: Store = {
     return (await db.query<any>('select cosmetic_id from user_cosmetics where user_id=$1', [uid])).rows.map(r => r.cosmetic_id);
   },
   async wallet(uid) {
-    const r = (await db.query<any>('select coins, chests from user_wallet where user_id=$1', [uid])).rows[0];
-    return { coins: r?.coins ?? 0, chests: r?.chests ?? 0 };
+    const r = (await db.query<any>('select coins, chests, jokers from user_wallet where user_id=$1', [uid])).rows[0];
+    return { coins: r?.coins ?? 0, chests: r?.chests ?? 0, jokers: r?.jokers ?? 0 };
   },
   async shopDay(day) {
     await db.exec('set role service_role');
@@ -213,6 +213,27 @@ const row = await store.gameById(g2.id);
 const v1 = await store.commit(g2.id, row!.version, { patch: {} });
 const v2 = await store.commit(g2.id, row!.version, { patch: {} });
 ok('écriture concurrente détectée', v1 != null && v2 == null, { v1, v2 });
+
+// ---------- Joker : acheté à l'échoppe, joué pendant une partie, une manche de 10 cartes en plus ----------
+{
+  const { id: J, code: jc } = await handle(store, U.eve, { action: 'create', seats: [{ bot: false }, { bot: false }, { bot: true }], options: { rounds: 3 } });
+  await handle(store, U.chloe, { action: 'join', code: jc });
+  await handle(store, U.eve, { action: 'start', id: J });
+  await db.exec(`insert into user_wallet (user_id, coins, chests) values ('${U.eve}', 100, 0) on conflict (user_id) do update set coins = 100, jokers = 0`);
+  await expectErr('joker : sans joker → refus', handle(store, U.eve, { action: 'joker.use', id: J }), 400);
+  await expectErr('joker : pas assez de pièces → refus', handle(store, U.eve, { action: 'joker.buy' }), 400);
+  await db.exec(`update user_wallet set coins = 160 where user_id = '${U.eve}'`);
+  const jb = await handle(store, U.eve, { action: 'joker.buy' });
+  ok('joker : acheté 150 pièces', jb?.ok && jb.jokers === 1 && jb.coins === 10, jb);
+  const ju = await handle(store, U.eve, { action: 'joker.use', id: J });
+  const js = (await db.query<any>('select state from games where id=$1', [J])).rows[0].state;
+  const eveSeat = (await db.query<any>('select seat from game_players where game_id=$1 and user_id=$2', [J, U.eve])).rows[0].seat;
+  ok('joker : une manche de plus, joueur noté', ju?.ok && js.extra === 1 && js.jokers.join() === String(eveSeat) && (await store.wallet(U.eve)).jokers === 0, { ju, extra: js.extra, jokers: js.jokers });
+  await db.exec(`update user_wallet set jokers = 1 where user_id = '${U.eve}'`);
+  await expectErr('joker : un seul par partie', handle(store, U.eve, { action: 'joker.use', id: J }), 400);
+  ok('joker : refusé sans être retiré du porte-monnaie', (await store.wallet(U.eve)).jokers === 1);
+  await expectErr('joker : hors de la partie → refus', handle(store, U.alice, { action: 'joker.use', id: J }), 403);
+}
 
 // ---------- Cosmétiques : coffre, boutique, apparence ----------
 // Catalogue : les objets de titre et de haut fait sont bien dans la base

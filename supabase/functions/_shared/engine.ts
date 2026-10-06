@@ -38,8 +38,22 @@ export interface State {
   lastTrick: any; log: LogLine[]; ev?: any[]; rng?: number;
   /** Dernier pouvoir de Marie Thorne : qui a choisi, dans quelle main, à quelle position de l'éventail face cachée. */
   lastLise?: LiseInfo | null;
-  /** Manches ajoutées après les manches prévues : départage d'une égalité en tête (10 cartes chacune). */
+  /** Manches ajoutées après les manches prévues : départage d'une égalité en tête, ou joker (10 cartes chacune). */
   extra?: number;
+  /** Sièges qui ont déjà joué leur joker dans cette partie (un par joueur). */
+  jokers?: number[];
+}
+/** Un joker se joue avant le début de la dernière manche prévue, une fois par joueur et par partie. */
+export function canJoker(S: State, seat: number): boolean {
+  return S.phase !== 'end' && !S.players[seat]?.bot && S.round < plannedRounds(S) && !(S.jokers ?? []).includes(seat);
+}
+/** Joker (acheté à l'échoppe, vérifié par le serveur) : ajoute une manche de 10 cartes à la fin, pour tout le monde. */
+export function useJoker(S: State, seat: number) {
+  if (!canJoker(S, seat)) throw new RuleError(S.round >= plannedRounds(S) ? 'Trop tard : le joker se joue avant la dernière manche.' : 'Vous avez déjà joué votre joker dans cette partie.');
+  (S.jokers ??= []).push(seat);
+  S.extra = (S.extra ?? 0) + 1;
+  log(S, [`${S.players[seat].name} joue un joker : une manche de plus, à 10 cartes, à la fin de la partie`], 'rnd');
+  emit(S, 'joker', { seat });
 }
 /** Nombre de manches prévues à ce stade, manches de départage comprises. */
 export const plannedRounds = (S: { opts: Partial<Opts> | null; extra?: number }) => roundsOf(S.opts) + (S.extra ?? 0);
@@ -277,7 +291,7 @@ export function publicView(S: State, lite = false, withHist = true) {
   const t = S.trick;
   return {
     round: S.round, cards: S.cards, phase: S.phase, dealer: S.dealer, leader: S.leader, trickNo: S.trickNo, n: S.n,
-    bidsRevealed: S.bidsRevealed, opts: S.opts, deckCount: S.deck.length, extra: S.extra ?? 0,
+    bidsRevealed: S.bidsRevealed, opts: S.opts, deckCount: S.deck.length, extra: S.extra ?? 0, jokers: (S.jokers ?? []).slice(),
     players: S.players.map(p => ({ name: p.name, bot: p.bot, score: p.score, hist: withHist ? p.hist.slice() : undefined, won: p.won, bid: S.bidsRevealed ? p.bid : null, hasBid: p.bid != null, handCount: p.hand.length, rascal: p.rascal })),
     // copies : chaque instantané doit garder le pli tel qu'il était à ce moment (sinon les bots semblent jouer tous ensemble)
     trick: t ? { entries: t.entries.slice(), stage: t.stage, removals: t.removals.slice(), res: t.res } : null,
@@ -316,7 +330,7 @@ function startRound(S: State) {
   S.players.forEach(p => { p.hand = sortHand(deck.splice(0, S.cards)); p.bid = null; p.won = 0; p.bonus = []; p.rascal = 0; });
   S.deck = deck; S.forced = {}; S.forcedBy = {}; S.alliances = []; S.trickNo = 0; S.bidsRevealed = false; S.trick = null; S.pending = []; S.lastTrick = null; S.lastLise = null;
   S.dealer = (S.dealer + 1 + S.n) % S.n; S.leader = (S.dealer + 1) % S.n; S.phase = 'bid';
-  log(S, [`Manche ${S.round}${S.round > R ? ' (départage)' : ''} — ${S.cards} carte${S.cards > 1 ? 's' : ''} par joueur`], 'rnd');
+  log(S, [`Manche ${S.round}${S.round > R ? ' (en plus)' : ''} — ${S.cards} carte${S.cards > 1 ? 's' : ''} par joueur`], 'rnd');
   S.players.forEach(p => { if (p.bot) p.bid = botBid(S, p); });
   emit(S, 'deal');
   checkBids(S);

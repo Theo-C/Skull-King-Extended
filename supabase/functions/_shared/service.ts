@@ -26,7 +26,7 @@ export interface Store {
   /** Identifiants des objets possédés par le joueur, en plus de ceux qui sont libres par défaut. */
   userCosmetics(uid: string): Promise<string[]>;
   /** Porte-monnaie du joueur (pièces et coffres non ouverts). Zéro par défaut si la ligne n'existe pas encore. */
-  wallet(uid: string): Promise<{ coins: number; chests: number }>;
+  wallet(uid: string): Promise<{ coins: number; chests: number; jokers: number }>;
   /** Boutique du jour (3 objets déterministes à partir de la date, prix inclus). */
   shopDay(day?: string): Promise<{ cosmetic_id: string; price: number }[]>;
 }
@@ -60,6 +60,8 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'chest.open': return chestOpen(store, uid);
     case 'shop.list': return { shop: await store.shopDay() };
     case 'shop.buy': return shopBuy(store, uid, body);
+    case 'joker.buy': { const r = await store.rpc('joker_buy', { p_user: uid }); if (r?.error) throw bad(r.error); return r; }
+    case 'joker.use': return withRetry(() => jokerUse(store, uid, body));
     case 'history.list': return historyList(store, uid, body);
     case 'history.get': return historyGet(store, uid, body);
     case 'rematch': return rematch(store, uid, body);
@@ -321,7 +323,22 @@ async function playerCard(store: Store, body: any) {
 /* ---------- Garde-robe ---------- */
 async function wardrobe(store: Store, uid: string) {
   const [owned, w, shop] = await Promise.all([store.userCosmetics(uid), store.wallet(uid), store.shopDay()]);
-  return { owned, coins: w.coins, chests: w.chests, shop };
+  return { owned, coins: w.coins, chests: w.chests, jokers: w.jokers, shop };
+}
+/** Joker joué pendant une partie : retiré du porte-monnaie, puis appliqué à l'état (rendu en cas de conflit). */
+async function jokerUse(store: Store, uid: string, body: any) {
+  const g = await mustGame(store, body.id);
+  if (g.status !== 'playing') throw bad("La partie n'est pas en cours.");
+  const seats = (await store.seats(g.id)).sort((a, b) => a.seat - b.seat);
+  const me = seats.find(s => s.user_id === uid); if (!me) throw new HttpError(403, 'Vous ne jouez pas dans cette partie.');
+  const S = await store.secret(g.id); if (!S) throw new HttpError(500, 'État de partie manquant.');
+  if (!E.canJoker(S, me.seat)) { try { E.useJoker(S, me.seat); } catch (e) { if (e instanceof E.RuleError) throw bad(e.message); throw e; } }
+  const take = await store.rpc('joker_take', { p_user: uid }); if (take?.error) throw bad(take.error);
+  E.useJoker(S, me.seat);
+  const events = E.takeEvents(S);
+  const v = await store.commit(g.id, g.version, { patch: { state: E.publicView(S) }, secret: S, events, ...snapshotsFor(S, seats) });
+  if (v == null) { await store.rpc('joker_refund', { p_user: uid }); return 'conflict'; }
+  return { ok: true, jokers: take.jokers };
 }
 async function chestOpen(store: Store, uid: string) {
   const r = await store.rpc('chest_open', { p_user: uid, p_seed: null });

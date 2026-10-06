@@ -19,6 +19,8 @@ import { PlayerCardCtl, type PlayerCardData, type SeatSnapshot } from './playerc
 const htmlCache = new WeakMap<Element, string>();
 function setHTML(el: Element, html: string) { if (htmlCache.get(el) !== html) { el.innerHTML = html; htmlCache.set(el, html); } }
 function elFrom(html: string) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild as HTMLElement; }
+/** Manche ajoutée après les manches prévues : « joker » (les premières) ou « départage » (égalité en tête), sinon null. */
+const extraKind = (pb: { opts: any; jokers?: number[] }, r: number) => { const R = roundsOf(pb.opts); return r <= R ? null : r <= R + (pb.jokers?.length ?? 0) ? 'joker' : 'départage'; };
 const center = (r: DOMRect) => [r.left + r.width / 2, r.top + r.height / 2];
 /** Écran tactile sans survol : premier appui = aperçu, second appui = jouer. */
 const TOUCH = () => matchMedia('(hover: none)').matches;
@@ -40,6 +42,8 @@ export interface TableBackend {
   myLook?: () => { color: string; look: Look | null };
   /** Aperçu d'un joueur (player.card) pour la fenêtre au survol d'un pod. */
   playerCard?(uid: string): Promise<PlayerCardData>;
+  /** Jokers en poche (échoppe) et utilisation pendant la partie (joker.use). */
+  jokers?(): Promise<number>; useJoker?(): Promise<void>;
   /** Son coupé ou remis depuis la table : enregistré aussi dans le profil (réglage « Sons de la table »). */
   saveSound?(on: boolean): void;
 }
@@ -176,7 +180,7 @@ export class TableView {
         <div class="opps" id="opps" aria-label="Adversaires"></div>
         <section class="board" id="table" aria-label="Table de jeu"><div class="bstage" id="bstage"><div class="rim"></div><div class="mat">${roseSVG()}</div><div id="layer"></div></div></section>
         <div id="action" aria-live="polite"><div class="prompt">Chargement de la partie…</div></div>
-        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span></div><div id="hand"></div><div class="qemo">${[EMOTES[0], EMOTES[1], EMOTES[3]].map(e => `<button data-emo="${esc(e)}">${esc(e)}</button>`).join('')}<button id="emoWrite" aria-label="Écrire une réaction">✎</button></div></section>
+        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span><button class="tb jokerbtn" id="bJoker" hidden></button></div><div id="hand"></div><div class="qemo">${[EMOTES[0], EMOTES[1], EMOTES[3]].map(e => `<button data-emo="${esc(e)}">${esc(e)}</button>`).join('')}<button id="emoWrite" aria-label="Écrire une réaction">✎</button></div></section>
       </div>
       <aside class="side" id="side">
         <div class="drawerbar"><button class="tb" id="dSheet">Feuille de scores</button><button class="tb" id="dClose">Fermer</button></div>
@@ -214,6 +218,9 @@ export class TableView {
     const bs = $('#bSound', root);
     const paintSound = () => { bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff; bs.setAttribute('aria-label', soundOn() ? 'Couper le son' : 'Activer le son'); bs.title = bs.getAttribute('aria-label')!; };
     paintSound(); bs.onclick = () => { setSound(!soundOn()); paintSound(); this.backend.saveSound?.(soundOn()); if (soundOn()) sfx.coin(); };
+    // joker : visible seulement en ligne, quand on en a un et qu'il est encore temps de le jouer
+    if (this.backend.jokers) this.backend.jokers().then(n => { this.jokerCount = n; this.paintJoker(); }, () => { /* sans joker */ });
+    $('#bJoker', root).onclick = () => this.playJoker();
     // cartes animées : toutes / les miennes / aucune (localStorage pli.cartesAnimees), modifiable à tout moment
     const an = $('#anim', root) as HTMLSelectElement; an.value = getAnimMode();
     an.onchange = () => setAnimMode(an.value as AnimMode);
@@ -282,6 +289,7 @@ export class TableView {
         const ev = this.queue.shift();
         this.pub = ev.snap; this.evk = ev.k; const last = ev.snap.log?.at(-1);
         if (ev.k === 'lise') this.startLise(ev.by, ev.seat, ev.pos);
+        if (ev.k === 'joker' && this.pub) toast(`${ev.seat === this.mySeat ? 'Vous jouez' : esc(this.pub.players[ev.seat]?.name ?? '?') + ' joue'} un joker : une manche de 10 cartes en plus à la fin.`);
         if (last && JSON.stringify(this.logLines.at(-1)) !== JSON.stringify(last)) this.logLines.push(last);
         if (ev.k === 'trick') this.banner = ev.msg; else if (ev.k !== 'play') this.banner = null;
         this.render();
@@ -319,11 +327,12 @@ export class TableView {
     setHTML($('#gRound', this.root), pb.round ? `Manche ${pb.round}` : 'Partie');
     // téléphone : « Manche 7 · pli 2/7 » ; ordinateur : « sur 10 · 7 cartes · pli 2 sur 7 »
     if (this.mob) { setHTML($('#gSub', this.root), pb.phase === 'play' && pb.trickNo ? `· pli ${pb.trickNo}/${pb.cards}` : pb.phase === 'bid' ? '· mises' : ''); }
-    const parts = [pb.round > roundsOf(pb.opts) ? 'départage' : `sur ${plannedRounds(pb)}`]; if (pb.cards) parts.push(`${pb.cards} carte${pb.cards > 1 ? 's' : ''}`);
+    const parts = [extraKind(pb, pb.round) ?? `sur ${plannedRounds(pb)}`]; if (pb.cards) parts.push(`${pb.cards} carte${pb.cards > 1 ? 's' : ''}`);
     if (pb.phase === 'bid') parts.push('mises'); else if (pb.phase === 'play' && pb.trickNo) parts.push(`pli ${pb.trickNo} sur ${pb.cards}`);
     else if (pb.phase === 'end') parts.splice(0, parts.length, 'partie terminée');
     if (!this.mob) setHTML($('#gSub', this.root), parts.join(' · '));
-    let h = ''; for (let r = 1; r <= plannedRounds(pb); r++) h += `<i class="${r < pb.round || pb.phase === 'end' ? 'done' : r === pb.round ? 'now' : ''}${r > roundsOf(pb.opts) ? ' xtra' : ''}" title="Manche ${r}${r > roundsOf(pb.opts) ? ' (départage)' : ''}"></i>`;
+    let h = ''; for (let r = 1; r <= plannedRounds(pb); r++) h += `<i class="${r < pb.round || pb.phase === 'end' ? 'done' : r === pb.round ? 'now' : ''}${r > roundsOf(pb.opts) ? ' xtra' : ''}" title="Manche ${r}${extraKind(pb, r) ? ` (${extraKind(pb, r)})` : ''}"></i>`;
+    this.paintJoker();
     setHTML($('#gDots', this.root), h);
   }
   /** Met le plateau (1040 × 520) à l'échelle de la place disponible ; l'action et la main prennent la même largeur. */
@@ -355,6 +364,20 @@ export class TableView {
   private animOwned: Set<string>[] = [];
   private offAnim: (() => void) | null = null;
   private trickAnim: { card: HTMLElement; seat: number } | null = null;
+  private jokerCount = 0;
+  private jokerOk() { const pb = this.pub; return !!pb && !!this.backend.useJoker && this.mySeat != null && this.jokerCount > 0 && pb.phase !== 'end' && pb.round < plannedRounds(pb) && !(pb.jokers ?? []).includes(this.mySeat); }
+  private paintJoker() {
+    const b = this.root.querySelector('#bJoker') as HTMLButtonElement | null; if (!b) return;
+    b.hidden = !this.jokerOk(); b.textContent = `Joker ×${this.jokerCount}`;
+    b.title = 'Ajouter une manche de 10 cartes à la fin de la partie';
+  }
+  private async playJoker() {
+    if (!this.jokerOk()) return;
+    const ok = await modal('<h2>Jouer un joker ?</h2><p class="sub">Une manche de 10 cartes s\'ajoute à la fin de la partie, pour tout le monde. Un seul joker par joueur et par partie ; la partie reste classée.</p>', [{ label: 'Jouer le joker', value: true }, { label: 'Annuler', value: null, cls: 'alt' }]);
+    if (!ok) return;
+    try { await this.backend.useJoker!(); this.jokerCount--; this.paintJoker(); }
+    catch (e: any) { toast(e?.message || 'Joker impossible pour l\'instant.', 'err'); }
+  }
   setAnimCards(list: Set<string>[]) { this.animOwned = list; if (this.pub) this.render(); }
   /** Le réglage et l'appareil permettent d'animer les cartes de ce siège. */
   private animOn(seat: number) {
@@ -509,9 +532,11 @@ export class TableView {
       { label: `Vitesse : ${this.speed === 1 ? 'normale' : this.speed > 1 ? 'lente' : 'rapide'}`, value: 'speed', cls: 'alt' },
       { label: `Ambiance : ${getAmbiance()}`, value: 'amb', cls: 'alt' },
       { label: `Cartes animées : ${ANIM_MODES.find(([m]) => m === getAnimMode())![1]}`, value: 'anim', cls: 'alt' },
+      ...(this.jokerOk() ? [{ label: `Jouer un joker (×${this.jokerCount})`, value: 'joker', cls: 'alt' }] : []),
       { label: 'Quitter la table', value: 'exit', cls: 'alt' }, { label: 'Fermer', value: null }]);
     if (v === 'last') this.lastTrickModal(); else if (v === 'rules') modal(rulesHTML()); else if (v === 'exit') this.onExit();
     else if (v === 'sound') { ($('#bSound', this.root) as HTMLButtonElement).click(); }
+    else if (v === 'joker') this.playJoker();
     else if (v === 'anim') { const o = ANIM_MODES.map(([m]) => m), nx = o[(o.indexOf(getAnimMode()) + 1) % o.length]; setAnimMode(nx); toast('Cartes animées : ' + ANIM_MODES.find(([m]) => m === nx)![1]); }
     else if (v === 'amb') { const a = $('#amb', this.root) as HTMLSelectElement; a.value = getAmbiance() === 'sobre' ? 'pirate' : 'sobre'; a.dispatchEvent(new Event('change')); toast('Ambiance : ' + a.value); }
     else if (v === 'speed') { const sp = $('#speed', this.root) as HTMLSelectElement; const o = ['1', '0.45', '1.7']; sp.value = o[(o.indexOf(sp.value) + 1) % 3]; sp.dispatchEvent(new Event('change')); toast('Vitesse : ' + sp.selectedOptions[0].text.toLowerCase()); }
@@ -1200,7 +1225,7 @@ export class TableView {
     const readyLabel = last ? 'Voir le résultat' : 'Je suis prêt';
     const readyBtn = this.mySeat != null ? `<button class="btn gold big" id="rReady">${readyLabel}</button>` : '';
     ov.innerHTML = `<div class="rsheet" role="dialog" aria-modal="true" aria-labelledby="rTitle">
-      <div class="rhead"><div><div class="rsub">Manche ${r}${r > roundsOf(snap.opts) ? ' · départage' : ` sur ${plannedRounds(snap)}`} · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">${last ? 'Fin de la partie' : 'Fin de la manche'}</h2></div>
+      <div class="rhead"><div><div class="rsub">Manche ${r}${extraKind(snap, r) ? ' · ' + extraKind(snap, r) : ` sur ${plannedRounds(snap)}`} · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">${last ? 'Fin de la partie' : 'Fin de la manche'}</h2></div>
         <div class="rready"${last ? ' hidden' : ''}><span id="rCount"></span><div class="rbar"><i style="animation-duration:${READY_S}s"></i></div></div></div>
       <div class="rcols"><span>#</span><span>Pirate</span><span>Mise → plis</span><span>Points</span><span>Bonus</span><span class="r">Manche</span><span class="r">Total</span></div>
       <div class="rrows">${rows}</div>

@@ -75,9 +75,9 @@ const store: Store = {
     return (data ?? []).map(r => r.cosmetic_id);
   },
   async wallet(uid) {
-    const { data, error } = await admin.from('user_wallet').select('coins, chests').eq('user_id', uid).maybeSingle();
+    const { data, error } = await admin.from('user_wallet').select('coins, chests, jokers').eq('user_id', uid).maybeSingle();
     if (error) fail(error, 'porte-monnaie');
-    return { coins: data?.coins ?? 0, chests: data?.chests ?? 0 };
+    return { coins: data?.coins ?? 0, chests: data?.chests ?? 0, jokers: data?.jokers ?? 0 };
   },
   async shopDay(day) {
     const { data, error } = await admin.rpc('shop_day', day ? { p_day: day } : {});

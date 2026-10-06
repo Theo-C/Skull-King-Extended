@@ -979,3 +979,5 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .gdots i.xtra{outline:1.5px dashed rgba(234,208,138,.65);outline-offset:1px}
 /* réactions libres : jusqu'à 60 caractères, sur plusieurs lignes si besoin */
 .tablepage .bubble{max-width:220px;white-space:normal;overflow-wrap:anywhere;text-align:center}
+/* joker : dans l'en-tête de la main, visible seulement quand on peut le jouer */
+.handhead .jokerbtn{margin-left:auto;min-height:32px;padding:0 12px;border-radius:999px;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;border:0;font-weight:800}

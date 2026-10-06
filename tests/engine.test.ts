@@ -125,6 +125,17 @@ for (let g = 0; g < 60; g++) {
   ok('départage : aucune partie ne finit avec des premiers ex aequo', endsTied === 0, endsTied);
   ok('départage : manches de 10 cartes', badCards === 0, badCards);
 }
+// Joker : une manche de 10 cartes en plus, une fois par joueur, avant la dernière manche prévue
+{
+  const T = E.newGame(['A', 'B', 'C'].map((name, i) => ({ name, bot: i > 0 })), { rounds: 2 }, 3131);
+  E.useJoker(T, 0);
+  let twice = false; try { E.useJoker(T, 0); } catch (e) { twice = e instanceof E.RuleError; }
+  ok('joker : manche ajoutée, une seule fois', T.extra === 1 && twice && E.plannedRounds(T) === 3);
+  let bot = false; try { E.useJoker(T, 1); } catch (e) { bot = e instanceof E.RuleError; }
+  ok('joker : pas pour les bots', bot);
+  const U2 = E.newGame(['A', 'B', 'C'].map(name => ({ name, bot: true })), { rounds: 1 }, 77);
+  ok('joker : trop tard pendant la dernière manche', !E.canJoker(U2, 0));
+}
 // Partie à l'envers : de N cartes à 1
 {
   const T = E.newGame(['A', 'B', 'C'].map(name => ({ name, bot: true })), { rounds: 4, reverse: true }, 4242);
