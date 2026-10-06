@@ -17,6 +17,9 @@ export interface Opts {
   reverse: boolean;
 }
 export const DEFAULT_OPTS: Opts = { kraken: true, whale: true, loot: true, powers: true, score: 'sk', exp: true, con: true, volley: true, ray: true, davy: true, plank: true, rounds: 10, reverse: false };
+/** Joker : à la fin de la dernière manche, un joueur qui en possède un peut le poser pour une manche bonus (11 cartes
+ *  après 10 manches), d'où 6 joueurs au plus (74 cartes sans l'extension). Il a JOKER_WAIT_MS pour se décider. */
+export const BONUS_CARDS = 11, BONUS_MAX_PLAYERS = 6, JOKER_WAIT_MS = 20_000;
 export const MAX_ROUNDS = 10;
 /** Nombre de manches d'une partie (10 pour les parties créées avant l'option). */
 export const roundsOf = (o?: Partial<Opts> | null) => { const r = Math.round(Number(o?.rounds)); return r >= 1 && r <= MAX_ROUNDS ? r : MAX_ROUNDS; };
@@ -32,31 +35,27 @@ export interface Player {
 export interface Feats { sirens: number; wild: number; silk: number; abyss: number; mermaidKing: number }
 export interface State {
   v: number; opts: Opts; n: number; players: Player[]; round: number; cards: number; dealer: number; leader: number;
-  phase: 'bid' | 'play' | 'end'; bidsRevealed: boolean; trickNo: number; deck: Card[];
+  phase: 'bid' | 'play' | 'joker' | 'end'; bidsRevealed: boolean; trickNo: number; deck: Card[];
   trick: null | { entries: Entry[]; order: number[]; pos: number; volleyQ: number[]; vpos: number; stage: 'main' | 'volley' | 'plank' | 'powers'; removals: number[]; res: any };
   forced: Record<number, number>; /** qui a imposé la carte (Marie Thorne), pour le haut fait */ forcedBy?: Record<number, number>; alliances: [number, number][]; pending: Pending[]; rosieNext: number | null;
   lastTrick: any; log: LogLine[]; ev?: any[]; rng?: number;
   /** Dernier pouvoir de Marie Thorne : qui a choisi, dans quelle main, à quelle position de l'éventail face cachée. */
   lastLise?: LiseInfo | null;
-  /** Manches ajoutées après les manches prévues : départage d'une égalité en tête, ou joker (10 cartes chacune). */
+  /** Manches de départage ajoutées après les manches prévues (égalité en tête, 10 cartes chacune). */
   extra?: number;
-  /** Sièges qui ont déjà joué leur joker dans cette partie (un par joueur). */
-  jokers?: number[];
+  /** Manche bonus accordée par un Joker (une seule par partie) ; jokerDone : la question a déjà été posée. */
+  bonus?: boolean; jokerDone?: boolean;
+  /** Sièges qui possèdent un Joker (renseigné par le serveur d'après les porte-monnaie, jamais par le site). */
+  jokerOffer?: number[];
+  /** Pendant la phase « joker » : qui peut encore le poser, jusqu'à quand, et qui l'a posé. */
+  joker?: { seats: number[]; until: number; by: number | null } | null;
 }
-/** Un joker se joue avant le début de la dernière manche prévue, une fois par joueur et par partie. */
-export function canJoker(S: State, seat: number): boolean {
-  return S.phase !== 'end' && !S.players[seat]?.bot && S.round < plannedRounds(S) && !(S.jokers ?? []).includes(seat);
+/** Nombre de manches prévues à ce stade : manches choisies, manche bonus du Joker, manches de départage. */
+export const plannedRounds = (S: { opts: Partial<Opts> | null; extra?: number; bonus?: boolean }) => roundsOf(S.opts) + (S.bonus ? 1 : 0) + (S.extra ?? 0);
+/** Nature d'une manche : « bonus » (Joker), « départage » (égalité en tête) ou null pour une manche prévue. */
+export function roundKind(S: { opts: Partial<Opts> | null; bonus?: boolean }, r: number): 'bonus' | 'départage' | null {
+  const R = roundsOf(S.opts); return r <= R ? null : S.bonus && r === R + 1 ? 'bonus' : 'départage';
 }
-/** Joker (acheté à l'échoppe, vérifié par le serveur) : ajoute une manche de 10 cartes à la fin, pour tout le monde. */
-export function useJoker(S: State, seat: number) {
-  if (!canJoker(S, seat)) throw new RuleError(S.round >= plannedRounds(S) ? 'Trop tard : le joker se joue avant la dernière manche.' : 'Vous avez déjà joué votre joker dans cette partie.');
-  (S.jokers ??= []).push(seat);
-  S.extra = (S.extra ?? 0) + 1;
-  log(S, [`${S.players[seat].name} joue un joker : une manche de plus, à 10 cartes, à la fin de la partie`], 'rnd');
-  emit(S, 'joker', { seat });
-}
-/** Nombre de manches prévues à ce stade, manches de départage comprises. */
-export const plannedRounds = (S: { opts: Partial<Opts> | null; extra?: number }) => roundsOf(S.opts) + (S.extra ?? 0);
 /** Au-delà, une égalité persistante reste une égalité (garde-fou contre une partie sans fin). */
 export const MAX_TOTAL_ROUNDS = 20;
 export interface LiseInfo { by: number; seat: number; pos: number; round: number; trickNo: number }
@@ -285,13 +284,15 @@ export function currentSeat(S: State): number | null {
 /** Sièges dont le jeu attend une action (pour savoir à qui c'est le tour). */
 export function waitingFor(S: State): number[] {
   if (S.phase === 'bid') return S.players.map((p, i) => p.bid == null ? i : -1).filter(i => i >= 0);
+  if (S.phase === 'joker') return S.joker?.seats.slice() ?? [];
   const c = currentSeat(S); return c == null ? [] : [c];
 }
 export function publicView(S: State, lite = false, withHist = true) {
   const t = S.trick;
   return {
     round: S.round, cards: S.cards, phase: S.phase, dealer: S.dealer, leader: S.leader, trickNo: S.trickNo, n: S.n,
-    bidsRevealed: S.bidsRevealed, opts: S.opts, deckCount: S.deck.length, extra: S.extra ?? 0, jokers: (S.jokers ?? []).slice(),
+    bidsRevealed: S.bidsRevealed, opts: S.opts, deckCount: S.deck.length, extra: S.extra ?? 0, bonus: !!S.bonus,
+    joker: S.joker ? { seats: S.joker.seats.slice(), until: S.joker.until, by: S.joker.by } : null,
     players: S.players.map(p => ({ name: p.name, bot: p.bot, score: p.score, hist: withHist ? p.hist.slice() : undefined, won: p.won, bid: S.bidsRevealed ? p.bid : null, hasBid: p.bid != null, handCount: p.hand.length, rascal: p.rascal })),
     // copies : chaque instantané doit garder le pli tel qu'il était à ce moment (sinon les bots semblent jouer tous ensemble)
     trick: t ? { entries: t.entries.slice(), stage: t.stage, removals: t.removals.slice(), res: t.res } : null,
@@ -325,12 +326,13 @@ function startRound(S: State) {
   const deck = shuffle(S, buildDeck(S.opts));
   S.round++;
   // manches prévues : 1, 2, 3… cartes (ou l'inverse en partie à l'envers) ; manche de départage : 10 cartes
-  const R = roundsOf(S.opts), want = S.round > R ? MAX_ROUNDS : S.opts.reverse ? R - S.round + 1 : S.round;
+  const R = roundsOf(S.opts), kind = roundKind(S, S.round);
+  const want = kind === 'bonus' ? R + 1 : kind ? MAX_ROUNDS : S.opts.reverse ? R - S.round + 1 : S.round;
   S.cards = Math.min(want, Math.floor(deck.length / S.n));
   S.players.forEach(p => { p.hand = sortHand(deck.splice(0, S.cards)); p.bid = null; p.won = 0; p.bonus = []; p.rascal = 0; });
   S.deck = deck; S.forced = {}; S.forcedBy = {}; S.alliances = []; S.trickNo = 0; S.bidsRevealed = false; S.trick = null; S.pending = []; S.lastTrick = null; S.lastLise = null;
   S.dealer = (S.dealer + 1 + S.n) % S.n; S.leader = (S.dealer + 1) % S.n; S.phase = 'bid';
-  log(S, [`Manche ${S.round}${S.round > R ? ' (en plus)' : ''} — ${S.cards} carte${S.cards > 1 ? 's' : ''} par joueur`], 'rnd');
+  log(S, [`Manche ${S.round}${kind ? ` (${kind})` : ''} — ${S.cards} carte${S.cards > 1 ? 's' : ''} par joueur`], 'rnd');
   S.players.forEach(p => { if (p.bot) p.bid = botBid(S, p); });
   emit(S, 'deal');
   checkBids(S);
@@ -485,16 +487,42 @@ function endRound(S: State) {
   S.trick = null;
   emit(S, 'round', { round: S.round });
   if (S.round >= plannedRounds(S)) {
-    // égalité en tête : tout le monde rejoue une manche de 10 cartes, autant de fois qu'il le faut
-    const top = Math.max(...S.players.map(p => p.score));
-    if (S.players.filter(p => p.score === top).length > 1 && S.round < MAX_TOTAL_ROUNDS) {
-      S.extra = (S.extra ?? 0) + 1;
-      log(S, [`Égalité en tête à ${top} points : manche de départage`], 'rnd');
-      startRound(S); return;
+    // Joker : avant les résultats, ceux qui en possèdent un peuvent le poser (une fois par partie, 6 joueurs au plus)
+    const offer = (S.jokerOffer ?? []).filter(i => S.players[i] && !S.players[i].bot);
+    if (!S.jokerDone && S.n <= BONUS_MAX_PLAYERS && offer.length) {
+      S.jokerDone = true; S.phase = 'joker'; S.joker = { seats: offer, until: Date.now() + JOKER_WAIT_MS, by: null };
+      emit(S, 'jokerAsk', { seats: offer.slice() }); return;
     }
-    S.phase = 'end'; log(S, ['Partie terminée'], 'rnd'); emit(S, 'end');
+    finishGame(S);
   }
   else startRound(S);
+}
+/** Fin des manches prévues : manche de départage si les premiers sont à égalité, sinon fin de partie. */
+function finishGame(S: State) {
+  // égalité en tête : tout le monde rejoue une manche de 10 cartes, autant de fois qu'il le faut
+  const top = Math.max(...S.players.map(p => p.score));
+  if (S.players.filter(p => p.score === top).length > 1 && S.round < MAX_TOTAL_ROUNDS) {
+    S.extra = (S.extra ?? 0) + 1;
+    log(S, [`Égalité en tête à ${top} points : manche de départage`], 'rnd');
+    startRound(S); return;
+  }
+  S.phase = 'end'; log(S, ['Partie terminée'], 'rnd'); emit(S, 'end');
+}
+/** Décision du Joker (le serveur a déjà retiré le Joker du porte-monnaie si use est vrai). */
+function applyJoker(S: State, seat: number, use: boolean) {
+  const J = S.joker; if (S.phase !== 'joker' || !J) throw new RuleError("Ce n'est pas le moment du Joker.");
+  const mine = J.seats.includes(seat), late = Date.now() >= J.until;
+  if (use) {
+    if (!mine) throw new RuleError("Vous n'avez pas de Joker à poser.");
+    if (late) throw new RuleError('Trop tard : le délai pour poser le Joker est passé.');
+    J.by = seat; S.bonus = true; S.joker = null;
+    log(S, [`${S.players[seat].name} pose un Joker : la partie continue avec une manche bonus`], 'rnd');
+    emit(S, 'joker', { seat });
+    startRound(S); return;
+  }
+  if (!mine && !late) throw new RuleError('On attend encore la décision du Joker.');
+  J.seats = late ? [] : J.seats.filter(x => x !== seat);
+  if (!J.seats.length) { S.joker = null; finishGame(S); }
 }
 /** Classement final : rang partagé en cas d'égalité. */
 export function finalRanks(S: State) {
@@ -506,11 +534,15 @@ export function finalRanks(S: State) {
 export type Action =
   | { t: 'bid'; n: number }
   | { t: 'play'; id: number; as?: 'pirate' | 'escape'; val?: number; ws?: Suit }
-  | { t: 'choose'; v: any };
+  | { t: 'choose'; v: any }
+  /** Joker : le poser (use) ou passer ; après le délai, n'importe quel joueur peut clore la question (use: false). */
+  | { t: 'joker'; use: boolean };
 export class RuleError extends Error { }
 export function apply(S: State, seat: number, a: Action) {
   if (S.phase === 'end') throw new RuleError('La partie est terminée.');
   const p = S.players[seat]; if (!p) throw new RuleError('Siège inconnu.');
+  if (a.t === 'joker') { applyJoker(S, seat, !!a.use); return; }
+  if (S.phase === 'joker') throw new RuleError('On attend la décision du Joker.');
   if (a.t === 'bid') {
     if (S.phase !== 'bid') throw new RuleError("Ce n'est pas le moment de parier.");
     if (p.bid != null) throw new RuleError('Pari déjà fait.');

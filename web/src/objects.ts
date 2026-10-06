@@ -3,7 +3,11 @@
 // `objectSVG` retombe sur l'avatar qui porte l'objet, grâce à `avatarSVG`.
 import { ART } from './cards';
 import { KEY_OF_FILE } from './animatedCards';
-import { avatarSVG, type Look } from './avatar';
+import { avatarSVG, CATALOG, type Look } from './avatar';
+import { esc } from './util';
+// noms et fonds du catalogue, lus à l'appel (avatar.ts importe aussi ce fichier)
+const CATALOG_BG = new Proxy({} as Record<string, string>, { get: (_t, k: string) => CATALOG.byId['back:' + k]?.bg });
+const NAMES = new Proxy({} as Record<string, string>, { get: (_t, k: string) => CATALOG.byId[k]?.name });
 
 const DEFS = `<defs>
 <linearGradient id="og-gold" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fff2c4"/><stop offset=".35" stop-color="#e8c76a"/><stop offset="1" stop-color="#9a6e1c"/></linearGradient>
@@ -42,7 +46,10 @@ export const DIRECT_OBJECTS = Object.keys(PATHS);
 /** SVG d'un objet 120 × 120. Si l'objet n'a pas de tracé dédié, on retombe sur un avatar qui le porte. */
 export function objectSVG(slot: string, value: string | null, size = 120, color = '#2f5f8a', manteau = '#d9b25a'): string {
   // carte animée : l'illustration de la carte (image fixe), à la hauteur demandée
-  if (slot === 'carte' && value && ART[KEY_OF_FILE[value]]) return `<img src="${ART[KEY_OF_FILE[value]]}" alt="" width="${Math.round(size * 252 / 352)}" height="${size}" style="display:block;border-radius:${Math.round(size / 27)}px" draggable="false">`;
+  // dos de cartes, titre et réaction : petites vignettes dessinées en HTML
+  if (slot === 'card_back') { const bg = value ? (CATALOG_BG[value] ?? null) : null; const w = Math.round(size * .62), h = Math.round(size * .86); return bg ? `<span class="obj-back" style="width:${w}px;height:${h}px;background:${bg}"></span>` : `<span class="obj-back classic" style="width:${w}px;height:${h}px"></span>`; }
+  if (slot === 'title' || slot === 'reaction') return `<span class="obj-${slot === 'title' ? 'plaque' : 'bubble'}">${esc(NAMES[slot + ':' + value] ?? '')}</span>`;
+  if (slot === 'card_anim' && value && ART[KEY_OF_FILE[value]]) return `<img src="${ART[KEY_OF_FILE[value]]}" alt="" width="${Math.round(size * 252 / 352)}" height="${size}" style="display:block;border-radius:${Math.round(size / 27)}px" draggable="false">`;
   if (!value) return `<svg viewBox="0 0 120 120" width="${size}" height="${size}" style="display:block" aria-hidden="true">${DEFS}${PATHS.mystere('#2f5f8a')}</svg>`;
   const path = PATHS[value];
   if (path) return `<svg viewBox="0 0 120 120" width="${size}" height="${size}" style="display:block;overflow:visible" aria-hidden="true">${DEFS}${path(color)}</svg>`;

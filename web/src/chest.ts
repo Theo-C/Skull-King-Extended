@@ -32,7 +32,7 @@ const RAR: Record<string, { label: string; color: string; soft: string; p: strin
   m: { label: 'Mythique',    color: '#c39bff', soft: 'rgba(195,155,255,.7)', p: '1 %',  hold: 2800 },
 };
 const IRID = 'conic-gradient(#ff9ad5,#ffd36b,#8dffb0,#7fc8ff,#c39bff,#ff9ad5)';
-const SLOT_LABEL: Record<string, string> = { carte: 'Carte animée', hat: 'Chapeau', face: 'Yeux et visage', neck: 'Cou', pet: 'Compagnon', bg: 'Décor', frame: 'Cadre' };
+const SLOT_LABEL: Record<string, string> = { card_anim: 'Carte animée', card_back: 'Dos de cartes', title: 'Titre', reaction: 'Réaction rapide', hat: 'Chapeau', face: 'Yeux et visage', neck: 'Cou', pet: 'Compagnon', bg: 'Décor', frame: 'Cadre' };
 
 let stylesInstalled = false;
 function installStyles() {
@@ -173,7 +173,7 @@ export function openChestOverlay(initial: ChestResult | Promise<ChestResult>, cb
       (_, i) => `<svg class="cstar" viewBox="0 0 24 24" style="width:16px;height:16px;animation-delay:${(.2 + i * .15).toFixed(2)}s" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z" fill="${R.color}"/></svg>`).join('');
     return `<div class="crow1"><span class="crlbl${r.rarity === 'm' ? ' irid' : ''}" style="color:${R.color}">${esc(R.label)}</span><span style="display:flex;gap:3px">${stars}</span></div>
           <div class="cname">${esc(r.name)}</div>
-          <div class="csub">${esc(SLOT_LABEL[r.slot] || r.slot)} · ${r.duplicate ? (r.slot === 'carte' ? 'déjà possédée' : 'déjà possédé') + ' · +' + r.coins_gained + ' pièces' : r.slot === 'carte' ? 'nouvelle carte : elle s\'anime quand vous la jouez' : 'nouvel objet'}</div>`;
+          <div class="csub">${esc(SLOT_LABEL[r.slot] || r.slot)} · ${r.duplicate ? (r.slot === 'card_anim' ? 'déjà possédée' : 'déjà possédé') + ' · +' + r.coins_gained + ' pièces' : r.slot === 'card_anim' ? 'nouvelle carte : elle s\'anime quand vous la jouez' : 'nouvel objet'}</div>`;
   };
   const fill = (r: ChestResult) => {
     (ov.querySelector('.count') as HTMLElement).textContent = r.chests > 0 ? r.chests + ' coffre' + (r.chests > 1 ? 's' : '') + ' après celui-ci' : 'dernier coffre';
@@ -252,7 +252,7 @@ export function openChestOverlay(initial: ChestResult | Promise<ChestResult>, cb
       text.classList.add('on');
       actEl.hidden = false;
       // une carte animée ne se porte pas : posséder suffit, on ferme simplement
-      actEl.innerHTML = r.duplicate || r.slot === 'carte'
+      actEl.innerHTML = r.duplicate || r.slot === 'card_anim'
         ? `<button type="button" class="ghost" data-act="again"${r.chests > 0 ? '' : ' hidden'}>Ouvrir le suivant</button><button type="button" class="gold" data-act="close">Continuer</button>`
         : `<button type="button" class="ghost" data-act="again"${r.chests > 0 ? '' : ' hidden'}>Ouvrir le suivant</button><button type="button" class="gold" data-act="equip">Équiper</button>`;
       skipBtn.hidden = true;

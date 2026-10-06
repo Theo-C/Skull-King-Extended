@@ -65,25 +65,20 @@ const store: Store = {
   async cosmetics() {
     // cache 60 s : le catalogue est en données de départ (migration), il bouge rarement
     if (cosmeticsCache && Date.now() - cosmeticsCache.at < 60_000) return cosmeticsCache.rows;
-    const { data, error } = await admin.from('cosmetics').select('id, slot, value, default_owned, how, variants');
+    const { data, error } = await admin.from('items').select('id, slot, value, default_owned, how, variants, price');
     if (error) fail(error, 'catalogue');
     cosmeticsCache = { at: Date.now(), rows: (data ?? []) as CosmeticRow[] };
     return cosmeticsCache.rows;
   },
   async userCosmetics(uid) {
-    const { data, error } = await admin.from('user_cosmetics').select('cosmetic_id').eq('user_id', uid);
+    const { data, error } = await admin.from('user_items').select('item_id').eq('user_id', uid);
     if (error) fail(error, 'inventaire');
-    return (data ?? []).map(r => r.cosmetic_id);
+    return (data ?? []).map(r => r.item_id);
   },
   async wallet(uid) {
     const { data, error } = await admin.from('user_wallet').select('coins, chests, jokers').eq('user_id', uid).maybeSingle();
     if (error) fail(error, 'porte-monnaie');
     return { coins: data?.coins ?? 0, chests: data?.chests ?? 0, jokers: data?.jokers ?? 0 };
-  },
-  async shopDay(day) {
-    const { data, error } = await admin.rpc('shop_day', day ? { p_day: day } : {});
-    if (error) fail(error, 'boutique');
-    return ((data ?? []) as { cosmetic_id: string; price: number }[]).map(r => ({ cosmetic_id: r.cosmetic_id, price: r.price }));
   },
   // GIF en partie : API KLIPY si la clé est configurée (npx supabase secrets set KLIPY_API_KEY=…)
   gif: Deno.env.get('KLIPY_API_KEY') ? klipy(Deno.env.get('KLIPY_API_KEY')!) : undefined,

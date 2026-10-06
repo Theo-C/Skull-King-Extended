@@ -125,16 +125,19 @@ for (let g = 0; g < 60; g++) {
   ok('départage : aucune partie ne finit avec des premiers ex aequo', endsTied === 0, endsTied);
   ok('départage : manches de 10 cartes', badCards === 0, badCards);
 }
-// Joker : une manche de 10 cartes en plus, une fois par joueur, avant la dernière manche prévue
+// Joker : à la fin de la dernière manche, avant les résultats, qui en possède un peut le poser pour une manche bonus
 {
-  const T = E.newGame(['A', 'B', 'C'].map((name, i) => ({ name, bot: i > 0 })), { rounds: 2 }, 3131);
-  E.useJoker(T, 0);
-  let twice = false; try { E.useJoker(T, 0); } catch (e) { twice = e instanceof E.RuleError; }
-  ok('joker : manche ajoutée, une seule fois', T.extra === 1 && twice && E.plannedRounds(T) === 3);
-  let bot = false; try { E.useJoker(T, 1); } catch (e) { bot = e instanceof E.RuleError; }
-  ok('joker : pas pour les bots', bot);
-  const U2 = E.newGame(['A', 'B', 'C'].map(name => ({ name, bot: true })), { rounds: 1 }, 77);
-  ok('joker : trop tard pendant la dernière manche', !E.canJoker(U2, 0));
+  const mk = () => { const T = E.newGame(['A', 'B', 'C'].map((name, k) => ({ name, bot: k > 0 })), { exp: false, rounds: 10 }, 5151); T.jokerOffer = [0]; return T; };
+  const toAsk = (T: E.State) => { let seed = 3; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }; for (let k = 0; k < 5000 && T.phase !== 'joker' && T.phase !== 'end'; k++) { const w = E.waitingFor(T)[0]; E.apply(T, w, randomAction(T, w, r)); E.runBots(T); E.takeEvents(T); } return T; };
+  const T = toAsk(mk());
+  ok('joker : question après la manche 10, avant les résultats', T.phase === 'joker' && T.round === 10 && T.joker!.seats.join() === '0' && T.players[0].hist.length === 10, T.phase);
+  let bot = false; try { E.apply(T, 1, { t: 'joker', use: true }); } catch (e) { bot = e instanceof E.RuleError; }
+  ok("joker : refusé à qui n'en a pas", bot);
+  E.apply(T, 0, { t: 'joker', use: true });
+  ok('joker : manche 11 à 11 cartes, marquée « bonus »', T.round === 11 && T.cards === 11 && T.bonus === true && E.roundKind(T, 11) === 'bonus' && E.roundKind(T, 12) === 'départage');
+  const U2 = toAsk(mk()); E.apply(U2, 0, { t: 'joker', use: false });
+  ok('joker : refusé → résultats (ou départage)', U2.phase === 'end' || E.roundKind(U2, U2.round) === 'départage');
+  ok('joker : 6 joueurs au plus (74 cartes sans extension)', E.buildDeck(E.normalizeOpts({ exp: false })).length >= E.BONUS_CARDS * E.BONUS_MAX_PLAYERS);
 }
 // Partie à l'envers : de N cartes à 1
 {

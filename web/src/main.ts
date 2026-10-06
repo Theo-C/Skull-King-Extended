@@ -7,6 +7,8 @@ import { loginPage, verifyPage } from './pages/auth';
 import { shell } from './account';
 import { profilePage } from './pages/profile';
 import { playerPage } from './pages/player';
+import { casierPage } from './pages/casier';
+import { boutiquePage } from './pages/boutique';
 import { historyPage } from './pages/history';
 import { leaderboardPage } from './pages/leaderboard';
 import { salonByCode } from './pages/salon';
@@ -56,6 +58,8 @@ async function route() {
     case 'rejoindre': if (!user) return needAuth('Connectez-vous pour rejoindre la partie de votre ami.'); shell(user, 'home'); return joinPage(view, (parts[1] || '').toUpperCase());
     case 'partie': if (!user) return needAuth(); shell(user, 'home'); return gamePage(view, parts[1], user.id);
     case 'profil': if (!user) return needAuth(); shell(user, 'profile'); return profilePage(view, user.id, user.email ?? '');
+    case 'casier': if (!user) return needAuth(); shell(user, 'casier'); return casierPage(view, user.id, new URLSearchParams(query));
+    case 'boutique': if (!user) return needAuth(); shell(user, 'shop'); return boutiquePage(view, user.id);
     case 'joueur': if (!user) return needAuth(); if (!/^[0-9a-f-]{36}$/.test(parts[1] || '') || parts[1] === user.id) return go('#/profil'); shell(user, ''); return playerPage(view, parts[1]);
     default: if (!user) return needAuth(); shell(user, 'home'); return homePage(view, user.id);
   }

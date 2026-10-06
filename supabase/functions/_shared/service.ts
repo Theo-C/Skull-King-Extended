@@ -1,5 +1,6 @@
 // Logique serveur des parties, indépendante du stockage (testable en mémoire, branchée sur Supabase dans game/index.ts).
 import * as E from './engine.ts';
+import { levelFor } from './xp.ts';
 import { settleGame, type SettleInput } from './settle.ts';
 
 export interface GameRow { id: string; code: string; host: string; status: 'lobby' | 'playing' | 'finished'; options: any; state: any; version: number; /** dernier coup enregistré */ updated_at?: string }
@@ -8,7 +9,7 @@ export interface Commit {
   patch: { status?: string; options?: any; state?: any };
   secret?: E.State; hands?: { user_id: string; seat: number; data: any }[]; events?: any[]; seats?: SeatRow[];
 }
-export interface CosmeticRow { id: string; slot: string; value: string | null; default_owned: boolean; how: string | null; variants?: string[] | null }
+export interface CosmeticRow { id: string; slot: string; value: string | null; default_owned: boolean; how: string | null; variants?: string[] | null; price?: number | null }
 export interface Store {
   /** Adresse du projet Supabase (https://<ref>.supabase.co) : seule origine acceptée pour les photos de profil. */
   readonly origin: string;
@@ -27,8 +28,6 @@ export interface Store {
   userCosmetics(uid: string): Promise<string[]>;
   /** Porte-monnaie du joueur (pièces et coffres non ouverts). Zéro par défaut si la ligne n'existe pas encore. */
   wallet(uid: string): Promise<{ coins: number; chests: number; jokers: number }>;
-  /** Boutique du jour (3 objets déterministes à partir de la date, prix inclus). */
-  shopDay(day?: string): Promise<{ cosmetic_id: string; price: number }[]>;
   /** API de GIF (KLIPY), clé côté serveur ; absente si la clé n'est pas configurée. */
   gif?: GifApi;
   /** Message Realtime envoyé par le serveur sur le canal d'une partie (« partie-<id> »). */
@@ -74,13 +73,12 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'profile.wardrobe': return wardrobe(store, uid);
     case 'player.card': return playerCard(store, body);
     case 'chest.open': return chestOpen(store, uid);
-    case 'shop.list': return { shop: await store.shopDay() };
+    case 'shop.list': return shopList(store, uid);
     case 'shop.buy': return shopBuy(store, uid, body);
-    case 'chest.buy': { const r = await store.rpc('chest_buy', { p_user: uid }); if (r?.error) throw bad(r.error); return r; }
+    case 'chest.buy': return shopBuy(store, uid, { itemId: 'chest' });
     case 'gif.search': return gifSearch(store, body);
     case 'gif.send': return gifSend(store, uid, body);
-    case 'joker.buy': { const r = await store.rpc('joker_buy', { p_user: uid }); if (r?.error) throw bad(r.error); return r; }
-    case 'joker.use': return withRetry(() => jokerUse(store, uid, body));
+    case 'joker.buy': return shopBuy(store, uid, { itemId: 'joker' });
     case 'history.list': return historyList(store, uid, body);
     case 'history.get': return historyGet(store, uid, body);
     case 'rematch': return rematch(store, uid, body);
@@ -97,7 +95,7 @@ async function mustGame(store: Store, id: any) { const g = typeof id === 'string
 async function create(store: Store, uid: string, body: any) {
   const types = sanitizeSeatTypes(body.seats ?? [{ bot: false }, { bot: true }, { bot: true }, { bot: true }]);
   types[0] = false; // l'hôte occupe le premier siège
-  const options = E.normalizeOpts(body.options);
+  const options = cleanOpts(body.options);
   let g: GameRow | null = null;
   for (let i = 0; i < 8 && !g; i++) g = await store.insertGame({ code: newCode(), host: uid, options });
   if (!g) throw new HttpError(500, 'Impossible de créer un code de partie.');
@@ -129,6 +127,9 @@ async function join(store: Store, uid: string, body: any) {
   const v = await store.commit(g.id, g.version, { patch: {}, seats });
   return v == null ? 'conflict' : { id: g.id };
 }
+/** Options envoyées par le site, normalisées par le moteur. */
+const cleanOpts = (o: any) => E.normalizeOpts(o && typeof o === 'object' ? o : {});
+
 async function leave(store: Store, uid: string, body: any) {
   const g = await mustGame(store, body.id);
   if (g.status !== 'lobby') throw bad('Impossible de quitter une partie commencée.');
@@ -143,7 +144,7 @@ async function lobby(store: Store, uid: string, body: any) {
   if (g.host !== uid) throw new HttpError(403, "Seul l'hôte peut modifier la partie.");
   if (g.status !== 'lobby') throw bad('La partie a déjà commencé.');
   const old = await store.seats(g.id);
-  const options = body.options ? E.normalizeOpts(body.options) : g.options;
+  const options = body.options ? cleanOpts(body.options) : g.options;
   let seats = old;
   if (body.kick != null) {
     // l'hôte retire un joueur du salon : sa place redevient libre
@@ -197,8 +198,20 @@ async function act(store: Store, uid: string, body: any) {
   const S = await store.secret(g.id); if (!S) throw new HttpError(500, 'État de partie manquant.');
   // temps de réflexion pour une carte : depuis le coup précédent (début du tour), mesuré par le serveur
   const thinkMs = body.move?.t === 'play' && g.updated_at ? Date.now() - Date.parse(g.updated_at) : null;
+  // Joker : pendant la dernière manche, le serveur note qui en possède un (porte-monnaie), pour la question posée
+  // avant les résultats ; le poser le retire du porte-monnaie (rendu si le coup n'aboutit pas)
+  if (S.phase === 'play' && !S.jokerDone && S.round >= E.plannedRounds(S) && seats.length <= E.BONUS_MAX_PLAYERS) {
+    const left = await Promise.all(seats.map(async x => x.user_id && !x.bot ? (await store.wallet(x.user_id)).jokers : 0));
+    S.jokerOffer = seats.filter((_, i) => left[i] > 0).map(x => x.seat);
+  }
+  let took = false;
+  if (body.move?.t === 'joker' && body.move.use) {
+    if (S.phase !== 'joker' || !S.joker?.seats.includes(me.seat)) throw bad("Vous n'avez pas de Joker à poser maintenant.");
+    const r = await store.rpc('joker_take', { p_user: uid }); if (r?.error) throw bad(r.error); took = true;
+  }
+  const refund = async () => { if (took) { took = false; await store.rpc('joker_refund', { p_user: uid }); } };
   try { E.apply(S, me.seat, body.move); }
-  catch (e) { if (e instanceof E.RuleError) throw bad(e.message); throw e; }
+  catch (e) { await refund(); if (e instanceof E.RuleError) throw bad(e.message); throw e; }
   E.runBots(S);
   const events = E.takeEvents(S);
   const patch: Commit['patch'] = { state: E.publicView(S) };
@@ -209,7 +222,7 @@ async function act(store: Store, uid: string, body: any) {
     outSeats = seats.map(s => ({ ...s, final_score: S.players[s.seat].score, rank: ranks[s.seat] }));
   }
   const v = await store.commit(g.id, g.version, { patch, secret: S, events, seats: outSeats, ...snapshotsFor(S, seats) });
-  if (v == null) return 'conflict';
+  if (v == null) { await refund(); return 'conflict'; }
   if (thinkMs != null && thinkMs >= 0) {
     try { await store.rpc('play_time_add', { p_user: uid, p_ms: Math.min(Math.round(thinkMs), 120000) }); } catch (e) { console.error('temps de jeu', e); }
   }
@@ -265,16 +278,42 @@ async function validateLook(store: Store, uid: string, look: any): Promise<Recor
     const v = look[key]; if (typeof v !== 'string' || !HEX.test(v)) throw bad('Couleur invalide.');
     out[key] = v;
   }
-  // Vérifier que chaque emplacement (chapeau, visage, cou, compagnon, décor, cadre) pointe sur un objet possédé.
+  // Vérifier que chaque emplacement (chapeau, visage, cou, compagnon, décor, cadre, dos de cartes, titre) pointe sur un objet possédé.
   const needs: { slot: string; value: string | null }[] = [];
   for (const slot of SLOT_KEYS) if (slot in look) {
     const v = look[slot]; if (v !== null && typeof v !== 'string') throw bad('Objet invalide.');
     needs.push({ slot, value: v }); out[slot] = v;
   }
+  // Casier (D8) : dos de cartes et titre (un seul chacun), cartes animées activées, 4 réactions au plus dans l'ordre de la barre
+  const LOOK_ONE: [string, string][] = [['card_back', 'card_back'], ['title', 'title']];
+  for (const [key, slot] of LOOK_ONE) if (key in look) {
+    const v = look[key]; if (v !== null && (typeof v !== 'string' || v.length > 40)) throw bad('Objet invalide.');
+    if (v !== null) needs.push({ slot, value: v }); out[key] = v;
+  }
+  const LOOK_MANY: [string, string, number][] = [['card_anims', 'card_anim', 6], ['reactions', 'reaction', 4]];
+  for (const [key, slot, max] of LOOK_MANY) if (key in look) {
+    const v = look[key];
+    if (!Array.isArray(v) || v.length > max || v.some(x => typeof x !== 'string' || x.length > 40) || new Set(v).size !== v.length)
+      throw bad(key === 'reactions' ? '4 réactions au plus, sans doublon.' : 'Liste de cartes animées invalide.');
+    for (const x of v) needs.push({ slot, value: x }); out[key] = v;
+  }
   const colors = (['htc', 'nkc', 'ptc'] as const).filter(k => k in out);
   if (needs.length || colors.length) {
     const cat = await store.cosmetics();
-    const ownedExtra = new Set(await store.userCosmetics(uid));
+    const bought = new Set(await store.userCosmetics(uid));
+    // objets de niveau et de haut fait : possédés dès que le niveau ou le haut fait est atteint (titres, dos Abysses…)
+    let prog: { level: number; ach: Set<string> } | null = null;
+    const progress = async () => prog ??= await (async () => {
+      const inp = ((await store.rpc('settle_inputs', { p_users: [uid] })) as any)?.[uid] ?? {};
+      return { level: levelFor(Number(inp.xp ?? 0)).level, ach: new Set<string>(inp.achievements ?? []) };
+    })();
+    if (cat.some(c => c.how && /^(title|achievement):/.test(c.how) && needs.some(n => n.slot === c.slot && n.value === c.value))) await progress();
+    const earned = (c: CosmeticRow) => {
+      if (!prog || !c.how) return false;
+      const m = /^title:(\d+)$/.exec(c.how); if (m) return prog.level >= Number(m[1]);
+      return c.how.startsWith('achievement:') && prog.ach.has(c.how.slice(12));
+    };
+    const ownedExtra = { has: (id: string) => { const c = cat.find(x => x.id === id); return bought.has(id) || (!!c && earned(c)); } };
     // couleur d'un objet : seulement une variante d'une version possédée de l'objet porté (le « Bandana violet » est un objet à part) ;
     // sans objet, ou pour un objet sans variantes, la couleur est sans effet et acceptée
     const COLOR_SLOT = { htc: 'hat', nkc: 'neck', ptc: 'pet' } as const;
@@ -341,8 +380,19 @@ async function playerCard(store: Store, body: any) {
 
 /* ---------- Garde-robe ---------- */
 async function wardrobe(store: Store, uid: string) {
-  const [owned, w, shop] = await Promise.all([store.userCosmetics(uid), store.wallet(uid), store.shopDay()]);
-  return { owned, coins: w.coins, chests: w.chests, jokers: w.jokers, shop };
+  const [owned, w] = await Promise.all([store.userCosmetics(uid), store.wallet(uid)]);
+  return { owned, coins: w.coins, chests: w.chests, jokers: w.jokers };
+}
+/** Prix permanents de la Boutique (SPEC « Boutique ») ; les objets de l'échoppe ont leur prix dans le catalogue. */
+export const SHOP_PRICES = { chest: 100, chest3: 270, joker: 150 } as const;
+/** Boutique : porte-monnaie, coffres et bonus, échoppe de la semaine (6 objets, fin le lundi 00:00 heure de Paris). */
+async function shopList(store: Store, uid: string) {
+  const [w, week, owned, cat] = await Promise.all([store.wallet(uid), store.rpc('shop_week_info', {}), store.userCosmetics(uid), store.cosmetics()]);
+  const ids: string[] = week?.item_ids ?? [];
+  return {
+    coins: w.coins, chests: w.chests, jokers: w.jokers, prices: SHOP_PRICES, owned,
+    week: { start: week?.week_start ?? null, ends_at: week?.ends_at ?? null, items: ids.map(id => ({ id, price: cat.find(c => c.id === id)?.price ?? null })) },
+  };
 }
 /* ---------- GIF en partie (A10) ---------- */
 async function gifSearch(store: Store, body: any) {
@@ -368,30 +418,17 @@ async function gifSend(store: Store, uid: string, body: any) {
   await store.broadcast('partie-' + g.id, 'gif', { type: 'gif', userId: uid, seat: me.seat, gifUrl: item.full, w: item.w, h: item.h, at: Date.now() });
   return { ok: true, cooldown: GIF.cooldownS };
 }
-/** Joker joué pendant une partie : retiré du porte-monnaie, puis appliqué à l'état (rendu en cas de conflit). */
-async function jokerUse(store: Store, uid: string, body: any) {
-  const g = await mustGame(store, body.id);
-  if (g.status !== 'playing') throw bad("La partie n'est pas en cours.");
-  const seats = (await store.seats(g.id)).sort((a, b) => a.seat - b.seat);
-  const me = seats.find(s => s.user_id === uid); if (!me) throw new HttpError(403, 'Vous ne jouez pas dans cette partie.');
-  const S = await store.secret(g.id); if (!S) throw new HttpError(500, 'État de partie manquant.');
-  if (!E.canJoker(S, me.seat)) { try { E.useJoker(S, me.seat); } catch (e) { if (e instanceof E.RuleError) throw bad(e.message); throw e; } }
-  const take = await store.rpc('joker_take', { p_user: uid }); if (take?.error) throw bad(take.error);
-  E.useJoker(S, me.seat);
-  const events = E.takeEvents(S);
-  const v = await store.commit(g.id, g.version, { patch: { state: E.publicView(S) }, secret: S, events, ...snapshotsFor(S, seats) });
-  if (v == null) { await store.rpc('joker_refund', { p_user: uid }); return 'conflict'; }
-  return { ok: true, jokers: take.jokers };
-}
 async function chestOpen(store: Store, uid: string) {
   const r = await store.rpc('chest_open', { p_user: uid, p_seed: null });
   if (r?.error) throw bad(r.error);
   // Le site attend { cosmetic_id, slot, value, name, rarity, duplicate, coins_gained, coins, chests } : voir web/src/chest.ts
   return r;
 }
+/** Achat : 'chest', 'chest3', 'joker' ou un objet de l'échoppe de la semaine, en une seule transaction (shop_purchase). */
 async function shopBuy(store: Store, uid: string, body: any) {
-  if (typeof body.cosmetic_id !== 'string' || body.cosmetic_id.length > 48) throw bad('Objet inconnu.');
-  const r = await store.rpc('shop_buy', { p_user: uid, p_cosmetic: body.cosmetic_id });
+  const what = typeof body.itemId === 'string' ? body.itemId : typeof body.cosmetic_id === 'string' ? body.cosmetic_id : null;
+  if (!what || what.length > 48) throw bad('Objet inconnu.');
+  const r = await store.rpc('shop_purchase', { p_user: uid, p_what: what });
   if (r?.error) throw bad(r.error);
   return r;
 }

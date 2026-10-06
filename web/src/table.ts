@@ -1,14 +1,15 @@
 // Vue de la table, partagée par le mode en ligne et l'entraînement hors ligne.
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
-import { cname, leadSuitOf, plannedRounds, resolve, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
+import { cname, leadSuitOf, plannedRounds, resolve, roundKind, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
 import { cardHTML, cardKey, backFace, preloadArt } from './cards';
 import { GifCtl, gifsHidden, setGifsHidden, type GifItem, type GifMsg } from './gif';
+import { impactSound } from './locker';
 import { ANIM, ANIM_MODES, HALO_MS, attachAnim, detachAnim, getAnimMode, onAnimMode, setAnimMode, type AnimMode } from './animatedCards';
 import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
 import { sfx, soundOn, setSound } from './sound';
 import { installCardZoom, setZoomNote } from './zoom';
-import { avatarHTML, CATALOG, type AvatarData, type Look } from './avatar';
+import { avatarHTML, backBg, CATALOG, reactionTexts, titleName, type AvatarData, type Look } from './avatar';
 import { objectSVG } from './objects';
 import { mountAmbiance, fitProps, getAmbiance, setAmbiance } from './ambiance';
 import { levelFor, xpToReach, LEVEL_TITLES, fmt, xpReason as xpLabel } from './xp';
@@ -20,8 +21,6 @@ import { PlayerCardCtl, type PlayerCardData, type SeatSnapshot } from './playerc
 const htmlCache = new WeakMap<Element, string>();
 function setHTML(el: Element, html: string) { if (htmlCache.get(el) !== html) { el.innerHTML = html; htmlCache.set(el, html); } }
 function elFrom(html: string) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild as HTMLElement; }
-/** Manche ajoutée après les manches prévues : « joker » (les premières) ou « départage » (égalité en tête), sinon null. */
-const extraKind = (pb: { opts: any; jokers?: number[] }, r: number) => { const R = roundsOf(pb.opts); return r <= R ? null : r <= R + (pb.jokers?.length ?? 0) ? 'joker' : 'départage'; };
 const center = (r: DOMRect) => [r.left + r.width / 2, r.top + r.height / 2];
 /** Écran tactile sans survol : premier appui = aperçu, second appui = jouer. */
 const TOUCH = () => matchMedia('(hover: none)').matches;
@@ -45,13 +44,9 @@ export interface TableBackend {
   playerCard?(uid: string): Promise<PlayerCardData>;
   /** GIF en partie (A10) : recherche et envoi par le serveur (gif.search, gif.send). */
   gifSearch?(q: string, cat: string, cursor: string | null): Promise<{ items: GifItem[]; next: string | null }>; gifSend?(id: string): Promise<void>;
-  /** Jokers en poche (échoppe) et utilisation pendant la partie (joker.use). */
-  jokers?(): Promise<number>; useJoker?(): Promise<void>;
   /** Son coupé ou remis depuis la table : enregistré aussi dans le profil (réglage « Sons de la table »). */
   saveSound?(on: boolean): void;
 }
-/** Réactions proposées en un clic ; on peut aussi écrire la sienne (60 caractères au plus). */
-export const EMOTES = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
 export const EMOTE_MAX = 60;
 /** Caractères de contrôle et de mise en forme invisibles (sens d'écriture, espaces de largeur nulle). */
 const EMOTE_STRIP = new RegExp('[' + [[0x00, 0x1f], [0x7f, 0x9f], [0x200b, 0x200f], [0x202a, 0x202e], [0x2066, 0x2069]].map(([a, b]) => String.fromCharCode(a) + '-' + String.fromCharCode(b)).join('') + ']', 'g');
@@ -183,13 +178,13 @@ export class TableView {
         <div class="opps" id="opps" aria-label="Adversaires"></div>
         <section class="board" id="table" aria-label="Table de jeu"><div class="bstage" id="bstage"><div class="rim"></div><div class="mat">${roseSVG()}</div><div id="layer"></div></div></section>
         <div id="action" aria-live="polite"><div class="prompt">Chargement de la partie…</div></div>
-        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span><button class="tb jokerbtn" id="bJoker" hidden></button><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button><span class="gifcool" aria-live="polite"></span></div><div id="hand"></div><div class="qemo">${[EMOTES[0], EMOTES[1], EMOTES[3]].map(e => `<button data-emo="${esc(e)}">${esc(e)}</button>`).join('')}<button id="emoWrite" aria-label="Écrire une réaction">✎</button><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button></div></section>
+        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button><span class="gifcool" aria-live="polite"></span></div><div id="hand"></div><div class="qemo"><span class="qreact" data-reacts></span><button id="emoWrite" aria-label="Écrire une réaction">✎</button><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button></div></section>
       </div>
       <aside class="side" id="side">
         <div class="drawerbar"><button class="tb" id="dSheet">Feuille de scores</button><button class="tb" id="dClose">Fermer</button></div>
         <section class="panel"><h3>Classement <small>plis / mise · total</small></h3><div class="ladder" id="mini"></div></section>
         <section class="panel" id="stakesP" hidden><h3>Ce que vaut votre mise</h3><div id="stakes" class="stakes"></div><p class="fine">Les bonus (14, captures, Pacte de Butin) ne comptent que si la mise est exacte.</p></section>
-        <section class="panel"><h3>Réactions</h3><div class="emotes">${EMOTES.map(e => `<button class="emo" data-emo="${esc(e)}">${esc(e)}</button>`).join('')}</div>
+        <section class="panel"><h3>Réactions <small>touches 1 à 4</small></h3><div class="emotes" data-reacts></div>
           <form class="emofree" id="emoFree"><input id="emoText" maxlength="${EMOTE_MAX}" placeholder="Votre réaction…" aria-label="Écrire une réaction" autocomplete="off"><button class="emo" type="submit">Envoyer</button></form></section>
         <section class="panel"><h3>Journal <a href="#" id="allLog" class="more">Tout voir</a></h3><div id="log"></div></section>
       </aside>
@@ -212,6 +207,9 @@ export class TableView {
     $('#action', root).addEventListener('focusin', ev => { const n = coinN(ev); if (n != null) this.renderStakes(n); });
     $('#allLog', root).onclick = ev => { ev.preventDefault(); this.fullLog(); };
     root.addEventListener('click', ev => { const b = (ev.target as HTMLElement).closest('[data-emo]') as HTMLElement | null; if (b) this.sendEmote(b.dataset.emo!); });
+    // touches 1 à 4 : les réactions de la barre (pas pendant la saisie d'un texte)
+    document.addEventListener('keydown', this.onReactKey);
+    this.paintReactions();
     // réaction libre : champ du panneau (ordinateur) ou petite fenêtre (téléphone)
     ($('#emoFree', root) as HTMLFormElement).onsubmit = ev => { ev.preventDefault(); const i = $('#emoText', root) as HTMLInputElement; if (this.sendEmote(i.value)) i.value = ''; };
     ($('#emoWrite', root) as HTMLButtonElement).onclick = async () => {
@@ -235,8 +233,6 @@ export class TableView {
       root.addEventListener('giferror', ev => toast((ev as CustomEvent).detail, 'err'));
     }
     // joker : visible seulement en ligne, quand on en a un et qu'il est encore temps de le jouer
-    if (this.backend.jokers) this.backend.jokers().then(n => { this.jokerCount = n; this.paintJoker(); }, () => { /* sans joker */ });
-    $('#bJoker', root).onclick = () => this.playJoker();
     // cartes animées : toutes / les miennes / aucune (localStorage pli.cartesAnimees), modifiable à tout moment
     const an = $('#anim', root) as HTMLSelectElement; an.value = getAnimMode();
     an.onchange = () => setAnimMode(an.value as AnimMode);
@@ -272,7 +268,7 @@ export class TableView {
   }
   private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
   private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
-  destroy() { this.gif?.destroy(); this.offAnim?.(); this.root.querySelectorAll<HTMLElement>('.card.animated').forEach(detachAnim); this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.roundOpen?.close(); this.playerCardCtl?.destroy(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
+  destroy() { document.removeEventListener('keydown', this.onReactKey); this.gif?.destroy(); this.offAnim?.(); this.root.querySelectorAll<HTMLElement>('.card.animated').forEach(detachAnim); this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.roundOpen?.close(); this.playerCardCtl?.destroy(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {
@@ -305,7 +301,12 @@ export class TableView {
         const ev = this.queue.shift();
         this.pub = ev.snap; this.evk = ev.k; const last = ev.snap.log?.at(-1);
         if (ev.k === 'lise') this.startLise(ev.by, ev.seat, ev.pos);
-        if (ev.k === 'joker' && this.pub) toast(`${ev.seat === this.mySeat ? 'Vous jouez' : esc(this.pub.players[ev.seat]?.name ?? '?') + ' joue'} un joker : une manche de 10 cartes en plus à la fin.`);
+        if (ev.k === 'joker' && this.pub) {
+          const who = ev.seat === this.mySeat ? 'Vous avez posé' : esc(this.pub.players[ev.seat]?.name ?? '?') + ' a posé';
+          const R = roundsOf(this.pub.opts);
+          sfx.coin();
+          await modal(`<h2>Joker !</h2><p class="sub">${who} un Joker : la partie continue avec une manche bonus, la manche ${R + 1}, à ${R + 1} cartes chacun. Les résultats viendront après.</p>`, [{ label: 'À l\'abordage !', value: 1 }]);
+        }
         if (last && JSON.stringify(this.logLines.at(-1)) !== JSON.stringify(last)) this.logLines.push(last);
         if (ev.k === 'trick') this.banner = ev.msg; else if (ev.k !== 'play') this.banner = null;
         this.render();
@@ -343,12 +344,11 @@ export class TableView {
     setHTML($('#gRound', this.root), pb.round ? `Manche ${pb.round}` : 'Partie');
     // téléphone : « Manche 7 · pli 2/7 » ; ordinateur : « sur 10 · 7 cartes · pli 2 sur 7 »
     if (this.mob) { setHTML($('#gSub', this.root), pb.phase === 'play' && pb.trickNo ? `· pli ${pb.trickNo}/${pb.cards}` : pb.phase === 'bid' ? '· mises' : ''); }
-    const parts = [extraKind(pb, pb.round) ?? `sur ${plannedRounds(pb)}`]; if (pb.cards) parts.push(`${pb.cards} carte${pb.cards > 1 ? 's' : ''}`);
+    const parts: string[] = [roundKind(pb, pb.round) ?? `sur ${plannedRounds(pb)}`]; if (pb.cards) parts.push(`${pb.cards} carte${pb.cards > 1 ? 's' : ''}`);
     if (pb.phase === 'bid') parts.push('mises'); else if (pb.phase === 'play' && pb.trickNo) parts.push(`pli ${pb.trickNo} sur ${pb.cards}`);
     else if (pb.phase === 'end') parts.splice(0, parts.length, 'partie terminée');
     if (!this.mob) setHTML($('#gSub', this.root), parts.join(' · '));
-    let h = ''; for (let r = 1; r <= plannedRounds(pb); r++) h += `<i class="${r < pb.round || pb.phase === 'end' ? 'done' : r === pb.round ? 'now' : ''}${r > roundsOf(pb.opts) ? ' xtra' : ''}" title="Manche ${r}${extraKind(pb, r) ? ` (${extraKind(pb, r)})` : ''}"></i>`;
-    this.paintJoker();
+    let h = ''; for (let r = 1; r <= plannedRounds(pb); r++) h += `<i class="${r < pb.round || pb.phase === 'end' ? 'done' : r === pb.round ? 'now' : ''}${r > roundsOf(pb.opts) ? ' xtra' : ''}" title="Manche ${r}${roundKind(pb, r) ? ` (${roundKind(pb, r)})` : ''}"></i>`;
     setHTML($('#gDots', this.root), h);
   }
   /** Met le plateau (1040 × 520) à l'échelle de la place disponible ; l'action et la main prennent la même largeur. */
@@ -372,7 +372,20 @@ export class TableView {
   /* ---------- Avatars (profils des joueurs, transmis par la page de partie) ---------- */
   private avatars: (AvatarData | null)[] = [];
   /** Avatars et couleurs des sièges (null : bot ou joueur sans profil, initiale sur la couleur par défaut). */
-  setAvatars(list: (AvatarData | null)[]) { this.avatars = list; if (this.pub) this.render(); }
+  setAvatars(list: (AvatarData | null)[]) { this.avatars = list; this.paintReactions(); if (this.pub) this.render(); }
+  /** Réactions rapides du joueur (Casier) : 4 au plus, dans l'ordre de la barre. */
+  /** Dos de cartes d'un joueur (Casier) : fond choisi, sinon le dos classique illustré. */
+  private backOf(i: number) { const bg = backBg(this.avatars[i]?.look); return bg ? `<div class="face backc" style="background:${bg}"></div>` : backFace(); }
+  private myReactions() { return this.mySeat == null ? [] : reactionTexts(this.avatars[this.mySeat]?.look); }
+  private paintReactions() {
+    const list = this.myReactions(), html = list.map((t, k) => `<button class="emo" data-emo="${esc(t)}" title="Touche ${k + 1}"><kbd>${k + 1}</kbd>${esc(t)}</button>`).join('');
+    this.root.querySelectorAll<HTMLElement>('[data-reacts]').forEach(el => setHTML(el, html));
+  }
+  private onReactKey = (ev: KeyboardEvent) => {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || !/^[1-4]$/.test(ev.key)) return;
+    const t = ev.target as HTMLElement | null; if (t && (t.closest('input, textarea, select, [contenteditable="true"]') || document.querySelector('#modal:not([hidden])'))) return;
+    const r = this.myReactions()[Number(ev.key) - 1]; if (r) { ev.preventDefault(); this.sendEmote(r); }
+  };
   /** Joueurs connectés à la partie (présence Realtime), pour l'aperçu au survol. */
   private online: Set<string> | null = null;
   setOnline(uids: Set<string>) { this.online = uids; }
@@ -390,20 +403,6 @@ export class TableView {
     const n = this.pub!.players.length, g = geometry(n)[(i - this.bottom() + n) % n], ax = g.px - BW / 2, ay = g.py - 262;
     return Math.abs(ax) > Math.abs(ay) * 1.4 ? { dx: Math.sign(ax) * 90, dy: 0 } : { dx: 0, dy: Math.sign(ay) * 40 };
   }
-  private jokerCount = 0;
-  private jokerOk() { const pb = this.pub; return !!pb && !!this.backend.useJoker && this.mySeat != null && this.jokerCount > 0 && pb.phase !== 'end' && pb.round < plannedRounds(pb) && !(pb.jokers ?? []).includes(this.mySeat); }
-  private paintJoker() {
-    const b = this.root.querySelector('#bJoker') as HTMLButtonElement | null; if (!b) return;
-    b.hidden = !this.jokerOk(); b.textContent = `Joker ×${this.jokerCount}`;
-    b.title = 'Ajouter une manche de 10 cartes à la fin de la partie';
-  }
-  private async playJoker() {
-    if (!this.jokerOk()) return;
-    const ok = await modal('<h2>Jouer un joker ?</h2><p class="sub">Une manche de 10 cartes s\'ajoute à la fin de la partie, pour tout le monde. Un seul joker par joueur et par partie ; la partie reste classée.</p>', [{ label: 'Jouer le joker', value: true }, { label: 'Annuler', value: null, cls: 'alt' }]);
-    if (!ok) return;
-    try { await this.backend.useJoker!(); this.jokerCount--; this.paintJoker(); }
-    catch (e: any) { toast(e?.message || 'Joker impossible pour l\'instant.', 'err'); }
-  }
   setAnimCards(list: Set<string>[]) { this.animOwned = list; if (this.pub) this.render(); }
   /** Le réglage et l'appareil permettent d'animer les cartes de ce siège. */
   private animOn(seat: number) {
@@ -420,6 +419,7 @@ export class TableView {
   private trickAnimate(w: HTMLElement, c: HTMLElement, seat: number, key: string) {
     if (this.trickAnim && this.trickAnim.card !== c) detachAnim(this.trickAnim.card);
     this.trickAnim = { card: c, seat }; attachAnim(c, key);
+    if (seat === this.mySeat && impactSound()) { try { sfx.chord('m'); } catch { /* son indisponible */ } }
     const tcw = w.querySelector('.tcw') as HTMLElement | null; if (!tcw || !this.animMs) return;
     tcw.style.setProperty('--halo', ANIM[key].halo);
     tcw.classList.remove('anim-go'); void tcw.offsetWidth; tcw.classList.add('anim-go');
@@ -481,7 +481,7 @@ export class TableView {
       for (const o of (pb.pending!.opts as any[]) || []) {
         const who = o.v === me ? 'Vous' : pb.players[o.v].name;
         let backs = '';
-        for (let j = 0; j < o.count; j++) backs += `<button class="bk2 ok" data-lseat="${o.v}" data-lpos="${j}" aria-label="Carte ${j + 1} ${o.v === me ? 'de votre main' : esc(de(pb.players[o.v].name))}">${backFace()}</button>`;
+        for (let j = 0; j < o.count; j++) backs += `<button class="bk2 ok" data-lseat="${o.v}" data-lpos="${j}" aria-label="Carte ${j + 1} ${o.v === me ? 'de votre main' : esc(de(pb.players[o.v].name))}">${this.backOf(o.v)}</button>`;
         fans.push(`<div class="lfan pick" role="group" aria-label="${esc(owner(o.v))}" style="${place(o.v, o.count)}"><span class="lname">${esc(who)}</span><div class="lbacks">${backs}</div></div>`);
       }
     } else {
@@ -491,7 +491,7 @@ export class TableView {
         const count = pb.players[lf.seat].handCount, by = lf.by === me ? 'vous' : pb.players[lf.by].name;
         let backs = '';
         // maquettes Marie Thorne / LiseAutres : « Imposée » chez celui qui a choisi, « Choisie par Théo » chez les autres
-        for (let j = 0; j < count; j++) backs += `<div class="bk2 ${j === lf.pos ? 'pick' : 'off'}">${backFace()}${j === lf.pos ? `<span class="listag">${lf.by === me ? 'Imposée' : 'Choisie par ' + esc(by)}</span>` : ''}</div>`;
+        for (let j = 0; j < count; j++) backs += `<div class="bk2 ${j === lf.pos ? 'pick' : 'off'}">${this.backOf(lf.seat)}${j === lf.pos ? `<span class="listag">${lf.by === me ? 'Imposée' : 'Choisie par ' + esc(by)}</span>` : ''}</div>`;
         const cap = lf.seat === me ? 'Vous devrez la jouer' : pb.players[lf.seat].name + ' devra la jouer';
         fans.push(`<div class="lfan done" id="liseFan" role="group" aria-label="${esc(owner(lf.seat))}" style="${place(lf.seat, count)}"><span class="lname">${esc(lf.seat === me ? 'Vous' : pb.players[lf.seat].name)}</span><div class="lbacks">${backs}</div><span class="lcap">${esc(cap)}</span></div>`);
       }
@@ -558,12 +558,10 @@ export class TableView {
       { label: `Vitesse : ${this.speed === 1 ? 'normale' : this.speed > 1 ? 'lente' : 'rapide'}`, value: 'speed', cls: 'alt' },
       { label: `Ambiance : ${getAmbiance()}`, value: 'amb', cls: 'alt' },
       { label: `Cartes animées : ${ANIM_MODES.find(([m]) => m === getAnimMode())![1]}`, value: 'anim', cls: 'alt' },
-      ...(this.jokerOk() ? [{ label: `Jouer un joker (×${this.jokerCount})`, value: 'joker', cls: 'alt' }] : []),
       ...(this.gif ? [{ label: `GIF : ${gifsHidden() ? 'masqués' : 'affichés'}`, value: 'gifs', cls: 'alt' }] : []),
       { label: 'Quitter la table', value: 'exit', cls: 'alt' }, { label: 'Fermer', value: null }]);
     if (v === 'last') this.lastTrickModal(); else if (v === 'rules') modal(rulesHTML()); else if (v === 'exit') this.onExit();
     else if (v === 'sound') { ($('#bSound', this.root) as HTMLButtonElement).click(); }
-    else if (v === 'joker') this.playJoker();
     else if (v === 'gifs') { setGifsHidden(!gifsHidden()); toast(gifsHidden() ? 'GIF masqués' : 'GIF affichés'); }
     else if (v === 'anim') { const o = ANIM_MODES.map(([m]) => m), nx = o[(o.indexOf(getAnimMode()) + 1) % o.length]; setAnimMode(nx); toast('Cartes animées : ' + ANIM_MODES.find(([m]) => m === nx)![1]); }
     else if (v === 'amb') { const a = $('#amb', this.root) as HTMLSelectElement; a.value = getAmbiance() === 'sobre' ? 'pirate' : 'sobre'; a.dispatchEvent(new Event('change')); toast('Ambiance : ' + a.value); }
@@ -599,7 +597,7 @@ export class TableView {
     } else if (p.hasBid) { right = `<div class="bidst"><div class="sealed">${SEAL}</div></div>`; status = 'a misé'; }
     else { right = '<div class="bidst"><div class="think"><i></i><i></i><i></i></div></div>'; status = 'réfléchit…'; }
     return `<div class="av">${ring}${this.avatar(i, p.name, 56)}${this.rankBadge(i)}</div>
-      <div class="pinfo"><div class="pn"><span class="nm">${esc(p.name)}</span></div><div class="ps ${gold ? 'gold' : ''}">${status}</div></div>${right}${lead}`;
+      <div class="pinfo"><div class="pn"><span class="nm">${esc(p.name)}</span>${titleName(this.avatars[i]?.look) ? `<span class="ttl">${esc(titleName(this.avatars[i]?.look)!)}</span>` : ''}</div><div class="ps ${gold ? 'gold' : ''}">${status}</div></div>${right}${lead}`;
   }
   renderTable() {
     const pb = this.pub; if (!pb) return;
@@ -747,7 +745,15 @@ export class TableView {
     if (!el || !el.isConnected) { el = document.createElement('div'); el.className = cls; el.textContent = text; el.hidden = true; $('#layer', this.root).append(el); this.pieces[key] = el; }
     return el;
   }
+  private jokerClosed = 0;
   private tick() {
+    // question du Joker : compte à rebours ; une fois le délai passé, un joueur assis clôt la question (le serveur vérifie l'heure)
+    const pb = this.pub;
+    if (pb?.phase === 'joker' && pb.joker) {
+      const left = Math.max(0, Math.ceil((pb.joker.until - Date.now()) / 1000)), jl = this.root.querySelector('#jLeft');
+      if (jl) jl.textContent = String(left);
+      if (!left && this.live && this.mySeat != null && Date.now() - this.jokerClosed > 5000) { this.jokerClosed = Date.now(); this.backend.send({ t: 'joker', use: false }).catch(() => { /* déjà close par un autre joueur */ }); }
+    }
     const el = this.root.querySelector('#tLeft'); if (!el) return;
     el.textContent = Math.ceil(Math.max(0, TURN_S - (Date.now() - this.turnStart) / 1000)) + ' s';
   }
@@ -1098,6 +1104,13 @@ export class TableView {
   private renderAction() {
     const pb = this.pub!, me = this.mySeat, pv = this.priv;
     const name = (i: number) => esc(pb.players[i]?.name ?? '?');
+    if (pb.phase === 'joker' && pb.joker) {
+      const J = pb.joker, left = Math.max(0, Math.ceil((J.until - Date.now()) / 1000)), R = roundsOf(pb.opts);
+      if (this.live && me != null && J.seats.includes(me) && left > 0)
+        return this.setAction(`Fin de la manche ${pb.round} : poser votre Joker ?<small>Une manche bonus de ${R + 1} cartes pour tout le monde avant les résultats. Encore <span id="jLeft">${left}</span> s pour décider.</small>`,
+          [{ label: 'Poser le Joker', cls: 'gold', on: () => this.send({ t: 'joker', use: true }) }, { label: 'Voir les résultats', cls: 'alt', on: () => this.send({ t: 'joker', use: false }) }]);
+      return this.setAction(`Fin de la manche ${pb.round}<small>${J.seats.map(name).join(', ')} peut poser un Joker pour une manche bonus… <span id="jLeft">${left}</span> s</small>`);
+    }
     if (!this.live && this.evk === 'lise' && this.liseNow()) {
       const lf = this.liseNow()!;
       // maquettes LiseCible (la cible), Marie Thorne (celui qui choisit), LiseAutres (les autres joueurs)
@@ -1249,11 +1262,11 @@ export class TableView {
     const ov = document.createElement('div'); ov.className = 'roverlay'; this.copySpd(ov);
     const back = document.activeElement as HTMLElement | null;
     // À la dernière manche, la partie est finie : plus de « prêt pour la suite », juste un bouton pour voir le résultat.
-    const last = r === plannedRounds(snap);
+    const last = r === plannedRounds(snap) && snap.phase !== 'joker'; // question du Joker : la partie peut continuer
     const readyLabel = last ? 'Voir le résultat' : 'Je suis prêt';
     const readyBtn = this.mySeat != null ? `<button class="btn gold big" id="rReady">${readyLabel}</button>` : '';
     ov.innerHTML = `<div class="rsheet" role="dialog" aria-modal="true" aria-labelledby="rTitle">
-      <div class="rhead"><div><div class="rsub">Manche ${r}${extraKind(snap, r) ? ' · ' + extraKind(snap, r) : ` sur ${plannedRounds(snap)}`} · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">${last ? 'Fin de la partie' : 'Fin de la manche'}</h2></div>
+      <div class="rhead"><div><div class="rsub">Manche ${r}${roundKind(snap, r) ? ' · ' + roundKind(snap, r) : ` sur ${plannedRounds(snap)}`} · ${cards} carte${cards > 1 ? 's' : ''}</div><h2 id="rTitle">${last ? 'Fin de la partie' : 'Fin de la manche'}</h2></div>
         <div class="rready"${last ? ' hidden' : ''}><span id="rCount"></span><div class="rbar"><i style="animation-duration:${READY_S}s"></i></div></div></div>
       <div class="rcols"><span>#</span><span>Pirate</span><span>Mise → plis</span><span>Points</span><span>Bonus</span><span class="r">Manche</span><span class="r">Total</span></div>
       <div class="rrows">${rows}</div>

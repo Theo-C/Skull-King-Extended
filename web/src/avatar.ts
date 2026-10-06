@@ -25,6 +25,8 @@ export interface Look {
   ptc?: string;
   bg?: string;
   frame?: string | null;
+  /** Casier : dos de cartes, cartes animées activées, titre, réactions (4 au plus, dans l'ordre de la barre) */
+  card_back?: string | null; card_anims?: string[]; title?: string | null; reactions?: string[];
 }
 
 export interface AvatarData { kind?: 'initial' | 'art' | 'photo' | string | null; art?: number | null; url?: string | null; letter?: string; color?: string | null; look?: Look | null }
@@ -34,11 +36,12 @@ export interface AvatarData { kind?: 'initial' | 'art' | 'photo' | string | null
  *  5 niveaux de rareté : c (Commun) · r (Rare) · e (Épique) · l (Légendaire) · m (Mythique : cartes animées). */
 export type Rar = 'c' | 'r' | 'e' | 'l' | 'm';
 export const CATALOG = (() => {
-  interface Item { id: string; slot: string; value: string | null; name: string; rarity: Rar; defaultOwned: boolean; how: string | null; variantKey?: 'htc' | 'nkc' | 'ptc'; variants?: string[] }
+  /** price : prix à l'échoppe ; bg : fond CSS d'un dos de cartes ; sub : ce qui bouge sur une carte animée. */
+  interface Item { id: string; slot: string; value: string | null; name: string; rarity: Rar; defaultOwned: boolean; how: string | null; variantKey?: 'htc' | 'nkc' | 'ptc'; variants?: string[]; price?: number; bg?: string; sub?: string }
   const C: Item[] = [
     { id: 'hat:none', slot: 'hat', value: null, name: 'Tête nue', rarity: 'c', defaultOwned: true, how: null },
     { id: 'hat:bandana', slot: 'hat', value: 'bandana', name: 'Bandana', rarity: 'c', defaultOwned: true, how: null, variantKey: 'htc', variants: ['#9e2a22', '#2f5f8a', '#3e8e4e'] },
-    { id: 'hat:bandana-violet', slot: 'hat', value: 'bandana', name: 'Bandana violet', rarity: 'c', defaultOwned: false, how: 'shop', variantKey: 'htc', variants: ['#5b3a7a'] },
+    { id: 'hat:bandana-violet', slot: 'hat', value: 'bandana', name: 'Bandana violet', rarity: 'c', defaultOwned: false, how: 'shop', variantKey: 'htc', variants: ['#5b3a7a'], price: 60 },
     { id: 'hat:foulard', slot: 'hat', value: 'foulard', name: 'Foulard noué', rarity: 'c', defaultOwned: true, how: null, variantKey: 'htc', variants: ['#5b3a7a', '#9e2a22', '#c9a14a'] },
     { id: 'hat:tricorne', slot: 'hat', value: 'tricorne', name: 'Tricorne', rarity: 'c', defaultOwned: false, how: 'title:5', variantKey: 'htc', variants: ['#1d1814', '#3a2a1c', '#2a3142'] },
     { id: 'hat:plume', slot: 'hat', value: 'plume', name: 'Chapeau à plume', rarity: 'r', defaultOwned: false, how: 'title:11' },
@@ -55,6 +58,7 @@ export const CATALOG = (() => {
 
     { id: 'neck:none', slot: 'neck', value: null, name: 'Rien', rarity: 'c', defaultOwned: true, how: null },
     { id: 'neck:foulard', slot: 'neck', value: 'foulard', name: 'Foulard', rarity: 'c', defaultOwned: true, how: null, variantKey: 'nkc', variants: ['#9e2a22', '#2f5f8a', '#c9a14a'] },
+    { id: 'neck:foulard-nuit', slot: 'neck', value: 'foulard', name: 'Foulard bleu nuit', rarity: 'c', defaultOwned: false, how: 'shop', variantKey: 'nkc', variants: ['#1f2f4f'], price: 60 },
     { id: 'neck:jabot', slot: 'neck', value: 'jabot', name: 'Jabot de dentelle', rarity: 'e', defaultOwned: false, how: 'chest' },
     { id: 'neck:perles', slot: 'neck', value: 'perles', name: 'Collier de perles', rarity: 'e', defaultOwned: false, how: 'achievement:siren_hunter' },
     { id: 'neck:medaillon', slot: 'neck', value: 'medaillon', name: 'Médaillon d\'or', rarity: 'l', defaultOwned: false, how: 'achievement:silk_thread' },
@@ -62,14 +66,14 @@ export const CATALOG = (() => {
     { id: 'pet:none', slot: 'pet', value: null, name: 'Personne', rarity: 'c', defaultOwned: true, how: null },
     { id: 'pet:mouette', slot: 'pet', value: 'mouette', name: 'Mouette', rarity: 'c', defaultOwned: false, how: 'chest' },
     { id: 'pet:perroquet', slot: 'pet', value: 'perroquet', name: 'Perroquet', rarity: 'r', defaultOwned: false, how: 'chest', variantKey: 'ptc', variants: ['#3e8e4e', '#c0392b', '#2f6fb0'] },
-    { id: 'pet:singe', slot: 'pet', value: 'singe', name: 'Singe', rarity: 'r', defaultOwned: false, how: 'shop' },
+    { id: 'pet:singe', slot: 'pet', value: 'singe', name: 'Singe', rarity: 'r', defaultOwned: false, how: 'shop', price: 150 },
     { id: 'pet:poulpe', slot: 'pet', value: 'poulpe', name: 'Poulpe', rarity: 'l', defaultOwned: false, how: 'achievement:abyss' },
 
     { id: 'bg:mer', slot: 'bg', value: 'mer', name: 'Haute mer', rarity: 'c', defaultOwned: true, how: null },
     { id: 'bg:nuit', slot: 'bg', value: 'nuit', name: 'Nuit étoilée', rarity: 'c', defaultOwned: true, how: null },
     { id: 'bg:taverne', slot: 'bg', value: 'taverne', name: 'Taverne', rarity: 'c', defaultOwned: false, how: 'chest' },
     { id: 'bg:couchant', slot: 'bg', value: 'couchant', name: 'Couchant', rarity: 'r', defaultOwned: false, how: 'chest' },
-    { id: 'bg:tempete', slot: 'bg', value: 'tempete', name: 'Tempête', rarity: 'r', defaultOwned: false, how: 'shop' },
+    { id: 'bg:tempete', slot: 'bg', value: 'tempete', name: 'Tempête', rarity: 'r', defaultOwned: false, how: 'shop', price: 150 },
     { id: 'bg:or', slot: 'bg', value: 'or', name: 'Salle au trésor', rarity: 'l', defaultOwned: false, how: 'title:30' },
 
     { id: 'frame:none', slot: 'frame', value: null, name: 'Sans cadre', rarity: 'c', defaultOwned: true, how: null },
@@ -77,13 +81,52 @@ export const CATALOG = (() => {
     { id: 'frame:tentacules', slot: 'frame', value: 'tentacules', name: 'Tentacules', rarity: 'l', defaultOwned: false, how: 'achievement:kraken_bet' },
     { id: 'frame:or', slot: 'frame', value: 'or', name: 'Cadre d\'or', rarity: 'l', defaultOwned: false, how: 'leaderboard:top3-month' },
 
-    // cartes animées (docs/cartes-animees/SPEC.md) : value = fichier dans web/public/cards/anim/ ; posséder suffit
-    { id: 'carte:kraken', slot: 'carte', value: 'kraken', name: 'Le Kraken', rarity: 'm', defaultOwned: false, how: 'chest' },
-    { id: 'carte:sk', slot: 'carte', value: 'sk', name: 'Skull King', rarity: 'm', defaultOwned: false, how: 'chest' },
-    { id: 'carte:raie', slot: 'carte', value: 'raie', name: 'La Raie Étoilée', rarity: 'm', defaultOwned: false, how: 'chest' },
-    { id: 'carte:baleine', slot: 'carte', value: 'baleine', name: 'La Baleine Fantôme', rarity: 'm', defaultOwned: false, how: 'chest' },
-    { id: 'carte:sirene', slot: 'carte', value: 'sirene', name: 'Alyra', rarity: 'm', defaultOwned: false, how: 'chest' },
-    { id: 'carte:fosse', slot: 'carte', value: 'fosse', name: 'La Fosse des Noyés', rarity: 'm', defaultOwned: false, how: 'chest' },
+    // cartes animées (docs/cartes-animees/SPEC.md) : value = fichier dans web/public/cards/anim/ ; un interrupteur chacune (look.card_anims)
+    { id: 'carte:kraken', slot: 'card_anim', value: 'kraken', name: 'Le Kraken', rarity: 'm', defaultOwned: false, how: 'chest', sub: 'Tentacules et œil rougeoyant' },
+    { id: 'carte:sk', slot: 'card_anim', value: 'sk', name: 'Skull King', rarity: 'm', defaultOwned: false, how: 'chest', sub: 'La barre tourne, l’or scintille' },
+    { id: 'carte:raie', slot: 'card_anim', value: 'raie', name: 'La Raie Étoilée', rarity: 'm', defaultOwned: false, how: 'chest', sub: 'Ailes qui ondulent' },
+    { id: 'carte:baleine', slot: 'card_anim', value: 'baleine', name: 'La Baleine Fantôme', rarity: 'm', defaultOwned: false, how: 'chest', sub: 'Gerbes d’eau, mouettes, houle' },
+    { id: 'carte:sirene', slot: 'card_anim', value: 'sirene', name: 'Alyra', rarity: 'm', defaultOwned: false, how: 'chest', sub: 'Cheveux qui ondulent, bulles' },
+    { id: 'carte:fosse', slot: 'card_anim', value: 'fosse', name: 'La Fosse des Noyés', rarity: 'm', defaultOwned: false, how: 'chest', sub: 'Halo spectral, yeux qui s’allument' },
+
+    // dos de cartes (un seul équipé ; les faces ne changent jamais) — migration 20261016000000_casier_boutique.sql
+    { id: 'back:classique', slot: 'card_back', value: 'classique', name: 'Classique', rarity: 'c', defaultOwned: true, how: null },
+    { id: 'back:marine', slot: 'card_back', value: 'marine', name: 'Carte marine', rarity: 'c', defaultOwned: true, how: null, bg: 'radial-gradient(circle at 50% 50%,#e8dcc0 0 18%,transparent 19%),repeating-linear-gradient(0deg,#1f4f6a 0 10px,#1a4359 10px 20px)' },
+    { id: 'back:voile', slot: 'card_back', value: 'voile', name: 'Voile rapiécée', rarity: 'c', defaultOwned: false, how: 'shop', price: 55, bg: 'linear-gradient(90deg,transparent 48%,#8a7350 48% 52%,transparent 52%),repeating-linear-gradient(0deg,#e6dcc4 0 14px,#d6c9ab 14px 28px)' },
+    { id: 'back:ancre', slot: 'card_back', value: 'ancre', name: 'Ancre et cordage', rarity: 'r', defaultOwned: false, how: 'shop', price: 150, bg: 'radial-gradient(circle at 50% 45%,#c9a14a 0 14%,transparent 15%),linear-gradient(180deg,#1b2b3a,#0f1a24)' },
+    { id: 'back:rose', slot: 'card_back', value: 'rose', name: 'Rose des vents', rarity: 'r', defaultOwned: false, how: 'chest', bg: 'conic-gradient(from 45deg at 50% 50%,#d9b25a 0 12.5%,#2a3e52 0 25%,#d9b25a 0 37.5%,#2a3e52 0 50%,#d9b25a 0 62.5%,#2a3e52 0 75%,#d9b25a 0 87.5%,#2a3e52 0)' },
+    { id: 'back:kraken', slot: 'card_back', value: 'kraken', name: 'Kraken', rarity: 'e', defaultOwned: false, how: 'shop', price: 300, bg: 'radial-gradient(circle at 50% 40%,#c8644b 0 20%,transparent 21%),linear-gradient(180deg,#3a1414,#1a0808)' },
+    { id: 'back:abysses', slot: 'card_back', value: 'abysses', name: 'Abysses', rarity: 'e', defaultOwned: false, how: 'title:22', bg: 'radial-gradient(circle at 30% 70%,#7fffd0 0 3%,transparent 4%),radial-gradient(circle at 70% 30%,#7fffd0 0 2%,transparent 3%),linear-gradient(180deg,#0d3b47,#03141a)' },
+    { id: 'back:or', slot: 'card_back', value: 'or', name: 'Doublons', rarity: 'l', defaultOwned: false, how: 'chest', bg: 'repeating-radial-gradient(circle at 50% 50%,#e2bd62 0 4px,#a77b22 4px 8px)' },
+
+    // titres : ceux des niveaux arrivent avec le niveau, les autres avec leur haut fait
+    { id: 'title:mousse', slot: 'title', value: 'mousse', name: 'Mousse', rarity: 'c', defaultOwned: true, how: 'title:1' },
+    { id: 'title:matelot', slot: 'title', value: 'matelot', name: 'Matelot', rarity: 'c', defaultOwned: false, how: 'title:3' },
+    { id: 'title:gabier', slot: 'title', value: 'gabier', name: 'Gabier', rarity: 'c', defaultOwned: false, how: 'title:5' },
+    { id: 'title:quartier-maitre', slot: 'title', value: 'quartier-maitre', name: 'Quartier-maître', rarity: 'c', defaultOwned: false, how: 'title:8' },
+    { id: 'title:bosco', slot: 'title', value: 'bosco', name: 'Bosco', rarity: 'c', defaultOwned: false, how: 'title:11' },
+    { id: 'title:second', slot: 'title', value: 'second', name: 'Second', rarity: 'r', defaultOwned: false, how: 'title:13' },
+    { id: 'title:capitaine', slot: 'title', value: 'capitaine', name: 'Capitaine', rarity: 'r', defaultOwned: false, how: 'title:16' },
+    { id: 'title:corsaire', slot: 'title', value: 'corsaire', name: 'Corsaire', rarity: 'e', defaultOwned: false, how: 'title:20' },
+    { id: 'title:amiral', slot: 'title', value: 'amiral', name: 'Amiral', rarity: 'l', defaultOwned: false, how: 'title:25' },
+    { id: 'title:legende', slot: 'title', value: 'legende', name: 'Légende des 7 mers', rarity: 'l', defaultOwned: false, how: 'title:30' },
+    { id: 'title:velours', slot: 'title', value: 'velours', name: 'Main de velours', rarity: 'r', defaultOwned: false, how: 'achievement:velvet' },
+    { id: 'title:sirenes', slot: 'title', value: 'sirenes', name: 'Chasseur de sirènes', rarity: 'e', defaultOwned: false, how: 'achievement:siren_hunter' },
+    { id: 'title:capitaine-mers', slot: 'title', value: 'capitaine-mers', name: 'Capitaine des mers', rarity: 'l', defaultOwned: false, how: 'achievement:captain' },
+
+    // réactions rapides : 4 dans la barre au-dessus de la main (touches 1 à 4), le GIF reste toujours en 5e
+    { id: 'reaction:bien-joue', slot: 'reaction', value: 'bien-joue', name: 'Bien joué', rarity: 'c', defaultOwned: true, how: null },
+    { id: 'reaction:aie', slot: 'reaction', value: 'aie', name: 'Aïe…', rarity: 'c', defaultOwned: true, how: null },
+    { id: 'reaction:gg', slot: 'reaction', value: 'gg', name: 'GG', rarity: 'c', defaultOwned: true, how: null },
+    { id: 'reaction:abordage', slot: 'reaction', value: 'abordage', name: 'À l’abordage !', rarity: 'c', defaultOwned: true, how: null },
+    { id: 'reaction:trahison', slot: 'reaction', value: 'trahison', name: 'Trahison !', rarity: 'c', defaultOwned: true, how: null },
+    { id: 'reaction:barbe', slot: 'reaction', value: 'barbe', name: 'Par la barbe !', rarity: 'c', defaultOwned: true, how: null },
+    { id: 'reaction:encore', slot: 'reaction', value: 'encore', name: 'Encore un pli !', rarity: 'c', defaultOwned: true, how: null },
+    { id: 'reaction:dit', slot: 'reaction', value: 'dit', name: 'Je l’avais dit', rarity: 'c', defaultOwned: true, how: null },
+    { id: 'reaction:quartier', slot: 'reaction', value: 'quartier', name: 'Pas de quartier', rarity: 'c', defaultOwned: false, how: 'shop', price: 50 },
+    { id: 'reaction:voiles', slot: 'reaction', value: 'voiles', name: 'Hissez les voiles', rarity: 'r', defaultOwned: false, how: 'chest' },
+    { id: 'reaction:kraken', slot: 'reaction', value: 'kraken', name: 'Le Kraken a faim', rarity: 'e', defaultOwned: false, how: 'chest' },
+    { id: 'reaction:trou', slot: 'reaction', value: 'trou', name: 'Au trou, moussaillon', rarity: 'r', defaultOwned: false, how: 'achievement:kraken_bet' },
   ];
   const bySlot: Record<string, Item[]> = {};
   for (const it of C) (bySlot[it.slot] ||= []).push(it);
@@ -100,6 +143,18 @@ export function withItem(look: Look, cosmeticId: string): Look {
   if (it.variantKey && it.variants?.length) (out as any)[it.variantKey] = it.variants[0];
   return out;
 }
+
+/** Barre de réactions par défaut (4 premières réactions de base), tant que le joueur n'a rien choisi dans le Casier. */
+export const DEFAULT_REACTIONS = ['bien-joue', 'aie', 'gg', 'abordage'];
+/** Textes de la barre de réactions d'un joueur, dans l'ordre (touches 1 à 4). */
+export function reactionTexts(look: Look | null | undefined): string[] {
+  const vals = Array.isArray((look as any)?.reactions) ? (look as any).reactions as string[] : DEFAULT_REACTIONS;
+  return vals.map(v => CATALOG.byId['reaction:' + v]?.name).filter((x): x is string => !!x).slice(0, 4);
+}
+/** Titre affiché sous le nom : celui choisi dans le Casier, sinon null (le titre de niveau s'affiche à la place). */
+export const titleName = (look: Look | null | undefined): string | null => { const v = (look as any)?.title; return v ? CATALOG.byId['title:' + v]?.name ?? null : null; };
+/** Fond CSS du dos de cartes d'un joueur (null : dos classique, l'illustration d'origine). */
+export const backBg = (look: Look | null | undefined): string | null => { const v = (look as any)?.card_back; return v ? CATALOG.byId['back:' + v]?.bg ?? null : null; };
 
 /** Tableau des id de cosmétiques possédés par défaut (libres pour tout le monde). */
 export const defaultOwned = (): string[] => CATALOG.all.filter(c => c.defaultOwned).map(c => c.id);

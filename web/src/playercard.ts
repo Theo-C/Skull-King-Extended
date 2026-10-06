@@ -1,7 +1,7 @@
 // Aperçu d'un joueur au survol d'un pod à la table (maquette ApercuJoueur). Ouvre après 250 ms à la souris,
 // instantanément au focus clavier ou au toucher. Se ferme en quittant la zone, au clic ailleurs, au scroll ou
 // en pressant Échap. Le positionnement évite la main et le pli en cours.
-import { avatarHTML, CATALOG, type Look } from './avatar';
+import { avatarHTML, CATALOG, titleName, type Look } from './avatar';
 import { objectSVG } from './objects';
 import { isGifMuted, toggleGifMute } from './gif';
 import { xpLine } from './xp';
@@ -208,7 +208,7 @@ function fullCardHTML(d: PlayerCardData, s: SeatSnapshot, isMe: boolean): string
   return `<div class="pc-id">${avatarHTML(avatarD, 68, ring(d.color))}
     <div class="pc-idtxt">
       <div class="pc-row1"><b class="pc-nm">${esc(d.pseudo)}</b>${s.online == null ? '' : s.online ? '<span class="pc-chip on">en ligne</span>' : '<span class="pc-chip off">hors ligne</span>'}</div>
-      <span class="pc-lvl">Niv. ${level.level} · ${esc(level.title)}</span>
+      <span class="pc-lvl">Niv. ${level.level} · ${esc(titleName(d.look) ?? level.title)}</span>
       <span class="pc-elo">Élo ${elo}${trendHTML ? ' ' + trendHTML : ''}</span>
     </div></div>
   <div class="pc-game"><div class="pc-hdr"><span>Cette partie</span>${placeStr ? `<b>${esc(placeStr)}</b>` : ''}</div>

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Boutique</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible,a:focus-visible{outline:2px solid #ead08a;outline-offset:2px}
+.gold{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:10px;border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;font-weight:800;font-size:15px;cursor:pointer;text-decoration:none}
+.gold[aria-disabled="true"]{opacity:.45;cursor:default}
+.ghost{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid rgba(234,208,138,.45);background:transparent;color:#f2e7cd;font-weight:800;font-size:15px;cursor:pointer;text-decoration:none}
+.chip{min-height:38px;padding:0 16px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font-weight:800;font-size:14px;cursor:pointer}
+.chip.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.coin{display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%);box-shadow:inset 0 0 0 1px rgba(90,60,10,.6);vertical-align:-2px}
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 14px;border-radius:999px;background:rgba(0,0,0,.3);border:1px solid rgba(234,208,138,.25);font-size:14px;color:#d9cdb6}
+.pill b{color:#ead08a;font-size:16px}
+.h2{margin:0;font-family:'IM Fell English SC',serif;font-weight:400;font-size:24px;color:#f2e7cd}
+.big{position:relative;display:flex;flex-direction:column;gap:10px;padding:18px;border-radius:16px;background:linear-gradient(180deg,rgba(234,208,138,.08),rgba(0,0,0,.3));border:1px solid rgba(234,208,138,.3)}
+.ribbon{position:absolute;right:14px;top:14px;padding:3px 10px;border-radius:999px;background:#c8644b;color:#fff;font-size:12px;font-weight:800}
+.tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px 0;border-radius:14px;background:rgba(0,0,0,.3);border:1px solid rgba(234,208,138,.18);overflow:hidden}
+.tile .bar{align-self:stretch;height:5px;margin-top:auto}
+.price{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;padding:0 14px;border-radius:9px;border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:10px}
+.price[aria-disabled="true"]{background:rgba(255,255,255,.08);color:#a8987f;cursor:default}
+.back{border-radius:7px;box-shadow:0 4px 10px rgba(0,0,0,.5);border:3px solid #f3ead7}
+.soon{display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:14px;border:1px dashed rgba(234,208,138,.25);color:#a8987f;font-size:13px}
+.soon b{color:#d9cdb6;font-size:14.5px}
+@keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.modal{animation:pop .16s ease-out both}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1000px; position: relative; overflow: hidden; background: radial-gradient(ellipse at 30% 0%, #2a1f17 0%, #120e0b 60%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+<dc-import name="AppBar" active="profil" hint-size="100%,64px"></dc-import>
+
+<div style="position: absolute; left: 40px; right: 40px; top: 84px; display: flex; align-items: center; gap: 20px;">
+<h1 style="margin: 0; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 32px; color: #ead08a;">Boutique</h1>
+<div style="display: flex; gap: 6px;"><sc-for list="{{cats}}" as="c" hint-placeholder-count="5"><button class="{{c.cls}}" onClick="{{c.pick}}">{{c.label}}</button></sc-for></div>
+<div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+<span class="pill"><span class="coin"></span><b>{{coins}}</b> pièces</span>
+<span class="pill"><b>{{chests}}</b> coffres</span>
+<span class="pill"><b>{{jokers}}</b> jokers</span>
+<a class="ghost" href="Casier.dc.html" style="min-height: 38px;">Casier</a>
+</div>
+</div>
+
+<!-- contenu principal -->
+<div style="position: absolute; left: 40px; top: 152px; width: 960px; display: flex; flex-direction: column; gap: 26px;">
+
+<sc-if value="{{showEss}}" hint-placeholder-val="{{true}}">
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: baseline; gap: 12px;"><h2 class="h2">Coffres et bonus</h2><span style="font-size: 13.5px; color: #a8987f;">Toujours disponibles</span></div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;">
+<sc-for list="{{ess}}" as="e" hint-placeholder-count="3">
+<div class="big">
+<sc-if value="{{e.deal}}" hint-placeholder-val="{{false}}"><span class="ribbon">{{e.deal}}</span></sc-if>
+<div style="height: 120px; display: flex; align-items: center; justify-content: center;">
+<sc-if value="{{e.isChest}}" hint-placeholder-val="{{true}}"><svg viewBox="0 0 140 110" width="{{e.w}}" height="110" aria-hidden="true"><g transform="{{e.tr}}"><rect x="20" y="48" width="100" height="52" rx="6" fill="#7a4a24" stroke="#3a220f" stroke-width="3"></rect><path d="M20 52 Q70 8 120 52 Z" fill="#8c5a2c" stroke="#3a220f" stroke-width="3"></path><rect x="20" y="58" width="100" height="8" fill="#c9a14a"></rect><rect x="62" y="56" width="16" height="22" rx="3" fill="#e2bd62" stroke="#6b4c14" stroke-width="2"></rect><rect x="30" y="48" width="8" height="52" fill="#c9a14a"></rect><rect x="102" y="48" width="8" height="52" fill="#c9a14a"></rect></g></svg></sc-if>
+<sc-if value="{{e.isJoker}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true"><rect x="28" y="10" width="64" height="96" rx="8" fill="#f3ead7" stroke="#c9a14a" stroke-width="4" transform="rotate(-8 60 58)"></rect><text x="60" y="72" text-anchor="middle" font-family="Pirata One" font-size="44" fill="#7a1f1a" transform="rotate(-8 60 58)">11</text><text x="60" y="96" text-anchor="middle" font-family="Alegreya Sans" font-weight="800" font-size="11" fill="#7a1f1a" transform="rotate(-8 60 58)">BONUS</text></svg></sc-if>
+</div>
+<div style="font-family: 'Pirata One', serif; font-size: 26px; color: #ead08a; line-height: 1;">{{e.name}}</div>
+<div style="font-size: 14px; color: #d9cdb6; line-height: 1.45; min-height: 60px;">{{e.desc}}</div>
+<button class="price" aria-disabled="{{e.dis}}" onClick="{{e.buy}}" style="align-self: flex-start; margin-bottom: 0;"><span class="coin"></span>{{e.price}}</button>
+</div>
+</sc-for>
+</div>
+</section>
+</sc-if>
+
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: baseline; gap: 12px;"><h2 class="h2">{{shopTitle}}</h2><span style="font-size: 13.5px; color: #a8987f;">{{shopSub}}</span></div>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px;">
+<sc-for list="{{shop}}" as="o" hint-placeholder-count="6">
+<div class="tile">
+<span style="height: 96px; display: flex; align-items: center; justify-content: center;">
+<sc-if value="{{o.av}}" hint-placeholder-val="{{true}}"><dc-import name="Avatar" v="{{2}}" color="#d9b25a" look="{{o.look}}" size="{{90}}" hint-size="90px,90px"></dc-import></sc-if>
+<sc-if value="{{o.back}}" hint-placeholder-val="{{false}}"><span class="back" style="width: 62px; height: 88px; background: {{o.bg}};"></span></sc-if>
+<sc-if value="{{o.txt}}" hint-placeholder-val="{{false}}"><span style="font-family: 'Pirata One', serif; font-size: 22px; color: #ead08a; text-align: center; line-height: 1.1;">{{o.txtv}}</span></sc-if>
+</span>
+<span style="font-weight: 800; font-size: 14px; text-align: center;">{{o.name}}</span>
+<span style="font-size: 12px; color: #a8987f;">{{o.kind}}</span>
+<button class="price" aria-disabled="{{o.dis}}" onClick="{{o.buy}}"><sc-if value="{{o.showCoin}}" hint-placeholder-val="{{true}}"><span class="coin"></span></sc-if>{{o.price}}</button>
+<span class="bar" style="background: {{o.rc}};"></span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<sc-if value="{{showSoon}}" hint-placeholder-val="{{true}}">
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<h2 class="h2">Bientôt</h2>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+<div class="soon"><b>Tapis de table</b>Votre tapis, vu par vous seul.</div>
+<div class="soon"><b>Effets d'impact</b>Une signature quand vous remportez un pli.</div>
+<div class="soon"><b>Packs de réactions</b>Phrases et sons rapides.</div>
+<div class="soon"><b>Passe de saison</b>Récompenses à débloquer en jouant.</div>
+</div>
+</section>
+</sc-if>
+</div>
+
+<!-- colonne d'aide -->
+<aside style="position: absolute; left: 1030px; top: 152px; width: 370px; display: flex; flex-direction: column; gap: 14px;">
+<div style="padding: 18px; border-radius: 16px; background: rgba(0,0,0,.28); border: 1px solid rgba(234,208,138,.18); display: flex; flex-direction: column; gap: 10px;">
+<h2 class="h2" style="font-size: 21px;">Gagner des pièces</h2>
+<sc-for list="{{earn}}" as="g" hint-placeholder-count="5"><div style="display: flex; justify-content: space-between; font-size: 14px; color: #d9cdb6;"><span>{{g.l}}</span><b style="color: #ead08a;">{{g.v}}</b></div></sc-for>
+<div style="font-size: 12.5px; color: #a8987f; line-height: 1.4;">Un coffre revient à environ 4 parties gagnées ou 8 parties jouées. L’échoppe ne vend jamais de Légendaire ni de Mythique : ceux-là se gagnent.</div>
+</div>
+<div style="padding: 18px; border-radius: 16px; background: rgba(0,0,0,.28); border: 1px solid rgba(234,208,138,.18); display: flex; flex-direction: column; gap: 8px;">
+<h2 class="h2" style="font-size: 21px;">Le Joker</h2>
+<div style="font-size: 14px; color: #d9cdb6; line-height: 1.5;">Dans le salon, avant de lancer la partie, l'hôte ou un joueur peut poser un Joker : la partie gagne une <b style="color: #f2e7cd;">11e manche bonus</b> (11 cartes chacun) pour tout le monde.</div>
+<div style="font-size: 13px; color: #a8987f; line-height: 1.45;">Un seul Joker par partie · jusqu'à 6 joueurs (au-delà, le paquet ne suffit pas pour 11 cartes chacun) · le Joker est consommé au lancement, rendu si la partie est annulée.</div>
+</div>
+</aside>
+
+<!-- fenêtre d'achat -->
+<sc-if value="{{modal}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; background: rgba(5,3,2,.65); display: flex; align-items: center; justify-content: center; z-index: 50;">
+<div class="modal" role="dialog" aria-modal="true" aria-label="Confirmer l'achat" style="width: 420px; box-sizing: border-box; padding: 24px; border-radius: 18px; background: linear-gradient(180deg, #2b2017, #1a120c); border: 1px solid rgba(234,208,138,.45); box-shadow: 0 24px 60px rgba(0,0,0,.7); display: flex; flex-direction: column; gap: 14px;">
+<sc-if value="{{mAsk}}" hint-placeholder-val="{{true}}">
+<div style="font-family: 'Pirata One', serif; font-size: 28px; color: #ead08a;">{{mName}}</div>
+<div style="font-size: 14.5px; color: #d9cdb6; line-height: 1.45;">{{mDesc}}</div>
+<div style="display: flex; justify-content: space-between; padding: 12px 14px; border-radius: 12px; background: rgba(0,0,0,.3); font-size: 14.5px;"><span>Prix</span><b style="color: #ead08a;"><span class="coin"></span> {{mPrice}}</b></div>
+<div style="display: flex; justify-content: space-between; padding: 0 14px; font-size: 14px; color: #a8987f;"><span>Solde après l'achat</span><span>{{mAfter}} pièces</span></div>
+<div style="display: flex; gap: 10px; justify-content: flex-end;"><button class="ghost" onClick="{{close}}">Annuler</button><button class="gold" onClick="{{confirm}}">Acheter</button></div>
+</sc-if>
+<sc-if value="{{mDone}}" hint-placeholder-val="{{false}}">
+<div style="font-family: 'Pirata One', serif; font-size: 28px; color: #9bd69f;">C'est à vous !</div>
+<div style="font-size: 14.5px; color: #d9cdb6; line-height: 1.45;">{{mDoneTxt}}</div>
+<div style="display: flex; gap: 10px; justify-content: flex-end;"><button class="ghost" onClick="{{close}}">Continuer</button><a class="gold" href="{{mLinkHref}}">{{mLink}}</a></div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  state = { cat: 'all', coins: 340, chests: 2, jokers: 1, owned: {}, modal: null, done: false };
+  renderVals() {
+    var s = this.state;
+    var RC = { c: '#c9d3dc', r: '#4fa8ff', e: '#b77dff', l: '#ffc94a' };
+    var BASE = { skin: 1, hair: 'meche', hc: 1, beard: 'short', hat: null, htc: '#1d1814', face: null, neck: null, nkc: '#9e2a22', pet: null, ptc: '#3e8e4e', bg: 'mer', frame: null };
+    var ESS = [
+      { id: 'chest', name: 'Coffre', price: 100, kind: 'chest', desc: 'Un objet au hasard : Commun 61 %, Rare 26 %, Épique 9 %, Légendaire 3 %, Mythique 1 %. Doublon converti en pièces.' },
+      { id: 'chest3', name: '3 coffres', price: 270, kind: 'chest', deal: '−10 %', desc: 'Trois coffres d’un coup, ouverts à la suite. Même tirage qu’un coffre seul.' },
+      { id: 'joker', name: 'Joker', price: 150, kind: 'joker', desc: 'Ajoute une 11e manche bonus à une partie. Se pose dans le salon avant le lancement.' }
+    ];
+    // échoppe de la semaine : 6 objets (3 communs, 2 rares, 1 épique), renouvelés chaque lundi
+    var SHOP = [
+      { id: 'bandviolet', cat: 'look', name: 'Bandana violet', kind: 'Chapeau', r: 'c', price: 60, look: Object.assign({}, BASE, { hat: 'bandana', htc: '#5b3a7a' }) },
+      { id: 'foulardnuit', cat: 'look', name: 'Foulard bleu nuit', kind: 'Cou', r: 'c', price: 60, look: Object.assign({}, BASE, { neck: 'foulard', nkc: '#2f5f8a' }) },
+      { id: 'quartier', cat: 'social', name: 'Pas de quartier', kind: 'Réaction rapide', r: 'c', price: 50, txt: '« Pas de quartier »' },
+      { id: 'singe', cat: 'look', name: 'Singe', kind: 'Compagnon', r: 'r', price: 150, look: Object.assign({}, BASE, { pet: 'singe' }) },
+      { id: 'tempete', cat: 'look', name: 'Tempête', kind: 'Décor', r: 'r', price: 150, look: Object.assign({}, BASE, { bg: 'tempete' }) },
+      { id: 'dosKraken', cat: 'cards', name: 'Dos Kraken', kind: 'Dos de cartes', r: 'e', price: 300, back: 'radial-gradient(circle at 50% 40%,#c8644b 0 20%,transparent 21%),linear-gradient(180deg,#3a1414,#1a0808)' }
+    ];
+    var cat = s.cat;
+    var list = (cat === 'all' || cat === 'bonus') ? SHOP : SHOP.filter(x => x.cat === cat);
+    var open = (it) => this.setState({ modal: it, done: false });
+    var M = s.modal;
+    var buyNow = () => {
+      if (!M || s.coins < M.price) return;
+      var o = { coins: s.coins - M.price, done: true };
+      if (M.id === 'chest') o.chests = s.chests + 1;
+      else if (M.id === 'chest3') o.chests = s.chests + 3;
+      else if (M.id === 'joker') o.jokers = s.jokers + 1;
+      else { var ow = Object.assign({}, s.owned); ow[M.id] = 1; o.owned = ow; }
+      this.setState(o);
+    };
+    var doneTxt = !M ? '' : (M.kind === 'chest' ? 'Vous avez maintenant ' + s.chests + ' coffre' + (s.chests > 1 ? 's' : '') + ' à ouvrir.' : M.kind === 'joker' ? 'Vous avez ' + s.jokers + ' joker' + (s.jokers > 1 ? 's' : '') + '. Posez-le dans le salon avant une partie.' : M.name + ' est rangé dans votre casier.');
+    return {
+      coins: s.coins, chests: s.chests, jokers: s.jokers,
+      cats: [['all', 'À la une'], ['bonus', 'Coffres et bonus'], ['look', 'Apparence'], ['cards', 'Cartes'], ['social', 'Titres et réactions']].map(c => ({ label: c[1], cls: 'chip' + (cat === c[0] ? ' on' : ''), pick: () => this.setState({ cat: c[0] }) })),
+      showEss: cat === 'all' || cat === 'bonus', showSoon: cat === 'all',
+      ess: ESS.map(e => ({ name: e.name, desc: e.desc, price: e.price, deal: e.deal || '', isChest: e.kind === 'chest', isJoker: e.kind === 'joker', w: e.id === 'chest3' ? 170 : 130,
+        tr: e.id === 'chest3' ? 'translate(-6 4) scale(.9)' : '', dis: String(s.coins < e.price), buy: () => { if (s.coins >= e.price) open(e); } })),
+      shopTitle: (cat === 'all' || cat === 'bonus') ? 'Échoppe de la semaine' : 'Échoppe de la semaine · ' + ({ look: 'Apparence', cards: 'Cartes', social: 'Titres et réactions' })[cat],
+      shopSub: cat === 'all' || cat === 'bonus' ? 'Renouvelée dans 7 h 12 · 5 objets, toutes catégories' : 'Objets de l’échoppe dans cette catégorie',
+      shop: list.map(o => { var has = !!s.owned[o.id], poor = s.coins < o.price;
+        return { name: o.name, kind: o.kind, rc: RC[o.r], av: !!o.look, look: o.look, back: !!o.back, bg: o.back, txt: !!o.txt, txtv: o.txt,
+          price: has ? 'Possédé' : o.price, showCoin: !has, dis: String(has || poor), buy: () => { if (!has && !poor) open(Object.assign({ kind: 'cos', desc: o.kind + ' · ' + ({ c: 'Commun', r: 'Rare', e: 'Épique', l: 'Légendaire' })[o.r] + '. Se range dans votre casier, à équiper quand vous voulez.' }, o)); } }; }),
+      earn: [{ l: 'Partie terminée', v: '+10' }, { l: 'Victoire', v: '+30' }, { l: 'Toutes ses mises tenues', v: '+15' }, { l: 'Haut fait', v: '+50' }, { l: 'Doublon dans un coffre', v: '+30 à +400' }],
+      modal: !!M, mAsk: !!M && !s.done, mDone: !!M && s.done,
+      mName: M ? M.name : '', mDesc: M ? M.desc : '', mPrice: M ? M.price : 0, mAfter: M ? s.coins - M.price : 0,
+      mDoneTxt: doneTxt, mLink: M && M.kind === 'chest' ? 'Ouvrir maintenant' : M && M.kind === 'joker' ? 'Aller au salon' : 'Équiper', mLinkHref: M && M.kind === 'chest' ? 'Coffre.dc.html' : M && M.kind === 'joker' ? 'Salon.dc.html' : 'Casier.dc.html',
+      close: () => this.setState({ modal: null, done: false }), confirm: buyNow
+    };
+  }
+}
+</script>
+</body>
+</html>

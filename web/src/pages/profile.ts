@@ -1,15 +1,14 @@
-// Profil (#/profil) : identité + XP, éditeur d'image (pirate illustré, photo recadrée, initiale), garde-robe, statistiques,
+// Profil (#/profil) : identité + XP, éditeur d'image (pirate illustré, photo recadrée, initiale), résumé du Casier, statistiques,
 // Élo, titres, hauts faits, réglages du compte. Maquette Profil.
 import { sb, callGame } from '../api';
 import { $, esc, toast } from '../util';
 import { myProfile, forgetProfile, shell, applyPrefs, chestBadge, type Profile } from '../account';
-import { avatarHTML, avatarSVG, CATALOG, PALETTE, ART_NAMES, withItem, type AvatarData, type Look, type CosmeticItem } from '../avatar';
+import { avatarHTML, CATALOG, PALETTE, ART_NAMES, titleName, type AvatarData, type Look } from '../avatar';
+import { owns, type Progress } from '../locker';
 import { xpLine, LEVEL_TITLES, xpToReach, fmt } from '../xp';
 import { getAmbiance, setAmbiance } from '../ambiance';
-import { openChestOverlay, type ChestResult } from '../chest';
-import { ART } from '../cards';
 import { gifsHidden, setGifsHidden } from '../gif';
-import { ANIM_MODES, KEY_OF_FILE, attachAnim, detachAnim, getAnimMode, setAnimMode, type AnimMode } from '../animatedCards';
+import { ANIM_MODES, getAnimMode, setAnimMode, type AnimMode } from '../animatedCards';
 
 const COLOR_NAMES = ['Or', 'Corail', 'Algue', 'Lagon', 'Améthyste', 'Ambre', 'Écume', 'Corail rose'];
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z"/></svg>';
@@ -30,7 +29,7 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
     sb.from('game_results').select('elo_before, elo_after, elo_delta, finished_at').eq('user_id', uid).not('elo_delta', 'is', null).order('finished_at', { ascending: false }).limit(15).then(r => (r.data || []).reverse()),
     sb.rpc('leaderboard_period', { scope: 'friends', period: 'ever' }).then(r => r.data || []),
     sb.rpc('leaderboard_period', { scope: 'all', period: 'ever' }).then(r => r.data || []),
-    callGame('profile.wardrobe', {}).catch(() => ({ owned: [], coins: 0, chests: 0, shop: [] as { cosmetic_id: string; price: number }[] })),
+    callGame('profile.wardrobe', {}).catch(() => ({ owned: [], coins: 0, chests: 0, jokers: 0 })),
   ]);
   const st: any = stats || { games: 0, wins: 0, bids_made: 0, bids_total: 0, best_score: null, sirens_captured: 0, elo: 100, elo_best: 100 };
   const x = xpLine(p.xp), next = LEVEL_TITLES.find(([l]) => l > x.level);
@@ -40,6 +39,16 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
   const fr = (friends as any[]).find(r => r.user_id === uid), gl = (global as any[]).find(r => r.user_id === uid);
   const since = created ? new Date(created).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) : '';
   const got = new Set((mine as any[]).map(a => a.code));
+  // résumé du Casier (D8) : l'équipement se fait dans le Casier, les achats à la Boutique
+  const lockerSummary = () => {
+    const w = ward as any, owned = new Set<string>(w.owned ?? []);
+    const prog: Progress = { xp: p.xp, achievements: got, sirens: st.sirens_captured ?? 0, wins: st.wins ?? 0, zeroBids: st.zero_bids_made ?? 0, achNames: new Map() };
+    const total = CATALOG.all.length, have = CATALOG.all.filter(it => owns(it, owned, prog)).length;
+    return `<div class="ls-av">${avatarHTML({ kind: 'art', letter: p.pseudo, color: p.color, look: p.look }, 96, `0 0 0 3px #1b140e,0 0 0 5px ${p.color}`)}</div>
+      <div class="ls-txt"><h2>Casier</h2><span class="ls-title">${esc(titleName(p.look) ?? x.title)}</span>
+        <span class="lbl">${have} objets sur ${total} · ${fmt(w.coins ?? 0)} pièces · ${w.chests ?? 0} coffre${(w.chests ?? 0) > 1 ? 's' : ''} · ${w.jokers ?? 0} joker${(w.jokers ?? 0) > 1 ? 's' : ''}</span></div>
+      <div class="ls-btns"><a class="abtn gold" href="#/casier">Personnaliser</a><a class="abtn ghost" href="#/boutique">Boutique${w.chests ? ' · ouvrir un coffre' : ''}</a></div>`;
+  };
 
   root.innerHTML = `<section class="apage profile">
     <section class="phero">
@@ -53,7 +62,7 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
       </div>
     </section>
     <section class="apanel editor" id="editor" hidden tabindex="-1" aria-label="Modifier l'image de profil"></section>
-    <section class="apanel wardrobe" id="wardrobe" aria-label="Garde-robe"></section>
+    <section class="apanel locker-sum" aria-label="Casier">${lockerSummary()}</section>
     <div class="tiles">
       ${tile(String(st.games), `partie${st.games > 1 ? 's' : ''} jouée${st.games > 1 ? 's' : ''}`)}
       ${tile(String(st.wins), `victoire${st.wins > 1 ? 's' : ''}${st.games ? ` · ${Math.round(100 * st.wins / st.games)} %` : ''}`)}
@@ -107,7 +116,6 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
   const paintHero = (pp: Profile) => { root.querySelector<SVGElement>('svg.echart')?.style.setProperty('--ec', pp.color); $('#heroAv', root).innerHTML = avatarHTML(av(pp), 120, `0 0 0 3px #1b140e,0 0 0 6px ${pp.color}`); $('#heroName', root).textContent = pp.pseudo; };
   paintHero(p);
   const achNames = new Map((all as any[]).map(a => [a.code as string, a.name as string]));
-  openWardrobe(root, uid, p, ward as any, achNames, (saved) => { Object.assign(p, saved); paintHero(p); forgetProfile(); });
   $('#bEdit', root).onclick = () => openEditor(root, uid, p, saved => { Object.assign(p, saved); paintHero(p); forgetProfile(); shell({ id: uid }, 'profile'); });
   $('#bPseudo', root).onclick = async () => {
     const v = ($('#pseudo', root) as HTMLInputElement).value.trim();
@@ -296,252 +304,3 @@ function openEditor(root: HTMLElement, uid: string, p: Profile, onSaved: (s: Par
   };
   paint(); box.scrollIntoView({ behavior: 'smooth', block: 'start' }); box.focus({ preventScroll: true });
 }
-
-/* ---------- Garde-robe ---------- */
-const DEFAULT_LOOK: Look = { skin: 1, hair: 'court', hc: 0, beard: 'none', hat: null, face: null, neck: null, pet: null, bg: 'mer', frame: null };
-// 4 niveaux de rareté, couleurs alignées sur maquettes/Coffre.dc.html
-const RARITY: Record<string, { name: string; color: string }> = {
-  c: { name: 'Commun', color: '#d6dde4' },
-  r: { name: 'Rare', color: '#4fa8ff' },
-  e: { name: 'Épique', color: '#c27dff' },
-  l: { name: 'Légendaire', color: '#ffc94a' },
-  m: { name: 'Mythique', color: '#c39bff' },
-};
-const WT: [string, string][] = [['base', 'Visage'], ['hat', 'Chapeaux'], ['face', 'Yeux et visage'], ['neck', 'Cou'], ['pet', 'Compagnons'], ['bg', 'Décor'], ['frame', 'Cadre'], ['carte', 'Cartes']];
-const HAIR_OPTS: [string, string][] = [['Court', 'court'], ['Mèche', 'meche'], ['Long', 'long'], ['Bouclé', 'boucles'], ['Chignon', 'chignon'], ['Tresse', 'tresse'], ['Queue', 'queue'], ['Rasé', 'none']];
-const BEARD_OPTS: [string, string][] = [['Aucune', 'none'], ['Moustache', 'mous'], ['Barbe courte', 'short'], ['Grande barbe', 'long']];
-const SKIN_SW = ['#f3d2b3', '#e6b48f', '#c98e66', '#a56a45', '#7a4a2c', '#5a3420'];
-const HAIRC_SW = ['#1d1510', '#4a2c1a', '#8a5a2b', '#c9a14a', '#a33a26', '#d8d2c4'];
-const COAT_NAMES = ['Or', 'Corail', 'Algue', 'Lagon', 'Améthyste', 'Ambre', 'Écume', 'Corail rose'];
-const LOCK_ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
-const CHEST_ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h18v9H3zM3 10c0-4 3-6 9-6s9 2 9 6M10 12h4v3h-4z" fill="none" stroke="#2b2117" stroke-width="1.8" stroke-linejoin="round"/></svg>';
-
-interface WardrobeData { owned: string[]; coins: number; chests: number; jokers?: number; shop: { cosmetic_id: string; price: number }[] }
-/** Prix du joker et du coffre à l'échoppe (migrations 20261013000000_joker.sql et 20261014000000_coffre_echoppe.sql). */
-const JOKER_PRICE = 150, CHEST_PRICE = 100;
-
-function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: WardrobeData, achNames: Map<string, string>, onSaved: (s: Partial<Profile>) => void) {
-  const box = $('#wardrobe', root);
-  const st = {
-    tab: 'base',
-    look: { ...DEFAULT_LOOK, ...(p.look || {}) } as Look,
-    saved: { ...DEFAULT_LOOK, ...(p.look || {}) } as Look,
-    color: p.color, savedColor: p.color,
-    owned: new Set<string>(data.owned),
-    coins: data.coins, chests: data.chests, jokers: data.jokers ?? 0,
-    shop: data.shop,
-    busy: false,
-  };
-  const totalItems = CATALOG.all.length;
-  const ownsItem = (it: CosmeticItem) => it.defaultOwned || st.owned.has(it.id);
-  const ownsBySlotValue = (slot: string, value: string | null) =>
-    CATALOG.all.some(c => c.slot === slot && c.value === value && ownsItem(c));
-
-  const render = () => {
-    const ownedCount = CATALOG.all.filter(ownsItem).length;
-    const dirty = JSON.stringify(st.look) !== JSON.stringify(st.saved) || st.color !== st.savedColor;
-    const ring = `0 0 0 3px #1b140e,0 0 0 6px ${st.color}`;
-    const previewAv: AvatarData = { kind: 'art', letter: p.pseudo, color: st.color, look: st.look };
-    const tabCount = (slot: string) => CATALOG.bySlot[slot]?.filter(c => !c.defaultOwned && st.owned.has(c.id)).length ?? 0;
-    const tabs = WT.map(([k, lbl]) => `<button type="button" role="tab" aria-selected="${st.tab === k}" data-t="${k}" class="${st.tab === k ? 'on' : ''}">${esc(lbl)}${k !== 'base' && tabCount(k) ? `<span class="wct">${tabCount(k)}</span>` : ''}</button>`).join('');
-
-    let main = '';
-    if (st.tab === 'base') {
-      const sw = (c: string, label: string, on: boolean, key: string, val: unknown) => `<button type="button" class="wsw${on ? ' on' : ''}" data-base="${key}" data-v="${esc(String(val))}" aria-label="${esc(label)}" aria-pressed="${on}" style="background:${esc(c)}"></button>`;
-      const tile = (label: string, on: boolean, key: string, val: unknown, look: Look) => `<button type="button" class="wtl${on ? ' on' : ''}" data-base="${key}" data-v="${esc(String(val))}" aria-pressed="${on}">${avatarHTML({ kind: 'art', letter: p.pseudo, color: st.color, look }, 56)}<span>${esc(label)}</span></button>`;
-      const rows = [
-        { label: 'Teint', opts: SKIN_SW.map((c, i) => sw(c, 'Teint ' + (i + 1), st.look.skin === i, 'skin', i)) },
-        { label: 'Coiffure', opts: HAIR_OPTS.map(([n, v]) => tile(n, st.look.hair === v, 'hair', v, { ...st.look, hair: v, hat: null })) },
-        { label: 'Couleur des cheveux', opts: HAIRC_SW.map((c, i) => sw(c, 'Cheveux ' + (i + 1), st.look.hc === i, 'hc', i)) },
-        { label: 'Pilosité', opts: BEARD_OPTS.map(([n, v]) => tile(n, st.look.beard === v, 'beard', v, { ...st.look, beard: v, hat: null })) },
-        { label: 'Manteau (sert aussi de couleur à la table)', opts: PALETTE.map((c, i) => sw(c, COAT_NAMES[i], st.color === c, 'color', c)) },
-      ];
-      main = `<div class="wbase">${rows.map(r => `<div class="wbaserow"><span class="lbl">${esc(r.label)}</span><div class="wopts">${r.opts.join('')}</div></div>`).join('')}
-        <span class="lbl">Teint, coiffure et pilosité sont gratuits et modifiables à tout moment. Aucun choix n'est réservé à un genre.</span></div>`;
-    } else if (st.tab === 'carte') {
-      // cartes animées (maquette CartesAnimees) : posséder suffit, pas d'interrupteur ; aperçu vidéo au survol
-      const cards = (CATALOG.bySlot.carte || []).map(it => {
-        const owned = ownsItem(it), key = KEY_OF_FILE[it.value!];
-        return `<div class="witem wcarte${owned ? '' : ' lock'}" data-carte="${esc(key)}" tabindex="0" style="--rar:#c39bff" aria-label="${esc(it.name)}, carte Mythique, ${owned ? 'possédée' : 'à gagner au coffre'}">
-          <span class="wcard"><span class="art"><img src="${ART[key]}" alt="" draggable="false"></span></span>
-          ${!owned ? `<span class="wlock-ico">${LOCK_ICO}</span>` : ''}
-          <span class="wname">${esc(it.name)}</span>
-          <span class="wrar irid">Mythique</span>
-          <span class="whow">${owned ? 'Animée quand vous la jouez' : esc(howLabel(it.how!, achNames)) + ' · 1\u00a0%'}</span>
-        </div>`;
-      }).join('');
-      main = `<p class="lbl wcintro">Leur illustration prend vie à la table, en main et dans le pli. Il suffit de les posséder ; le réglage « Cartes animées » de vos préférences les coupe si besoin.</p><div class="wgrid">${cards}</div>`;
-    } else {
-      const items = (CATALOG.bySlot[st.tab] || []).map(it => {
-        const owned = ownsItem(it), onSel = st.look[it.slot as keyof Look] === it.value;
-        const previewLook: Look = { ...st.look, [it.slot]: it.value };
-        if (it.variantKey && it.variants?.length) (previewLook as any)[it.variantKey] = it.variants[0];
-        const rar = RARITY[it.rarity];
-        const vars = it.variantKey && it.variants?.length
-          ? `<div class="wvars">${it.variants.map(c => `<button type="button" class="wvar" data-item="${esc(it.id)}" data-key="${it.variantKey}" data-c="${esc(c)}" aria-label="Variante ${esc(c)}" style="background:${esc(c)}"${!owned ? ' disabled' : ''}></button>`).join('')}</div>` : '';
-        return `<button type="button" class="witem${onSel ? ' on' : ''}${!owned ? ' lock' : ''}" data-item="${esc(it.id)}" aria-pressed="${onSel}" aria-disabled="${!owned}" style="--rar:${rar.color}">
-          ${avatarHTML({ kind: 'art', letter: p.pseudo, color: st.color, look: previewLook }, 72)}
-          ${!owned ? `<span class="wlock-ico">${LOCK_ICO}</span>` : ''}
-          <span class="wname">${esc(it.name)}</span>
-          <span class="wrar" style="color:${rar.color}">${esc(rar.name)}</span>
-          ${!owned && it.how ? `<span class="whow">${esc(howLabel(it.how, achNames))}</span>` : ''}
-          ${vars}
-        </button>`;
-      }).join('');
-      main = `<div class="wgrid">${items}</div>`;
-    }
-
-    const shopHtml = `<div class="wshop">
-      <span class="wshop-ttl"><b>Échoppe du port</b><span class="lbl">3 objets, renouvelés chaque jour</span></span>
-      ${st.shop.map(s => {
-        const it = CATALOG.byId[s.cosmetic_id]; if (!it) return '';
-        const already = st.owned.has(it.id), notEnough = st.coins < s.price;
-        const label = already ? it.name + ' ✓' : it.name, right = already ? 'acheté' : String(s.price);
-        return `<button type="button" class="wshop-btn" data-buy="${esc(it.id)}" ${already || notEnough ? 'disabled' : ''}>${avatarHTML({ kind: 'art', letter: p.pseudo, color: st.color, look: { ...st.look, [it.slot]: it.value } }, 40)}<span><b>${esc(label)}</b><span class="lbl"><span class="coin"></span>${esc(right)}</span></span></button>`;
-      }).join('')}
-      <button type="button" class="wshop-btn wchestbuy" id="wChestBuy" ${st.coins < CHEST_PRICE ? 'disabled' : ''} title="Un coffre de victoire de plus, à ouvrir tout de suite ou plus tard.">
-        <span class="wjk wck" aria-hidden="true">${CHEST_ICO}</span><span><b>Coffre de victoire</b><span class="lbl"><span class="coin"></span>${CHEST_PRICE} · un objet tiré au sort</span></span></button>
-      <button type="button" class="wshop-btn wjoker" id="wJoker" ${st.coins < JOKER_PRICE ? 'disabled' : ''} title="Jouez-le pendant une partie en ligne, avant la dernière manche : une manche de 10 cartes s'ajoute à la fin, pour tout le monde. Un par partie.">
-        <span class="wjk" aria-hidden="true">J</span><span><b>Joker${st.jokers ? ` · ${st.jokers} en poche` : ''}</b><span class="lbl"><span class="coin"></span>${JOKER_PRICE} · une manche de plus</span></span></button>
-    </div>`;
-
-    box.innerHTML = `<div class="whead">
-        <div class="wlhs"><h2>Garde-robe</h2><span class="lbl">Votre visage est libre ; les accessoires se gagnent en jouant.</span></div>
-        <div class="wrhs">
-          <span class="wpill"><b>${ownedCount}</b>&nbsp;/ ${totalItems} objets</span>
-          <span class="wpill"><span class="coin"></span><b>${fmt(st.coins)}</b>&nbsp;pièces</span>
-          ${st.chests > 0 ? `<button type="button" class="abtn gold" id="wChest">${CHEST_ICO}Ouvrir ${st.chests > 1 ? st.chests + ' coffres' : '1 coffre'} de victoire</button>` : ''}
-        </div>
-      </div>
-      <div class="wmain">
-        <div class="wprev">
-          ${avatarHTML(previewAv, 200, ring)}
-          <div class="wtblp">${avatarHTML(previewAv, 44, `0 0 0 2px #1b140e, 0 0 0 3px ${st.color}`)}<span><b>${esc(p.pseudo)}</b><span class="lbl">à la table</span></span></div>
-          <div class="wbtns"><button type="button" class="abtn ghost" id="wRand">Au hasard</button><button type="button" class="abtn ghost" id="wUndo" ${!dirty ? 'disabled' : ''}>Annuler</button><button type="button" class="abtn gold" id="wSave" ${!dirty ? 'disabled' : ''}>${dirty ? 'Enregistrer' : 'Enregistré ✓'}</button></div>
-        </div>
-        <div class="wright">
-          <div role="tablist" aria-label="Catégories" class="wtabs">${tabs}</div>
-          ${main}
-          ${shopHtml}
-        </div>
-      </div>`;
-
-    // interactions
-    box.querySelectorAll<HTMLButtonElement>('.wtabs button').forEach(b => b.onclick = () => { st.tab = b.dataset.t!; render(); });
-    box.querySelectorAll<HTMLButtonElement>('[data-base]').forEach(b => b.onclick = () => {
-      const k = b.dataset.base!, raw = b.dataset.v!;
-      if (k === 'color') st.color = raw;
-      else if (k === 'skin' || k === 'hc') (st.look as any)[k] = Number(raw);
-      else (st.look as any)[k] = raw;
-      render();
-    });
-    box.querySelectorAll<HTMLButtonElement>('.witem').forEach(b => b.onclick = ev => {
-      if ((ev.target as HTMLElement).closest('.wvar')) return;
-      const id = b.dataset.item!, it = CATALOG.byId[id]; if (!it || !ownsItem(it)) return;
-      (st.look as any)[it.slot] = it.value; render();
-    });
-    box.querySelectorAll<HTMLElement>('.wcarte').forEach(t => {
-      const card = t.querySelector('.wcard') as HTMLElement;
-      const on = () => { if (getAnimMode() !== 'aucune') attachAnim(card, t.dataset.carte!); }, off = () => detachAnim(card);
-      t.onmouseenter = on; t.onmouseleave = off; t.onfocus = on; t.onblur = off;
-    });
-    box.querySelectorAll<HTMLButtonElement>('.wvar').forEach(b => b.onclick = () => {
-      const id = b.dataset.item!, it = CATALOG.byId[id]; if (!it || !ownsItem(it)) return;
-      (st.look as any)[it.slot] = it.value; (st.look as any)[b.dataset.key!] = b.dataset.c; render();
-    });
-    const wChest = box.querySelector('#wChest') as HTMLButtonElement | null;
-    if (wChest) wChest.onclick = () => openChestFlow(wChest);
-    box.querySelectorAll<HTMLButtonElement>('[data-buy]').forEach(b => b.onclick = () => doShopBuy(b));
-    ($('#wChestBuy', box) as HTMLButtonElement).onclick = async () => {
-      const b = $('#wChestBuy', box) as HTMLButtonElement; if (st.busy) return; st.busy = true; b.disabled = true;
-      try { const r = await callGame<{ coins: number; chests: number }>('chest.buy', {}); st.coins = r.coins; st.chests = r.chests; chestBadge(r.chests); toast('Coffre acheté : ouvrez-le avec le bouton « Ouvrir » en haut de la garde-robe.'); }
-      catch (e: any) { toast(e.message, 'err'); } finally { st.busy = false; render(); }
-    };
-    ($('#wJoker', box) as HTMLButtonElement).onclick = async () => {
-      const b = $('#wJoker', box) as HTMLButtonElement; if (st.busy) return; st.busy = true; b.disabled = true;
-      try { const r = await callGame<{ coins: number; jokers: number }>('joker.buy', {}); st.coins = r.coins; st.jokers = r.jokers; toast('Joker acheté : jouez-le pendant une partie en ligne, avant la dernière manche.'); }
-      catch (e: any) { toast(e.message, 'err'); } finally { st.busy = false; render(); }
-    };
-    $('#wRand', box).onclick = () => {
-      const rnd = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-      st.look = { ...st.look, skin: Math.floor(Math.random() * 6), hc: Math.floor(Math.random() * 6), hair: rnd(HAIR_OPTS.map(o => o[1])), beard: rnd(['none', 'none', 'mous', 'short', 'long']) };
-      render();
-    };
-    $('#wUndo', box).onclick = () => { st.look = { ...st.saved }; st.color = st.savedColor; render(); };
-    $('#wSave', box).onclick = () => doSave();
-  };
-
-  /** Couleurs cohérentes avec les objets portés : une couleur qui n'est pas une variante possédée de l'objet porté
-   *  (ex. rouge du bandana gardé sur un tricorne équipé depuis le coffre) revient à la première variante possédée. */
-  const fixColors = (look: Look): Look => {
-    const out: any = { ...look };
-    for (const [slot, key] of [['hat', 'htc'], ['neck', 'nkc'], ['pet', 'ptc']] as const) {
-      const value = out[slot]; if (value == null) continue;
-      const versions = CATALOG.all.filter(c => c.slot === slot && c.value === value && c.variants?.length);
-      if (!versions.length) continue;
-      const owned = versions.filter(c => c.defaultOwned || st.owned.has(c.id)).flatMap(c => c.variants!);
-      if (owned.length && !owned.includes(out[key])) out[key] = owned[0];
-    }
-    return out;
-  };
-
-  async function openChestFlow(btn: HTMLButtonElement) {
-    if (st.busy) return; st.busy = true; btn.disabled = true;
-    try {
-      // Après chaque ouverture, on met à jour le porte-monnaie et l'inventaire local
-      const applyResult = (res: ChestResult) => {
-        st.coins = res.coins; st.chests = res.chests; chestBadge(res.chests);
-        if (!res.duplicate) st.owned.add(res.cosmetic_id);
-        return res;
-      };
-      // la superposition s'ouvre tout de suite ; le tirage du serveur arrive pendant que le coffre tremble
-      openChestOverlay(callGame<ChestResult>('chest.open', {}).then(applyResult), {
-        color: st.color,
-        onEquip: async (_slot, _value, cosmeticId) => {
-          st.look = withItem(st.look, cosmeticId); st.saved = { ...st.look }; st.savedColor = st.color;
-          await callGame('profile.update', { look: st.look });
-          onSaved({ look: { ...st.look } });
-        },
-        onOpenNext: () => callGame<ChestResult>('chest.open', {}).then(applyResult),
-        onError: (e: any) => toast(e?.message || 'Coffre impossible à ouvrir pour l\'instant.', 'err'),
-        onClose: () => { st.busy = false; render(); },
-      });
-    } catch (e: any) { st.busy = false; btn.disabled = false; toast(e.message, 'err'); render(); }
-  }
-  async function doShopBuy(btn: HTMLButtonElement) {
-    if (st.busy) return; const id = btn.dataset.buy!, s = st.shop.find(x => x.cosmetic_id === id); if (!s) return;
-    st.busy = true; btn.disabled = true;
-    try {
-      await callGame('shop.buy', { cosmetic_id: id });
-      st.owned.add(id); st.coins = Math.max(0, st.coins - s.price);
-      toast('Objet ajouté à la garde-robe.');
-    } catch (e: any) { toast(e.message, 'err'); }
-    finally { st.busy = false; render(); }
-  }
-  async function doSave() {
-    const b = $('#wSave', box) as HTMLButtonElement; if (st.busy) return; st.busy = true; b.disabled = true; b.textContent = 'Enregistrement…';
-    try {
-      // on nettoie look : garde seulement les champs connus
-      const l: Record<string, unknown> = {}; st.look = fixColors(st.look);
-      for (const k of ['skin', 'hair', 'hc', 'beard', 'hat', 'htc', 'face', 'neck', 'nkc', 'pet', 'ptc', 'bg', 'frame'] as const) if ((st.look as any)[k] !== undefined) l[k] = (st.look as any)[k];
-      await callGame('profile.update', { look: l, color: st.color });
-      st.saved = { ...st.look }; st.savedColor = st.color;
-      onSaved({ look: { ...st.look }, color: st.color });
-      toast('Apparence enregistrée.');
-    } catch (e: any) { toast(e.message, 'err'); }
-    finally { st.busy = false; render(); }
-  }
-  render();
-}
-
-/** Transforme un code de source d'obtention en texte lisible (nom du haut fait lu dans la table achievements). */
-function howLabel(how: string, achNames: Map<string, string>): string {
-  if (how === 'chest') return 'Coffre de victoire';
-  if (how === 'shop') return 'Échoppe du port';
-  if (how.startsWith('title:')) { const l = Number(how.slice(6)); const t = LEVEL_TITLES.find(([lv]) => lv === l); return t ? `Niveau ${l} · ${t[1]}` : `Niveau ${l}`; }
-  if (how.startsWith('achievement:')) return 'Haut fait · ' + (achNames.get(how.slice(12)) ?? 'à débloquer');
-  if (how === 'leaderboard:top3-month') return 'Top 3 du classement du mois';
-  return how;
-}
-// évite l'avertissement de variables importées non utilisées
-void avatarSVG;

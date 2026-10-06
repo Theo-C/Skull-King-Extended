@@ -38,11 +38,13 @@ export function applyPrefs(p: Pick<Profile, 'sounds' | 'notify_turn'>) {
   try { localStorage.setItem('pli-notify', p.notify_turn === false ? '0' : '1'); } catch { /* stockage indisponible */ }
 }
 
-const NAV: [string, string, string][] = [['home', 'Accueil', '#/'], ['lb', 'Classement', '#/classement'], ['hist', 'Historique', '#/historique'], ['rules', 'Règles', '#/regles']];
+const NAV: [string, string, string][] = [['home', 'Accueil', '#/'], ['lb', 'Classement', '#/classement'], ['hist', 'Historique', '#/historique'], ['casier', 'Casier', '#/casier'], ['shop', 'Boutique', '#/boutique'], ['rules', 'Règles', '#/regles']];
 const TABS: [string, string, string, string][] = [
   ['home', 'Accueil', '#/', 'M4 11l8-7 8 7v9h-5v-6H9v6H4z'],
   ['lb', 'Classement', '#/classement', 'M5 20V12h4v8M10 20V6h4v14M15 20v-5h4v5'],
   ['hist', 'Historique', '#/historique', 'M12 7v5l3 2M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4'],
+  ['casier', 'Casier', '#/casier', 'M5 4h14v16H5zM12 4v16M9 11v2M15 11v2'],
+  ['shop', 'Boutique', '#/boutique', 'M4 9l2-5h12l2 5M4 9h16v11H4zM9 20v-6h6v6'],
   ['profile', 'Profil', '#/profil', 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4-6 8-6s7 2 8 6'],
 ];
 
@@ -52,8 +54,8 @@ export function chestBadge(n: number) {
   let b = nav.querySelector('#chestBadge') as HTMLElement | null;
   if (n <= 0 || !document.body.classList.contains('authed')) { b?.remove(); return; }
   if (!b) { b = document.createElement('a'); b.id = 'chestBadge'; b.className = 'chbadge'; nav.append(b); }
-  b.setAttribute('href', '#/profil');
-  b.setAttribute('aria-label', `${n} coffre${n > 1 ? 's' : ''} à ouvrir dans votre garde-robe`);
+  b.setAttribute('href', '#/boutique');
+  b.setAttribute('aria-label', `${n} coffre${n > 1 ? 's' : ''} à ouvrir dans la boutique`);
   b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h18v9H3zM3 10c0-4 3-6 9-6s9 2 9 6M10 12h4v3h-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span class="chn">${n}</span>`;
 }
 

@@ -73,8 +73,6 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       playerCard: (u: string) => callGame<any>('player.card', { user_id: u }),
       gifSearch: (q, cat, cursor) => callGame('gif.search', { q, cat, cursor }),
       gifSend: async gifId => { await callGame('gif.send', { gameId: id, gifId }); },
-      jokers: async () => Number((await sb.from('user_wallet').select('jokers').eq('user_id', uid).maybeSingle()).data?.jokers ?? 0),
-      useJoker: async () => { await callGame('joker.use', { id }); await sync(); },
       saveSound: on => { callGame('profile.update', { sounds: on }).then(() => forgetProfile(), () => { /* réglage gardé sur cet appareil */ }); },
     }, () => go('#/'));
     // avatars et couleurs des joueurs (les bots gardent l'initiale sur la couleur par défaut)

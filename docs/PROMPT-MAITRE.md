@@ -76,14 +76,10 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
 
   Boutons : « Passer », « Ouvrir le suivant », « Équiper ». Avec `prefers-reduced-motion`, affiche directement le résultat.
 - [ ] D7. Accès au coffre depuis l'écran de fin de partie, depuis la garde-robe du profil, et par un badge dans l'en-tête quand `chests > 0`.
-- [ ] D8. Garde-robe du profil :
-  - onglets Visage / Chapeaux / Yeux / Cou / Compagnons / Décor / Cadre ;
-  - objets verrouillés affichés en silhouette, avec leur condition d'obtention ;
-  - variantes de couleur ;
-  - boutons « Au hasard », « Annuler », « Enregistrer » ;
-  - échoppe : 3 objets par jour.
+- [ ] D8. **Casier** (remplace la garde-robe du profil) : onglets Pirate, Cartes, Titre et réactions, avec aperçu en direct, emplacements, grille filtrable et essayage des objets verrouillés. Voir `docs/casier-boutique/` et les maquettes `Casier`, `CasierDos`, `CasierAnimees`, `CasierTitre`, `CasierReactions`.
 - [ ] D9. Les avatars composés remplacent les initiales partout : table, listes, classement, aperçu au survol.
 - [ ] D11. Cartes animées, rareté Mythique (1 %) : 6 cartes dont l'illustration s'anime (vidéos en boucle prêtes dans `web/public/cards/anim/`) : Kraken, Skull King, Raie, Baleine, Alyra, Fosse des Noyés. Voir `docs/cartes-animees/` et la maquette `CartesAnimees`.
+- [ ] D12. **Boutique** et **Joker** : coffre 100, 3 coffres 270, Joker 150 (11e manche bonus posée dans le salon, 6 joueurs au plus), échoppe de la semaine (6 objets renouvelés le lundi : 3 communs, 2 rares, 1 épique), pièces gagnées en jouant. Voir `docs/casier-boutique/` et la maquette `Boutique`.
 - [ ] D10. Tests :
   - probabilités du tirage (graine fixe) ;
   - refus d'ouvrir avec 0 coffre ;

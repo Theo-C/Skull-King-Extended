@@ -59,19 +59,14 @@ const store: Store = {
     finally { await db.exec('reset role'); }
   },
   async cosmetics() {
-    return (await db.query<any>('select id, slot, value, default_owned, how, variants from cosmetics')).rows;
+    return (await db.query<any>('select id, slot, value, default_owned, how, variants, price from items')).rows;
   },
   async userCosmetics(uid) {
-    return (await db.query<any>('select cosmetic_id from user_cosmetics where user_id=$1', [uid])).rows.map(r => r.cosmetic_id);
+    return (await db.query<any>('select item_id from user_items where user_id=$1', [uid])).rows.map(r => r.item_id);
   },
   async wallet(uid) {
     const r = (await db.query<any>('select coins, chests, jokers from user_wallet where user_id=$1', [uid])).rows[0];
     return { coins: r?.coins ?? 0, chests: r?.chests ?? 0, jokers: r?.jokers ?? 0 };
-  },
-  async shopDay(day) {
-    await db.exec('set role service_role');
-    try { return (await db.query<any>(day ? 'select cosmetic_id, price from shop_day($1::date)' : 'select cosmetic_id, price from shop_day()', day ? [day] : [])).rows; }
-    finally { await db.exec('reset role'); }
   },
 };
 async function as<T = any>(uid: string, sql: string, params: any[] = []) {
@@ -171,16 +166,18 @@ ok('règlement rejoué : « already »', await settleFinished(store, G, S_end!, 
 const xpAfter = (await db.query<any>('select xp from profiles where id = any($1::uuid[])', [users])).rows.map((x: any) => x.xp);
 ok('règlement rejoué : XP inchangée', xpAfter.sort().join() === xpBefore.split(',').sort().join());
 
-// Porte-monnaie et objets gagnés : 1 coffre au vainqueur, 30 (1re place) + 5 × mises tenues pièces, pas de double application
+// Porte-monnaie : 1 coffre au vainqueur ; pièces : +10 partie, +30 victoire, +15 toutes ses mises tenues, +50 par haut fait ; pas de double application
 const winnerUid = res[0].user_id as string;
 const winnerBids = Number((await db.query<any>('select bids_made from game_results where game_id=$1 and user_id=$2', [G, winnerUid])).rows[0].bids_made);
 const wWin = await store.wallet(winnerUid);
 ok('porte-monnaie : 1 coffre au vainqueur humain', wWin.chests === 1, wWin);
-ok('porte-monnaie : 30 au premier + 5 × mises tenues', wWin.coins === 30 + 5 * winnerBids, { wWin, winnerBids });
 for (const r of res) {
-  const w = await store.wallet(r.user_id), b = Number((await db.query<any>('select bids_made from game_results where game_id=$1 and user_id=$2', [G, r.user_id])).rows[0].bids_made);
-  ok(`porte-monnaie : place ${r.place} → ${[30, 20, 10][r.place - 1] ?? 5} + 5 × mises`, w.coins === ([30, 20, 10][r.place - 1] ?? 5) + 5 * b, { place: r.place, w, b });
+  const w = await store.wallet(r.user_id), gr = (await db.query<any>('select bids_made, rounds from game_results where game_id=$1 and user_id=$2', [G, r.user_id])).rows[0];
+  const achs = Number((await db.query<any>('select count(*)::int as n from user_achievements where game_id=$1 and user_id=$2', [G, r.user_id])).rows[0].n);
+  const want = 10 + (r.place === 1 ? 30 : 0) + (gr.bids_made === gr.rounds ? 15 : 0) + 50 * achs;
+  ok(`porte-monnaie : place ${r.place} → ${want} pièces (partie, victoire, mises, hauts faits)`, w.coins === want, { place: r.place, w, gr, achs });
 }
+void winnerBids;
 // coffre acheté à l'échoppe : 100 pièces
 await db.exec(`update user_wallet set coins = 120, chests = 0 where user_id = '${winnerUid}'`);
 const cb = await handle(store, winnerUid, { action: 'chest.buy' });
@@ -232,25 +229,29 @@ const v1 = await store.commit(g2.id, row!.version, { patch: {} });
 const v2 = await store.commit(g2.id, row!.version, { patch: {} });
 ok('écriture concurrente détectée', v1 != null && v2 == null, { v1, v2 });
 
-// ---------- Joker : acheté à l'échoppe, joué pendant une partie, une manche de 10 cartes en plus ----------
+/** Joue une partie jusqu'à la condition donnée, chaque client ne lisant que sa vue (comme la partie complète plus haut). */
+async function playUntil(id: string, users: string[], stop: (pub: E.PublicView) => boolean, seed0 = 7) {
+  let seed = seed0; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const seatOf = new Map((await db.query<any>('select seat, user_id from game_players where game_id=$1', [id])).rows.map((x: any) => [x.seat, x.user_id]));
+  for (let step = 0; step < 4000; step++) {
+    const st = (await db.query<any>('select status, state from games where id=$1', [id])).rows[0];
+    const pub = st.state as E.PublicView; if (st.status === 'finished' || stop(pub)) return pub;
+    const seat = pub.phase === 'bid' ? pub.players.findIndex((p, k) => !p.hasBid && seatOf.get(k)) : (pub.pending ? pub.pending.seat : pub.current!);
+    const uid = seatOf.get(seat) as string; if (!users.includes(uid)) return pub;
+    const priv = (await as(uid, 'select data from hands where game_id=$1', [id]))[0].data as E.PrivateView;
+    let move: E.Action;
+    if (pub.phase === 'bid') move = { t: 'bid', n: Math.floor(r() * (pub.cards + 1)) };
+    else if (pub.pending) move = pub.pending.t === 'bahij' ? { t: 'choose', v: priv.hand.slice(0, priv.pendingData.k).map(c => c.id) } : { t: 'choose', v: (pub.pending.opts as any[]).filter(o => !o.disabled)[0].v };
+    else move = { t: 'play', id: priv.legal[Math.floor(r() * priv.legal.length)], as: 'pirate', val: 0, ws: 'yellow' };
+    await handle(store, uid, { action: 'act', id, move });
+  }
+  throw new Error('partie trop longue');
+}
+// ---------- GIF en partie, puis Joker de fin de partie ----------
 {
   const { id: J, code: jc } = await handle(store, U.eve, { action: 'create', seats: [{ bot: false }, { bot: false }, { bot: true }], options: { rounds: 3 } });
   await handle(store, U.chloe, { action: 'join', code: jc });
   await handle(store, U.eve, { action: 'start', id: J });
-  await db.exec(`insert into user_wallet (user_id, coins, chests) values ('${U.eve}', 100, 0) on conflict (user_id) do update set coins = 100, jokers = 0`);
-  await expectErr('joker : sans joker → refus', handle(store, U.eve, { action: 'joker.use', id: J }), 400);
-  await expectErr('joker : pas assez de pièces → refus', handle(store, U.eve, { action: 'joker.buy' }), 400);
-  await db.exec(`update user_wallet set coins = 160 where user_id = '${U.eve}'`);
-  const jb = await handle(store, U.eve, { action: 'joker.buy' });
-  ok('joker : acheté 150 pièces', jb?.ok && jb.jokers === 1 && jb.coins === 10, jb);
-  const ju = await handle(store, U.eve, { action: 'joker.use', id: J });
-  const js = (await db.query<any>('select state from games where id=$1', [J])).rows[0].state;
-  const eveSeat = (await db.query<any>('select seat from game_players where game_id=$1 and user_id=$2', [J, U.eve])).rows[0].seat;
-  ok('joker : une manche de plus, joueur noté', ju?.ok && js.extra === 1 && js.jokers.join() === String(eveSeat) && (await store.wallet(U.eve)).jokers === 0, { ju, extra: js.extra, jokers: js.jokers });
-  await db.exec(`update user_wallet set jokers = 1 where user_id = '${U.eve}'`);
-  await expectErr('joker : un seul par partie', handle(store, U.eve, { action: 'joker.use', id: J }), 400);
-  ok('joker : refusé sans être retiré du porte-monnaie', (await store.wallet(U.eve)).jokers === 1);
-  await expectErr('joker : hors de la partie → refus', handle(store, U.alice, { action: 'joker.use', id: J }), 403);
 
   // GIF en partie : recherche, puis envoi (joueur assis, pas pendant son tour, 1 toutes les 10 s, URL du serveur)
   const gs = await handle(store, U.eve, { action: 'gif.search', cat: 'bravo' });
@@ -265,6 +266,36 @@ ok('écriture concurrente détectée', v1 != null && v2 == null, { v1, v2 });
   ok('gif : diffusé sur le canal de la partie avec l\'URL du serveur', gsend?.ok && msg?.topic === 'partie-' + J && msg.event === 'gif' && msg.payload.userId === U.chloe && msg.payload.gifUrl === FAKE_GIFS[2].full, msg);
   await expectErr('gif : un toutes les 10 s', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'gif3' }), 429);
   ok('gif : rien de diffusé quand c\'est refusé', sent.length === 1, sent.length);
+
+  // Joker : acheté à la Boutique, proposé à la fin de la dernière manche à qui en possède un, avant les résultats
+  await db.exec(`insert into user_wallet (user_id, coins, chests) values ('${U.eve}', 100, 0) on conflict (user_id) do update set coins = 100, chests = 0, jokers = 0`);
+  await expectErr('joker : pas assez de pièces → refus', handle(store, U.eve, { action: 'shop.buy', itemId: 'joker' }), 400);
+  await db.exec(`update user_wallet set coins = 160 where user_id = '${U.eve}'`);
+  const jb = await handle(store, U.eve, { action: 'shop.buy', itemId: 'joker' });
+  ok('joker : acheté 150 pièces', jb?.ok && jb.jokers === 1 && jb.coins === 10, jb);
+  const atJoker = await playUntil(J, [U.eve, U.chloe], p => p.phase === 'joker');
+  const eveSeat = (await db.query<any>('select seat from game_players where game_id=$1 and user_id=$2', [J, U.eve])).rows[0].seat;
+  ok('joker : question posée après la dernière manche, à celui qui en possède un', atJoker.phase === 'joker' && atJoker.round === 3 && atJoker.joker?.seats.join() === String(eveSeat) && atJoker.players[0].hist!.length === 3, { phase: atJoker.phase, round: atJoker.round, joker: atJoker.joker });
+  await expectErr('joker : sans Joker → refus', handle(store, U.chloe, { action: 'act', id: J, move: { t: 'joker', use: true } }), 400);
+  await expectErr('joker : pendant la question, on ne joue pas', handle(store, U.chloe, { action: 'act', id: J, move: { t: 'bid', n: 0 } }), 400);
+  // délai dépassé : poser le Joker est refusé et il reste dans le porte-monnaie
+  await db.exec(`update game_secrets set state = jsonb_set(state, '{joker,until}', '0') where game_id = '${J}'`);
+  await expectErr('joker : trop tard → refus', handle(store, U.eve, { action: 'act', id: J, move: { t: 'joker', use: true } }), 400);
+  ok('joker : rendu quand il n\'a pas pu être posé', (await store.wallet(U.eve)).jokers === 1);
+  await db.exec(`update game_secrets set state = jsonb_set(state, '{joker,until}', to_jsonb((extract(epoch from now()) * 1000 + 60000)::bigint)) where game_id = '${J}'`);
+  await handle(store, U.eve, { action: 'act', id: J, move: { t: 'joker', use: true } });
+  const after = (await db.query<any>('select state from games where id=$1', [J])).rows[0].state as E.PublicView;
+  ok('joker : posé, la partie continue avec la manche bonus', after.bonus === true && after.round === 4 && after.cards === 4 && after.phase === 'bid' && (await store.wallet(U.eve)).jokers === 0, { bonus: after.bonus, round: after.round, cards: after.cards });
+  ok('joker : manche marquée « bonus »', E.roundKind(after, 4) === 'bonus');
+  const fin = await playUntil(J, [U.eve, U.chloe], p => p.phase === 'end');
+  ok('joker : une seule question par partie, puis les résultats', fin.phase === 'end' && fin.players[0].hist!.length >= 4 && !fin.joker, { phase: fin.phase, n: fin.players[0].hist?.length });
+}
+// Joker : jamais à plus de 6 joueurs (11 cartes chacun)
+{
+  const T = E.newGame(Array.from({ length: 7 }, (_, k) => ({ name: 'P' + k, bot: k > 0 })), { rounds: 1 }, 99);
+  T.jokerOffer = [0]; E.apply(T, 0, { t: 'bid', n: 0 }); E.runBots(T);
+  for (let k = 0; k < 50 && T.phase === 'play'; k++) { const w = E.waitingFor(T)[0]; if (w !== 0) break; E.apply(T, 0, { t: 'play', id: E.privateView(T, 0).legal[0] }); E.runBots(T); }
+  ok('joker : pas de question à 7 joueurs', T.phase !== 'joker' && !T.bonus, T.phase);
 }
 
 // ---------- Cosmétiques : coffre, boutique, apparence ----------
@@ -307,7 +338,7 @@ let leg = 0, myth = 0;
 for (let i = 0; i < 1000; i++) {
   await db.exec(`update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
   const r = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 7_000_000 + i * 7919 });
-  if (r?.rarity === 'l') leg++; else if (r?.rarity === 'm') { myth++; if (r.slot !== 'carte') myth = -999; }
+  if (r?.rarity === 'l') leg++; else if (r?.rarity === 'm') { myth++; if (r.slot !== 'card_anim') myth = -999; }
 }
 ok('coffre : fréquence légendaire autour de 3 %', leg >= 15 && leg <= 50, { leg, myth });
 ok('coffre : fréquence mythique autour de 1 %, toujours une carte animée', myth >= 3 && myth <= 22, { leg, myth });
@@ -315,7 +346,7 @@ ok('coffre : fréquence mythique autour de 1 %, toujours une carte animée', myt
 await db.exec(`delete from user_cosmetics where user_id = '${nobodyUid}' and cosmetic_id like 'carte:%'; update user_wallet set chests = 2 where user_id = '${nobodyUid}'`);
 const m1 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 9950 }), m2 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 9950 });
 ok('coffre : Mythique → carte animée, doublon à 400 pièces', m1?.rarity === 'm' && m1.cosmetic_id === 'carte:baleine' && !m1.duplicate && m2?.duplicate && m2.coins_gained === 400, { m1, m2 });
-await db.exec(`insert into user_cosmetics (user_id, cosmetic_id, source) select '${nobodyUid}', id, 'test' from cosmetics where slot = 'carte' on conflict do nothing; update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
+await db.exec(`insert into user_cosmetics (user_id, cosmetic_id, source) select '${nobodyUid}', id, 'test' from cosmetics where slot = 'card_anim' on conflict do nothing; update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
 const m3 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 9950 });
 ok('coffre : les 6 cartes possédées → la Mythique devient une Légendaire', m3?.rarity === 'l', m3);
 const ca = (await db.query<any>('select * from cartes_animees($1::uuid[])', [[nobodyUid, U.alice]])).rows;
@@ -328,17 +359,31 @@ const viaAction = await handle(store, nobodyUid, { action: 'chest.open' });
 ok('coffre : action chest.open', viaAction?.ok && typeof viaAction.cosmetic_id === 'string' && viaAction.chests === 0 && (await store.wallet(nobodyUid)).chests === 0, viaAction);
 await expectErr('coffre : action chest.open sans coffre → refus', handle(store, nobodyUid, { action: 'chest.open' }), 400);
 
-// Boutique : 3 objets déterministes à partir de la date, puis achat et refus (prix et pool)
-const shop1 = await store.shopDay('2026-10-03'), shop2 = await store.shopDay('2026-10-03'), shop3 = await store.shopDay('2026-10-04');
-ok('boutique : 3 objets déterministes par jour', shop1.length === 3 && JSON.stringify(shop1) === JSON.stringify(shop2) && shop3.length === 3, { shop1, shop3 });
-ok('boutique : jamais deux fois le même objet le même jour', [shop1, shop3].every(sh => new Set(sh.map((x: any) => x.cosmetic_id)).size === sh.length), { shop1, shop3 });
-await expectErr('boutique : objet pas en vente → refus', handle(store, nobodyUid, { action: 'shop.buy', cosmetic_id: 'hat:couronne' }), 400);
-// achat : on crédite assez de pièces, on prend un objet de la boutique du jour
-const todayShop = await store.shopDay();
-await db.exec(`update user_wallet set coins = 500 where user_id = '${nobodyUid}'`);
-const buy = await handle(store, nobodyUid, { action: 'shop.buy', cosmetic_id: todayShop[0].cosmetic_id });
-ok('boutique : achat réussi', !!buy?.ok && buy.cosmetic_id === todayShop[0].cosmetic_id, buy);
-await expectErr('boutique : rachat refusé', handle(store, nobodyUid, { action: 'shop.buy', cosmetic_id: todayShop[0].cosmetic_id }), 400);
+// Boutique : échoppe de la semaine (même pour tout le monde, 3 communs, 2 rares, 1 épique, renouvelée le lundi)
+const svc = async (q: string, p: any[] = []) => { await db.exec('set role service_role'); try { return (await db.query<any>(q, p)).rows; } finally { await db.exec('reset role'); } };
+const monday = (await svc("select public.paris_week_start('2026-10-07 12:00+02'::timestamptz) as d"))[0].d;
+ok('échoppe : la semaine commence le lundi (heure de Paris)', new Date(monday).getDay() === 1 || String(monday).startsWith('2026-10-05'), monday);
+const lateSunday = (await svc("select public.paris_week_start('2026-10-11 23:30+02'::timestamptz)::text as d"))[0].d, earlyMonday = (await svc("select public.paris_week_start('2026-10-12 00:05+02'::timestamptz)::text as d"))[0].d;
+ok('échoppe : bascule à minuit, heure de Paris', lateSunday === '2026-10-05' && earlyMonday === '2026-10-12', { lateSunday, earlyMonday });
+const w1 = (await svc("select item_ids from public.shop_week('2026-10-05')"))[0].item_ids as string[], w1b = (await svc("select item_ids from public.shop_week('2026-10-05')"))[0].item_ids as string[];
+const w2 = (await svc("select item_ids from public.shop_week('2026-10-12')"))[0].item_ids as string[];
+const rar = async (ids: string[]) => (await db.query<any>('select rarity from items where id = any($1::text[])', [ids])).rows.map((x: any) => x.rarity).sort().join('');
+ok('échoppe : 6 objets, 3 communs, 2 rares, 1 épique', w1.length === 6 && (await rar(w1)) === 'cccerr', { w1, r: await rar(w1) });
+ok('échoppe : même sélection pour tout le monde', JSON.stringify(w1) === JSON.stringify(w1b));
+ok('échoppe : change le lundi suivant', JSON.stringify(w1) !== JSON.stringify(w2), { w1, w2 });
+ok('échoppe : jamais de Légendaire ni de Mythique', !/[lm]/.test(await rar(w2)));
+const sl0 = await handle(store, nobodyUid, { action: 'shop.list' }), sl1 = await handle(store, U.bob, { action: 'shop.list' });
+ok('boutique : shop.list (prix, échoppe, fin de la semaine)', sl0.prices.chest === 100 && sl0.prices.chest3 === 270 && sl0.prices.joker === 150 && sl0.week.items.length === 6 && sl0.week.items.every((x: any) => typeof x.price === 'number') && !!sl0.week.ends_at && JSON.stringify(sl0.week) === JSON.stringify(sl1.week), sl0.week);
+await expectErr('boutique : objet pas à l\'échoppe cette semaine → refus', handle(store, nobodyUid, { action: 'shop.buy', itemId: 'hat:couronne' }), 400);
+const weekItem = sl0.week.items.find((x: any) => !sl0.owned.includes(x.id));
+await db.exec(`update user_wallet set coins = ${weekItem.price - 1} where user_id = '${nobodyUid}'`);
+await expectErr('boutique : solde insuffisant → refus', handle(store, nobodyUid, { action: 'shop.buy', itemId: weekItem.id }), 400);
+await db.exec(`update user_wallet set coins = 1000, chests = 0 where user_id = '${nobodyUid}'`);
+const buy = await handle(store, nobodyUid, { action: 'shop.buy', itemId: weekItem.id });
+ok('boutique : achat d\'un objet de l\'échoppe à son prix', !!buy?.ok && buy.coins === 1000 - weekItem.price, buy);
+await expectErr('boutique : objet déjà possédé → refus', handle(store, nobodyUid, { action: 'shop.buy', itemId: weekItem.id }), 400);
+const b3 = await handle(store, nobodyUid, { action: 'shop.buy', itemId: 'chest3' }), b1 = await handle(store, nobodyUid, { action: 'shop.buy', itemId: 'chest' });
+ok('boutique : 3 coffres 270, 1 coffre 100', b3.chests === 3 && b1.chests === 4 && b1.coins === 1000 - weekItem.price - 370, { b3, b1 });
 
 // Apparence (look) : un objet non possédé est refusé, un objet libre + couleur hex passent
 await expectErr('look : objet non possédé → refus', handle(store, U.alice, { action: 'profile.update', look: { hat: 'bicorne' } }), 400);
@@ -355,12 +400,22 @@ await expectErr('look : couleur sans objet indiqué → refus', handle(store, U.
 await db.exec(`insert into user_cosmetics (user_id, cosmetic_id, source) values ('${U.alice}', 'hat:bandana-violet', 'test') on conflict do nothing`);
 await handle(store, U.alice, { action: 'profile.update', look: { hat: 'bandana', htc: '#5b3a7a' } });
 ok('look : variante possédée acceptée', (await db.query<any>('select look from profiles where id=$1', [U.alice])).rows[0].look?.htc === '#5b3a7a');
-const sl = await handle(store, U.alice, { action: 'shop.list' });
-ok('échoppe : action shop.list', Array.isArray(sl.shop) && sl.shop.length === 3, sl);
+// Casier : dos de cartes, titre, cartes animées et réactions (4 au plus) ; l'enregistrement fusionne avec l'apparence existante
+await expectErr('look : dos non possédé → refus', handle(store, U.alice, { action: 'profile.update', look: { card_back: 'kraken' } }), 400);
+await expectErr('look : dos inconnu → refus', handle(store, U.alice, { action: 'profile.update', look: { card_back: 'licorne' } }), 400);
+await expectErr('look : titre pas encore atteint → refus', handle(store, U.alice, { action: 'profile.update', look: { title: 'legende' } }), 400);
+await expectErr('look : 5 réactions → refus', handle(store, U.alice, { action: 'profile.update', look: { reactions: ['bien-joue', 'aie', 'gg', 'abordage', 'barbe'] } }), 400);
+await expectErr('look : réaction en double → refus', handle(store, U.alice, { action: 'profile.update', look: { reactions: ['gg', 'gg'] } }), 400);
+await expectErr('look : réaction non possédée → refus', handle(store, U.alice, { action: 'profile.update', look: { reactions: ['quartier'] } }), 400);
+await expectErr('look : carte animée non possédée → refus', handle(store, U.alice, { action: 'profile.update', look: { card_anims: ['kraken'] } }), 400);
+await expectErr('look : format invalide → refus', handle(store, U.alice, { action: 'profile.update', look: { reactions: 'gg' } }), 400);
+await handle(store, U.alice, { action: 'profile.update', look: { card_back: 'marine', title: 'mousse', reactions: ['gg', 'trahison', 'barbe', 'dit'], card_anims: [] } });
+const lk = (await db.query<any>('select look from profiles where id=$1', [U.alice])).rows[0].look;
+ok('look : casier enregistré, apparence existante gardée', lk.card_back === 'marine' && lk.title === 'mousse' && lk.reactions.join() === 'gg,trahison,barbe,dit' && lk.hat === 'bandana' && lk.htc === '#5b3a7a', lk);
 
-// profile.wardrobe : résumé pour l'UI (inventaire + porte-monnaie + boutique du jour)
+// profile.wardrobe : résumé pour le Casier et le profil (inventaire + porte-monnaie)
 const wr = await handle(store, winnerUid, { action: 'profile.wardrobe' });
-ok('garde-robe : inventaire + porte-monnaie + boutique', Array.isArray(wr.owned) && typeof wr.coins === 'number' && typeof wr.chests === 'number' && wr.shop.length === 3, wr);
+ok('casier : inventaire + porte-monnaie', Array.isArray(wr.owned) && typeof wr.coins === 'number' && typeof wr.chests === 'number' && typeof wr.jokers === 'number', wr);
 
 console.log(`Serveur : ${passes} vérifications réussies, ${fails} échec(s), ${moves} actions jouées par 4 comptes.`);
 if (fails) process.exit(1);

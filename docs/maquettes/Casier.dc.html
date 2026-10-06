@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Casier</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible,a:focus-visible{outline:2px solid #ead08a;outline-offset:2px}
+.gold{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 22px;border-radius:10px;border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;font-weight:800;font-size:15px;cursor:pointer}
+.gold[aria-disabled="true"]{opacity:.45;cursor:default}
+.ghost{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 18px;border-radius:10px;border:1px solid rgba(234,208,138,.45);background:transparent;color:#f2e7cd;font-weight:800;font-size:15px;cursor:pointer;text-decoration:none}
+.tab{min-height:44px;padding:0 20px;border-radius:10px;border:1px solid transparent;background:transparent;color:#d9cdb6;font-weight:800;font-size:16px;cursor:pointer}
+.tab.on{background:rgba(234,208,138,.12);border-color:rgba(234,208,138,.45);color:#ead08a}
+.slot{display:flex;align-items:center;gap:10px;width:100%;min-height:58px;padding:6px 10px;border-radius:12px;border:1px solid transparent;background:transparent;color:#efe6d2;cursor:pointer;text-align:left}
+.slot:hover{background:rgba(255,255,255,.04)}
+.slot.on{background:rgba(234,208,138,.12);border-color:rgba(234,208,138,.4)}
+.slot .t{font-weight:800;font-size:15px;display:block}
+.slot .s{font-size:12.5px;color:#a8987f;display:block;margin-top:2px}
+.chip{min-height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font-weight:700;font-size:13px;cursor:pointer}
+.chip.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.it{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px 0;border-radius:12px;background:rgba(0,0,0,.28);border:2px solid transparent;cursor:pointer;color:#efe6d2;overflow:hidden;min-height:150px}
+.it:hover{background:rgba(255,255,255,.05)}
+.it.on{border-color:#ead08a;box-shadow:0 0 18px rgba(234,208,138,.3)}
+.it.lock .pic{opacity:.55;filter:grayscale(.6)}
+.it .nm{font-weight:800;font-size:13px;line-height:1.15;text-align:center;padding:0 4px}
+.it .src{font-size:11.5px;color:#a8987f;text-align:center;padding:0 4px;min-height:14px}
+.it .bar{margin-top:auto;align-self:stretch;height:5px}
+.check{position:absolute;right:6px;top:6px;width:22px;height:22px;border-radius:50%;background:#ead08a;color:#2b2117;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
+.lockic{position:absolute;right:6px;top:6px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center}
+.sw{width:38px;height:38px;border-radius:50%;border:2px solid #1b140e;cursor:pointer;padding:0}
+.sw.on{box-shadow:0 0 0 3px #ead08a}
+.bt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 6px 8px;border-radius:12px;border:2px solid transparent;background:rgba(0,0,0,.28);color:#d9cdb6;font-size:12.5px;font-weight:700;cursor:pointer}
+.bt.on{border-color:#ead08a;color:#ead08a}
+.coin{display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%);box-shadow:inset 0 0 0 1px rgba(90,60,10,.6);vertical-align:-2px}
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:999px;background:rgba(0,0,0,.3);border:1px solid rgba(234,208,138,.25);font-size:14px;color:#d9cdb6}
+.pill b{color:#ead08a}
+.back{width:64px;height:90px;border-radius:7px;box-shadow:0 4px 10px rgba(0,0,0,.5);border:3px solid #f3ead7}
+.lbl{font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#a8987f}
+.toggle{min-height:30px;padding:0 10px;border-radius:999px;border:1px solid rgba(234,208,138,.35);background:transparent;color:#d9cdb6;font-weight:800;font-size:12px;cursor:pointer}
+.toggle.on{background:#3e8e4e;border-color:#3e8e4e;color:#fff}
+.mk-kraken{-webkit-mask-image:url(/_blob/447c9e8c7d969e8f6766feff265f844a);mask-image:url(/_blob/447c9e8c7d969e8f6766feff265f844a)}
+.mk-sk{-webkit-mask-image:url(/_blob/0ed75a1c0d934cd2fc2d5bc282f25da4);mask-image:url(/_blob/0ed75a1c0d934cd2fc2d5bc282f25da4)}
+.mk-raie{-webkit-mask-image:url(/_blob/14c72007c9d4baee2e934c0a96b4857d);mask-image:url(/_blob/14c72007c9d4baee2e934c0a96b4857d)}
+.mk-baleine{-webkit-mask-image:url(/_blob/3c7edb6e1b9a83c4fa9510c282ddd976);mask-image:url(/_blob/3c7edb6e1b9a83c4fa9510c282ddd976)}
+.mk-sirene{-webkit-mask-image:url(/_blob/a814cde5a564567221bbeff6dcecde0d);mask-image:url(/_blob/a814cde5a564567221bbeff6dcecde0d)}
+.mk-fosse{-webkit-mask-image:url(/_blob/4bb3c78920f6b742f3d4300354d8b4fc);mask-image:url(/_blob/4bb3c78920f6b742f3d4300354d8b4fc)}
+.cvid{-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.felt{position:relative;align-self:stretch;border-radius:18px;background:radial-gradient(ellipse at 50% 40%,#2f6a4c 0%,#1d4733 60%,#143323 100%);box-shadow:inset 0 0 0 6px #4a3420,inset 0 0 0 8px #6b4c2c,inset 0 10px 40px rgba(0,0,0,.5);overflow:hidden}
+.bk{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 8px 0;border-radius:14px;background:rgba(0,0,0,.28);border:2px solid transparent;cursor:pointer;color:#efe6d2;overflow:hidden}
+.bk:hover{background:rgba(255,255,255,.05)}
+.bk.on{border-color:#ead08a;box-shadow:0 0 18px rgba(234,208,138,.3)}
+.bk.lock .pic{opacity:.5;filter:grayscale(.6)}
+.bk .nm{font-weight:800;font-size:14px}
+.bk .src{font-size:12px;color:#a8987f;min-height:15px;text-align:center}
+.bk .bar{align-self:stretch;height:5px;margin-top:4px}
+.an{position:relative;display:flex;gap:14px;align-items:center;padding:12px;border-radius:14px;background:rgba(0,0,0,.28);border:2px solid transparent;cursor:pointer;color:#efe6d2;text-align:left}
+.an:hover{background:rgba(255,255,255,.05)}
+.an.on{border-color:rgba(234,208,138,.7)}
+.an.lock img{opacity:.45;filter:grayscale(.8)}
+.myth{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:#2b2117;background:linear-gradient(90deg,#ff9ad5,#ffd36b,#8dffb0,#7fc8ff,#c39bff)}
+.sw2{position:relative;flex:none;width:52px;height:30px;border-radius:999px;border:0;background:#4a3d30;cursor:pointer;padding:0}
+.sw2::after{content:'';position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#d9cdb6;transition:left .18s}
+.sw2.on{background:#3e8e4e}
+.sw2.on::after{left:25px;background:#fff}
+.sw2[aria-disabled="true"]{opacity:.35;cursor:default}
+.set{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:rgba(234,208,138,.06)}
+.pl{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 10px 12px;border-radius:14px;background:rgba(0,0,0,.28);border:2px solid transparent;cursor:pointer;color:#efe6d2}
+.pl:hover{background:rgba(255,255,255,.05)}
+.pl.on{border-color:#ead08a;box-shadow:0 0 18px rgba(234,208,138,.3)}
+.plaque{position:relative;min-width:150px;padding:9px 22px;font-family:'IM Fell English SC',serif;font-size:18px;color:#2b2117;text-align:center;clip-path:polygon(0 50%,9% 0,91% 0,100% 50%,91% 100%,9% 100%)}
+.pl.lock .plaque{filter:grayscale(.85) brightness(.7)}
+.prog{align-self:stretch;height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+.prog i{display:block;height:100%;background:#ead08a}
+.rs{position:relative;flex:1;min-height:64px;border-radius:14px;border:2px dashed rgba(234,208,138,.3);display:flex;align-items:center;justify-content:center;gap:8px;color:#a8987f;font-weight:800;font-size:15px}
+.rs.full{border-style:solid;border-color:rgba(234,208,138,.55);background:rgba(20,14,10,.85);color:#f2e7cd}
+.rs .k{position:absolute;left:8px;top:6px;font-size:11px;color:#a8987f;font-weight:900}
+.rs .x{position:absolute;right:6px;top:6px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:#d9cdb6;font-weight:900;cursor:pointer;line-height:22px;padding:0}
+.rc{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:12px 14px;border-radius:14px;background:rgba(0,0,0,.28);border:2px solid transparent;cursor:pointer;color:#efe6d2;text-align:left}
+.rc:hover{background:rgba(255,255,255,.05)}
+.rc.on{border-color:#ead08a}
+.rc.lock .bub{opacity:.5}
+.bub{display:inline-flex;align-items:center;height:36px;padding:0 14px;border-radius:18px 18px 18px 4px;background:#f3ead7;color:#2b2117;font-weight:800;font-size:15px}
+.say{position:absolute;padding:8px 14px;border-radius:16px 16px 16px 4px;background:#f3ead7;color:#2b2117;font-weight:800;font-size:15px;box-shadow:0 6px 16px rgba(0,0,0,.45);animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1000px; position: relative; overflow: hidden; background: radial-gradient(ellipse at 30% 0%, #2a1f17 0%, #120e0b 60%); color: #efe6d2; font-family: 'Alegreya Sans', sans-serif;">
+<dc-import name="AppBar" active="profil" hint-size="100%,64px"></dc-import>
+
+<!-- en-tête : titre, onglets, porte-monnaie -->
+<div style="position: absolute; left: 40px; right: 40px; top: 84px; display: flex; align-items: center; gap: 24px;">
+<h1 style="margin: 0; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 32px; color: #ead08a;">Casier</h1>
+<div role="tablist" aria-label="Que personnaliser" style="display: flex; gap: 6px;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="3"><button role="tab" class="{{t.cls}}" aria-selected="{{t.on}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+</div>
+<div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+<span class="pill"><span class="coin"></span><b>340</b> pièces</span>
+<span class="pill"><b>2</b> coffres</span>
+<span class="pill"><b>1</b> joker</span>
+<a class="ghost" href="Boutique.dc.html" style="min-height: 38px;">Boutique</a>
+</div>
+</div>
+
+<!-- colonne 1 : aperçu en direct -->
+<div style="position: absolute; left: 40px; top: 150px; width: 380px; height: 740px; box-sizing: border-box; padding: 22px; border-radius: 16px; background: rgba(0,0,0,.28); border: 1px solid rgba(234,208,138,.18); display: flex; flex-direction: column; gap: 16px; align-items: center;">
+<div class="lbl" style="align-self: flex-start;">Aperçu</div>
+<sc-if value="{{isPirate}}" hint-placeholder-val="{{true}}">
+<dc-import name="Avatar" v="{{2}}" color="{{color}}" look="{{look}}" size="{{220}}" hint-size="220px,220px"></dc-import>
+<div class="lbl" style="align-self: flex-start; margin-top: 6px;">Comme à la table</div>
+<div style="align-self: stretch; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 14px; background: linear-gradient(180deg,#33271c,#1d150f); border: 1px solid rgba(234,208,138,.3);">
+<dc-import name="Avatar" v="{{2}}" color="{{color}}" look="{{look}}" size="{{52}}" hint-size="52px,52px"></dc-import>
+<div><div style="font-weight: 800; font-size: 16px;">Théo</div><div style="font-size: 13px; color: #ead08a;">{{title}}</div></div>
+<div style="margin-left: auto; text-align: right; font-size: 12px; color: #a8987f;">Mise <b style="color: #f2e7cd; font-size: 15px;">2</b><br>Plis <b style="color: #f2e7cd; font-size: 15px;">1</b></div>
+</div>
+</sc-if>
+<sc-if value="{{isCards}}" hint-placeholder-val="{{false}}">
+<!-- mini table : la main d'un adversaire (votre dos vu par les autres) et votre carte animée posée au centre -->
+<div class="felt" style="height: 440px;">
+<div style="position: absolute; left: 0; right: 0; top: 14px; text-align: center; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.55);">Ce que voient les autres</div>
+<div style="position: absolute; left: 50%; top: 40px; width: 0; height: 0;">
+<sc-for list="{{fan}}" as="f" hint-placeholder-count="7"><div class="back" style="position: absolute; left: {{f.x}}px; top: {{f.y}}px; width: 54px; height: 76px; transform-origin: 50% 160%; transform: rotate({{f.r}}deg); background: {{backBg}};"></div></sc-for>
+</div>
+<div style="position: absolute; left: 50%; top: 170px; width: 170px; height: 242px; margin-left: -85px; border-radius: 10px; box-shadow: 0 14px 30px rgba(0,0,0,.6), 0 0 34px {{animGlow}};">
+<img src="{{animImg}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 10px;">
+<sc-if value="{{animPlays}}" hint-placeholder-val="{{true}}">
+<video class="cvid {{animMask}}" src="{{animWebm}}" data-mp4="{{animMp4}}" poster="{{animImg}}" autoplay muted loop playsinline preload="auto" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill;"></video>
+<img src="{{animCadre}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;">
+</sc-if>
+</div>
+<div style="position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font-size: 12.5px; color: rgba(255,255,255,.7);">{{animCaption}}</div>
+</div>
+<div style="font-size: 13.5px; color: #d9cdb6; text-align: center; line-height: 1.45;">Dos <b style="color: #ead08a;">{{backName}}</b> sur vos cartes en main, vues par toute la table.</div>
+</sc-if>
+<sc-if value="{{isProfil}}" hint-placeholder-val="{{false}}">
+<!-- votre place à la table, avec la bulle de réaction qui s'affiche au-dessus -->
+<div class="felt" style="height: 250px;">
+<div style="position: absolute; left: 0; right: 0; top: 14px; text-align: center; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.55);">À la table</div>
+<sc-if value="{{sayOn}}" hint-placeholder-val="{{true}}"><div class="say" style="left: 70px; top: 58px;">{{sayText}}</div></sc-if>
+<div style="position: absolute; left: 22px; right: 22px; bottom: 26px; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 14px; background: linear-gradient(180deg,#33271c,#1d150f); border: 1px solid rgba(234,208,138,.35);">
+<dc-import name="Avatar" v="{{2}}" color="{{color}}" look="{{look}}" size="{{56}}" hint-size="56px,56px"></dc-import>
+<div><div style="font-weight: 800; font-size: 17px;">Théo</div><div style="font-size: 14px; color: #ead08a;">{{title}}</div></div>
+<div style="margin-left: auto; text-align: right; font-size: 12px; color: #a8987f;">Mise <b style="color: #f2e7cd; font-size: 15px;">2</b><br>Plis <b style="color: #f2e7cd; font-size: 15px;">1</b></div>
+</div>
+</div>
+<div class="lbl" style="align-self: flex-start;">Au survol de votre nom</div>
+<div style="align-self: stretch; display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 14px; background: #1b140f; border: 1px solid rgba(234,208,138,.25); box-shadow: 0 10px 24px rgba(0,0,0,.45);">
+<dc-import name="Avatar" v="{{2}}" color="{{color}}" look="{{look}}" size="{{64}}" hint-size="64px,64px"></dc-import>
+<div style="flex: 1;"><div style="font-weight: 800; font-size: 16px;">Théo <span style="font-size: 12px; color: #a8987f; font-weight: 700;">· niveau 18</span></div>
+<div style="display: inline-block; margin-top: 4px; padding: 3px 14px; font-family: 'IM Fell English SC', serif; font-size: 14px; color: #2b2117; background: {{titleBg}}; clip-path: polygon(0 50%,8% 0,92% 0,100% 50%,92% 100%,8% 100%);">{{title}}</div>
+<div style="margin-top: 6px; font-size: 12px; color: #a8987f;">212 parties · 61 victoires</div></div>
+</div>
+<div class="lbl" style="align-self: flex-start;">Barre au-dessus de votre main</div>
+<div style="align-self: stretch; display: flex; flex-wrap: wrap; gap: 6px;">
+<sc-for list="{{reactBar}}" as="r" hint-placeholder-count="4"><span style="height: 34px; padding: 0 12px; border-radius: 999px; background: rgba(20,14,10,.85); border: 1px solid rgba(234,208,138,.3); display: inline-flex; align-items: center; font-weight: 700; font-size: 13.5px;">{{r}}</span></sc-for>
+<span style="height: 34px; padding: 0 12px; border-radius: 999px; background: linear-gradient(180deg,#e2bd62,#b78c33); color: #2b2117; display: inline-flex; align-items: center; font-weight: 800; font-size: 13px;">GIF</span>
+</div>
+</sc-if>
+<div style="margin-top: auto; align-self: stretch; padding: 12px; border-radius: 12px; background: rgba(234,208,138,.06); font-size: 13px; color: #bfb29a; line-height: 1.45;">{{hint}}</div>
+</div>
+
+<!-- colonne 2 : emplacements -->
+<div role="tablist" aria-orientation="vertical" aria-label="Emplacements" style="position: absolute; left: 440px; top: 150px; width: 240px; display: flex; flex-direction: column; gap: 4px;">
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="7">
+<button role="tab" class="{{s.cls}}" aria-selected="{{s.on}}" onClick="{{s.pick}}">
+<span style="flex: none; width: 40px; height: 40px; border-radius: 10px; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; font-family: 'Pirata One', serif; font-size: 18px; color: #ead08a;">{{s.ic}}</span>
+<span><span class="t">{{s.label}}</span><span class="s">{{s.cur}}</span></span>
+<span style="margin-left: auto; font-size: 12px; color: #a8987f;">{{s.count}}</span>
+</button>
+</sc-for>
+</div>
+
+<!-- colonne 3 : choix -->
+<div style="position: absolute; left: 704px; top: 150px; width: 696px; height: 740px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<h2 style="margin: 0; font-family: 'IM Fell English SC', serif; font-weight: 400; font-size: 24px; color: #f2e7cd;">{{slotTitle}}</h2>
+<sc-if value="{{hasFilters}}" hint-placeholder-val="{{true}}">
+<div style="margin-left: auto; display: flex; gap: 6px;"><sc-for list="{{filters}}" as="f" hint-placeholder-count="3"><button class="{{f.cls}}" onClick="{{f.pick}}">{{f.label}}</button></sc-for></div>
+</sc-if>
+</div>
+
+<!-- apparence de base : tout est gratuit -->
+<sc-if value="{{isBase}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 18px; overflow: auto;">
+<sc-for list="{{baseRows}}" as="row" hint-placeholder-count="5">
+<div><div class="lbl" style="margin-bottom: 8px;">{{row.label}}</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{row.opts}}" as="o" hint-placeholder-count="6">
+<sc-if value="{{o.sw}}" hint-placeholder-val="{{true}}"><button class="{{o.cls}}" style="background: {{o.c}};" aria-label="{{o.label}}" aria-pressed="{{o.on}}" onClick="{{o.pick}}"></button></sc-if>
+<sc-if value="{{o.tile}}" hint-placeholder-val="{{false}}"><button class="{{o.cls}}" aria-pressed="{{o.on}}" onClick="{{o.pick}}"><dc-import name="Avatar" v="{{2}}" color="{{color}}" look="{{o.look}}" size="{{58}}" hint-size="58px,58px"></dc-import><span>{{o.label}}</span></button></sc-if>
+</sc-for>
+</div></div>
+</sc-for>
+</div>
+</sc-if>
+
+<!-- grille d'objets -->
+<sc-if value="{{isGrid}}" hint-placeholder-val="{{true}}">
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px;">
+<sc-for list="{{items}}" as="it" hint-placeholder-count="10">
+<button class="{{it.cls}}" aria-pressed="{{it.on}}" onClick="{{it.pick}}" aria-label="{{it.aria}}">
+<span class="pic" style="height: 84px; display: flex; align-items: center; justify-content: center;">
+<sc-if value="{{it.av}}" hint-placeholder-val="{{true}}"><dc-import name="Avatar" v="{{2}}" color="{{color}}" look="{{it.look}}" size="{{80}}" hint-size="80px,80px"></dc-import></sc-if>
+<sc-if value="{{it.obj}}" hint-placeholder-val="{{false}}"><dc-import name="Objet" item="{{it.objItem}}" c="{{it.objC}}" size="{{76}}" hint-size="76px,76px"></dc-import></sc-if>
+<sc-if value="{{it.back}}" hint-placeholder-val="{{false}}"><span class="back" style="background: {{it.bg}}; width: 56px; height: 78px;"></span></sc-if>
+<sc-if value="{{it.img}}" hint-placeholder-val="{{false}}"><img src="{{it.src}}" alt="" style="width: 56px; height: 80px; border-radius: 5px;"></sc-if>
+<sc-if value="{{it.txt}}" hint-placeholder-val="{{false}}"><span style="font-family: 'Pirata One', serif; font-size: 20px; color: #ead08a; padding: 0 6px; text-align: center; line-height: 1.1;">{{it.txtv}}</span></sc-if>
+</span>
+<span class="nm">{{it.name}}</span>
+<span class="src">{{it.src2}}</span>
+<span class="bar" style="background: {{it.rc}};"></span>
+<sc-if value="{{it.isOn}}" hint-placeholder-val="{{false}}"><span class="check" aria-hidden="true">✓</span></sc-if>
+<sc-if value="{{it.locked}}" hint-placeholder-val="{{false}}"><span class="lockic" aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#ead08a" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span></sc-if>
+</button>
+</sc-for>
+</div>
+<div style="display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: #a8987f;">
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 18px; height: 5px; background: #c9d3dc;"></span>Commun</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 18px; height: 5px; background: #4fa8ff;"></span>Rare</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 18px; height: 5px; background: #b77dff;"></span>Épique</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 18px; height: 5px; background: #ffc94a;"></span>Légendaire</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 18px; height: 5px; background: linear-gradient(90deg,#ff9ad5,#ffd36b,#8dffb0,#7fc8ff);"></span>Mythique</span>
+<span style="margin-left: auto;">Un objet verrouillé s'essaie dans l'aperçu ; on ne peut pas l'enregistrer.</span>
+</div>
+</sc-if>
+
+<!-- dos de cartes : grandes vignettes -->
+<sc-if value="{{isBack}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+<sc-for list="{{backs}}" as="b" hint-placeholder-count="8">
+<button class="{{b.cls}}" aria-pressed="{{b.on}}" onClick="{{b.pick}}" aria-label="{{b.aria}}">
+<span class="pic"><span class="back" style="display: block; width: 104px; height: 146px; border-radius: 9px; border-width: 4px; background: {{b.bg}};"></span></span>
+<span class="nm">{{b.name}}</span>
+<span class="src">{{b.src2}}</span>
+<span class="bar" style="background: {{b.rc}};"></span>
+<sc-if value="{{b.isOn}}" hint-placeholder-val="{{false}}"><span class="check" aria-hidden="true">✓</span></sc-if>
+<sc-if value="{{b.locked}}" hint-placeholder-val="{{false}}"><span class="lockic" aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#ead08a" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span></sc-if>
+</button>
+</sc-for>
+</div>
+<div style="font-size: 12.5px; color: #a8987f;">Un seul dos à la fois. Il s'applique à toutes vos cartes en main ; les faces des cartes ne changent jamais, pour que tout le monde les lise pareil.</div>
+</sc-if>
+
+<!-- cartes animées : une ligne par carte, interrupteur par carte -->
+<sc-if value="{{isAnim}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+<sc-for list="{{anims}}" as="a" hint-placeholder-count="6">
+<div class="{{a.cls}}" onClick="{{a.preview}}">
+<img src="{{a.img}}" alt="" style="flex: none; width: 74px; height: 105px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,.5);">
+<div style="flex: 1; min-width: 0;">
+<span class="myth">Mythique</span>
+<div style="font-weight: 800; font-size: 17px; margin-top: 6px;">{{a.name}}</div>
+<div style="font-size: 12.5px; color: #a8987f; margin-top: 3px; line-height: 1.35;">{{a.sub}}</div>
+</div>
+<button class="{{a.swCls}}" role="switch" aria-checked="{{a.on}}" aria-disabled="{{a.dis}}" aria-label="{{a.aria}}" onClick="{{a.toggle}}"></button>
+<sc-if value="{{a.locked}}" hint-placeholder-val="{{false}}"><span class="lockic" aria-hidden="true" style="left: 6px; right: auto;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#ead08a" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span></sc-if>
+</div>
+</sc-for>
+</div>
+<div class="lbl" style="margin-top: 6px;">Réglages</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+<div class="set"><div style="flex: 1;"><div style="font-weight: 800;">Son à l'impact</div><div style="font-size: 12.5px; color: #a8987f;">Quand votre carte animée tombe sur le tapis</div></div><button class="{{sndCls}}" role="switch" aria-checked="{{sndOn}}" aria-label="Son à l'impact" onClick="{{toggleSnd}}"></button></div>
+<div class="set"><div style="flex: 1;"><div style="font-weight: 800;">Animations des autres</div><div style="font-size: 12.5px; color: #a8987f;">Coupez-les si la partie rame sur votre appareil</div></div><button class="{{othCls}}" role="switch" aria-checked="{{othOn}}" aria-label="Voir les animations des autres joueurs" onClick="{{toggleOth}}"></button></div>
+</div>
+</sc-if>
+
+<!-- titres : plaques, progression pour ceux à débloquer -->
+<sc-if value="{{isTitle}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+<sc-for list="{{titles}}" as="t" hint-placeholder-count="9">
+<button class="{{t.cls}}" aria-pressed="{{t.on}}" onClick="{{t.pick}}" aria-label="{{t.aria}}">
+<span class="plaque" style="background: {{t.bg}};">{{t.name}}</span>
+<span style="font-size: 12.5px; color: #a8987f; text-align: center; min-height: 32px; line-height: 1.3;">{{t.how}}</span>
+<sc-if value="{{t.hasProg}}" hint-placeholder-val="{{false}}"><span class="prog"><i style="width: {{t.pct}}%;"></i></span><span style="font-size: 11.5px; color: #d9cdb6; font-weight: 700;">{{t.progTxt}}</span></sc-if>
+<sc-if value="{{t.isOn}}" hint-placeholder-val="{{false}}"><span class="check" aria-hidden="true">✓</span></sc-if>
+<sc-if value="{{t.locked}}" hint-placeholder-val="{{false}}"><span class="lockic" aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#ead08a" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span></sc-if>
+</button>
+</sc-for>
+</div>
+<div style="font-size: 12.5px; color: #a8987f;">La couleur de la plaque suit la rareté. Un titre verrouillé s'essaie dans l'aperçu, mais ne s'enregistre pas.</div>
+</sc-if>
+
+<!-- réactions : la barre de 4, puis la réserve -->
+<sc-if value="{{isReact}}" hint-placeholder-val="{{false}}">
+<div class="lbl">Votre barre · touches 1 à 4 pendant la partie</div>
+<div style="display: flex; gap: 10px;">
+<sc-for list="{{rslots}}" as="r" hint-placeholder-count="4">
+<div class="{{r.cls}}"><span class="k">{{r.k}}</span>{{r.txt}}<sc-if value="{{r.full}}" hint-placeholder-val="{{true}}"><button class="x" aria-label="{{r.aria}}" onClick="{{r.remove}}">×</button></sc-if></div>
+</sc-for>
+<div class="rs full" style="flex: none; width: 74px; background: linear-gradient(180deg,#e2bd62,#b78c33); color: #2b2117; border-color: transparent;">GIF</div>
+</div>
+<div class="lbl" style="margin-top: 6px;">Réserve · cliquez pour ajouter ou retirer</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+<sc-for list="{{reacts}}" as="r" hint-placeholder-count="12">
+<button class="{{r.cls}}" aria-pressed="{{r.on}}" onClick="{{r.pick}}" aria-label="{{r.aria}}">
+<span class="bub">{{r.name}}</span>
+<span style="display: flex; align-items: center; gap: 8px; align-self: stretch; font-size: 12px; color: #a8987f;"><span style="width: 14px; height: 4px; background: {{r.rc}};"></span>{{r.src2}}</span>
+<sc-if value="{{r.isOn}}" hint-placeholder-val="{{false}}"><span class="check" aria-hidden="true">{{r.pos}}</span></sc-if>
+<sc-if value="{{r.locked}}" hint-placeholder-val="{{false}}"><span class="lockic" aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#ead08a" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span></sc-if>
+</button>
+</sc-for>
+</div>
+</sc-if>
+</div>
+
+<!-- barre d'action -->
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 90px; box-sizing: border-box; padding: 0 40px; display: flex; align-items: center; gap: 12px; background: rgba(12,9,7,.92); border-top: 1px solid rgba(234,208,138,.18);">
+<span style="font-size: 14px; color: {{statusC}};">{{status}}</span>
+<sc-if value="{{tryOn}}" hint-placeholder-val="{{false}}"><a class="ghost" href="Boutique.dc.html" style="min-height: 40px;">Voir dans la boutique</a></sc-if>
+<div style="margin-left: auto; display: flex; gap: 10px;">
+<button class="ghost" onClick="{{random}}">Au hasard</button>
+<button class="ghost" onClick="{{cancel}}">Annuler</button>
+<button class="gold" aria-disabled="{{saveDis}}" onClick="{{save}}">Enregistrer</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["pirate","cartes","profil"],"default":"pirate"},"slot":{"editor":"enum","options":["","base","hat","back","anim","title","react"],"default":""},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  state = { tab: null, slot: null, filter: 'all', look: null, saved: null, color: '#d9b25a', savedColor: '#d9b25a', back: 'classique', anim: { kraken: true, sk: false }, animPrev: null, snd: true, oth: true, title: 'Corsaire', reacts: ['Bien joué', 'Aïe…', 'GG', 'À l’abordage !'], say: null, savedMsg: false };
+  kick() {
+    if (typeof document === 'undefined') return;
+    var webm = !!document.createElement('video').canPlayType('video/webm; codecs="vp9"');
+    document.querySelectorAll('video.cvid').forEach(v => {
+      v.muted = true; v.defaultMuted = true; v.playsInline = true; v.loop = true;
+      if (!webm && v.dataset.mp4 && v.getAttribute('src') !== v.dataset.mp4) v.src = v.dataset.mp4;
+      if (v.paused) { var p = v.play(); if (p && p.catch) p.catch(() => {}); }
+    });
+  }
+  boot() {
+    if (this.booted) return; this.booted = true;
+    var n = 0, tick = () => { this.kick(); if (++n < 40) this.tm = setTimeout(tick, 500); };
+    this.tm = setTimeout(tick, 60);
+  }
+  componentWillUnmount() { clearTimeout(this.tm); clearTimeout(this.st); }
+  renderVals() {
+    var st = this.state;
+    this.boot();
+    var START = { skin: 1, hair: 'meche', hc: 1, beard: 'short', hat: 'plume', htc: '#1d1814', face: null, neck: 'foulard', nkc: '#9e2a22', pet: null, ptc: '#3e8e4e', bg: 'mer', frame: 'corde' };
+    var look = st.look || START, saved = st.saved || START, color = st.color;
+    var RC = { c: '#c9d3dc', r: '#4fa8ff', e: '#b77dff', l: '#ffc94a', m: 'linear-gradient(90deg,#ff9ad5,#ffd36b,#8dffb0,#7fc8ff,#c39bff)' };
+    var PLQ = { c: 'linear-gradient(180deg,#e9e2d2,#b9b0a0)', r: 'linear-gradient(180deg,#a9d4ff,#4f8fd6)', e: 'linear-gradient(180deg,#dcbcff,#9a62e0)', l: 'linear-gradient(180deg,#ffe49a,#d9a53a)', m: 'linear-gradient(90deg,#ff9ad5,#ffd36b,#8dffb0,#7fc8ff,#c39bff)' };
+    var OBJ = { bandana: 1, tricorne: 1, lunettes: 1, mouette: 1, monocle: 1, perroquet: 1, perles: 1, patch: 1, poulpe: 1, couronne: 1, medaillon: 1 };
+    // [valeur, nom, rareté, possédé, provenance]
+    var CAT = {
+      hat: [[null, 'Tête nue', 'c', 1], ['bandana', 'Bandana', 'c', 1], ['tricorne', 'Tricorne', 'c', 1], ['plume', 'Chapeau à plume', 'e', 1], ['bicorne', 'Bicorne', 'r', 0, 'Niveau 16'], ['amiral', "Chapeau d'amiral", 'l', 0, 'Coffre'], ['couronne', 'Couronne', 'l', 0, 'Haut fait']],
+      face: [[null, 'Rien', 'c', 1], ['cicatrice', 'Cicatrice', 'c', 1], ['lunettes', 'Lunettes rondes', 'c', 1], ['khol', 'Khôl', 'c', 1], ['patch', 'Cache-œil', 'r', 1], ['monocle', 'Monocle', 'r', 0, 'Coffre']],
+      neck: [[null, 'Rien', 'c', 1], ['foulard', 'Foulard', 'c', 1], ['jabot', 'Jabot', 'r', 1], ['perles', 'Perles des sirènes', 'e', 1], ['medaillon', "Médaillon d'or", 'l', 0, 'Haut fait']],
+      pet: [[null, 'Personne', 'c', 1], ['mouette', 'Mouette', 'c', 1], ['perroquet', 'Perroquet', 'r', 1], ['singe', 'Singe', 'r', 0, 'Échoppe · 150'], ['poulpe', 'Poulpe', 'l', 0, 'Coffre']],
+      bg: [['mer', 'Haute mer', 'c', 1], ['nuit', 'Nuit étoilée', 'c', 1], ['taverne', 'Taverne', 'c', 1], ['couchant', 'Couchant', 'e', 1], ['tempete', 'Tempête', 'r', 0, 'Échoppe · 150'], ['or', 'Salle au trésor', 'l', 0, 'Niveau 30']],
+      frame: [[null, 'Sans cadre', 'c', 1], ['corde', 'Corde', 'c', 1], ['tentacules', 'Tentacules', 'l', 1], ['or', "Cadre d'or", 'l', 0, 'Top 3 du mois']]
+    };
+    var BACKS = [['classique', 'Classique', 'c', 1, '', 'repeating-linear-gradient(45deg,#7a1f1a 0 6px,#5e1612 6px 12px)'],
+                 ['marine', 'Carte marine', 'c', 1, '', 'radial-gradient(circle at 50% 50%,#e8dcc0 0 18%,transparent 19%),repeating-linear-gradient(0deg,#1f4f6a 0 10px,#1a4359 10px 20px)'],
+                 ['voile', 'Voile rapiécée', 'c', 1, '', 'linear-gradient(90deg,transparent 48%,#8a7350 48% 52%,transparent 52%),repeating-linear-gradient(0deg,#e6dcc4 0 14px,#d6c9ab 14px 28px)'],
+                 ['ancre', 'Ancre et cordage', 'r', 1, '', 'radial-gradient(circle at 50% 45%,#c9a14a 0 14%,transparent 15%),linear-gradient(180deg,#1b2b3a,#0f1a24)'],
+                 ['rose', 'Rose des vents', 'r', 0, 'Coffre', 'conic-gradient(from 45deg at 50% 50%,#d9b25a 0 12.5%,#2a3e52 0 25%,#d9b25a 0 37.5%,#2a3e52 0 50%,#d9b25a 0 62.5%,#2a3e52 0 75%,#d9b25a 0 87.5%,#2a3e52 0)'],
+                 ['kraken', 'Kraken', 'e', 0, 'Échoppe · 300', 'radial-gradient(circle at 50% 40%,#c8644b 0 20%,transparent 21%),linear-gradient(180deg,#3a1414,#1a0808)'],
+                 ['abysses', 'Abysses', 'e', 0, 'Niveau 22', 'radial-gradient(circle at 30% 70%,#7fffd0 0 3%,transparent 4%),radial-gradient(circle at 70% 30%,#7fffd0 0 2%,transparent 3%),linear-gradient(180deg,#0d3b47,#03141a)'],
+                 ['or', 'Doublons', 'l', 0, 'Coffre', 'repeating-radial-gradient(circle at 50% 50%,#e2bd62 0 4px,#a77b22 4px 8px)']];
+    // [clé, nom, image, possédé, webm, mp4, cadre, lueur, ce qui bouge]
+    var ANIM = [['kraken', 'Kraken', '/_blob/447c9e8c7d969e8f6766feff265f844a', 1, '/_blob/632c3f515886a29c50023745339daceb', '/_blob/3d65da78e7dc1302db58c65a3dd4c0b9', '/_blob/1efa4a3e204994fce2dead462656b484', 'rgba(255,90,60,.45)', 'Tentacules et œil rougeoyant'],
+                ['sk', 'Skull King', '/_blob/0ed75a1c0d934cd2fc2d5bc282f25da4', 1, '/_blob/ff97623a6384e49dd8736cf89f9de160', '/_blob/25ed9dbc3feb26cc7aa2c300b2b0f19b', '/_blob/1f7bc94e15723cd84a43412cf01649c9', 'rgba(255,200,90,.45)', 'La barre tourne, l’or scintille'],
+                ['raie', 'Raie', '/_blob/14c72007c9d4baee2e934c0a96b4857d', 0, '/_blob/c33bd7be83e700b907ea527995f3bd05', '/_blob/008ccfba3e16dbd143afb706e5733d46', '/_blob/46ebf94b6dde3257ece74d6bac3cb0d6', 'rgba(90,200,255,.45)', 'Ailes qui ondulent'],
+                ['baleine', 'Baleine', '/_blob/3c7edb6e1b9a83c4fa9510c282ddd976', 0, '/_blob/6c85b308651263f67e41960418a00ef0', '/_blob/3e7ec7026113571b9f7bffddc6133e4c', '/_blob/31f97a8a5fb4a1ad1ad3f39135bd497a', 'rgba(255,220,150,.45)', 'Gerbes d’eau, mouettes, houle'],
+                ['sirene', 'Alyra', '/_blob/a814cde5a564567221bbeff6dcecde0d', 0, '/_blob/c895d099370b0a95818368027c7c1f6a', '/_blob/6f7d49451b165e839dad714fcd8617f0', '/_blob/747d6dbab36c53356e66931ecb79b22e', 'rgba(140,255,220,.45)', 'Cheveux qui ondulent, bulles'],
+                ['fosse', 'Fosse des Noyés', '/_blob/4bb3c78920f6b742f3d4300354d8b4fc', 0, '/_blob/5d68b7fb58562e4bfd550266077d5309', '/_blob/1d1caa31f53512218c20c8e14c5d3ff4', '/_blob/60a916f654c1e1dcaa9ed69a8eedd60b', 'rgba(120,255,150,.45)', 'Halo spectral, yeux qui s’allument']];
+    // [titre, rareté, possédé, comment, progression [fait, total]]
+    var TITLES = [['Mousse', 'c', 1, 'Dès la première partie'], ['Matelot', 'c', 1, 'Niveau 2'], ['Gabier', 'c', 1, 'Niveau 5'], ['Bosco', 'c', 1, 'Niveau 10'], ['Corsaire', 'r', 1, 'Niveau 15'],
+                  ['Chasseur de sirènes', 'e', 1, 'Haut fait · capturer 5 sirènes'], ['Fléau du Kraken', 'e', 0, 'Haut fait · gagner 10 plis avec le Kraken', [6, 10]],
+                  ['Amiral', 'l', 0, 'Niveau 25', [18, 25]], ['Légende des 7 mers', 'l', 0, 'Niveau 30', [18, 30]]];
+    // [réaction, rareté, possédé, provenance]
+    var REACTS = [['Bien joué', 'c', 1], ['Aïe…', 'c', 1], ['GG', 'c', 1], ['À l’abordage !', 'c', 1], ['Trahison !', 'c', 1], ['Par la barbe !', 'c', 1], ['Encore un pli !', 'c', 1], ['Je l’avais dit', 'c', 1],
+                  ['Pas de quartier', 'c', 0, 'Échoppe · 50'], ['Hissez les voiles', 'r', 0, 'Coffre'], ['Le Kraken a faim', 'e', 0, 'Coffre'], ['Au trou, moussaillon', 'r', 0, 'Haut fait']];
+    var tab = st.tab || this.props.tab || 'pirate', slot = st.slot || this.props.slot || ({ pirate: 'hat', cartes: 'back', profil: 'title' })[tab], filter = st.filter;
+    var set = o => this.setState({ look: Object.assign({}, look, o), savedMsg: false });
+    var SLOTS = {
+      pirate: [['base', 'Visage', 'V', 'Teint, coiffure, manteau'], ['hat', 'Chapeau', 'C'], ['face', 'Yeux et visage', 'Y'], ['neck', 'Cou', 'N'], ['pet', 'Compagnon', 'P'], ['bg', 'Décor', 'D'], ['frame', 'Cadre', 'F']],
+      cartes: [['back', 'Dos de cartes', 'D'], ['anim', 'Cartes animées', 'A']],
+      profil: [['title', 'Titre', 'T'], ['react', 'Réactions rapides', 'R']]
+    };
+    var nameOf = (k) => { if (k === 'base') return 'Tout est gratuit'; var it = (CAT[k] || []).find(x => x[0] === look[k]); return it ? it[1] : '—'; };
+    var curOf = (k) => k === 'back' ? BACKS.find(b => b[0] === st.back)[1] : k === 'anim' ? ANIM.filter(a => a[3] && st.anim[a[0]]).length + ' activée(s)' : k === 'title' ? st.title : k === 'react' ? st.reacts.length + ' sur 4' : nameOf(k);
+    var countOf = (k) => { var L = k === 'back' ? BACKS.map(b => b[3]) : k === 'anim' ? ANIM.map(a => a[3]) : k === 'title' ? TITLES.map(t => t[2]) : k === 'react' ? REACTS.map(r => r[2]) : (CAT[k] || []).map(x => x[3]); if (!L.length) return ''; return L.filter(x => x).length + '/' + L.length; };
+    var slots = SLOTS[tab].map(s => ({ label: s[1], ic: s[2], cur: curOf(s[0]), count: s[0] === 'base' ? '' : countOf(s[0]), on: String(slot === s[0]), cls: 'slot' + (slot === s[0] ? ' on' : ''),
+      pick: () => this.setState({ tab: tab, slot: s[0], filter: 'all' }) }));
+    var keepF = (owned) => filter === 'all' || (filter === 'own' ? owned : !owned);
+    var lockCls = (base, on, owned) => base + (on ? ' on' : '') + (owned ? '' : ' lock');
+    var items = [], backs = [], anims = [], titles = [], reacts = [];
+    var tryOn = false;
+    if (CAT[slot]) {
+      items = CAT[slot].filter(it => keepF(!!it[3])).map(it => {
+        var o = {}; o[slot] = it[0]; var lk = Object.assign({}, look, o), owned = !!it[3], on = look[slot] === it[0];
+        return { name: it[1], src2: owned ? '' : it[4], rc: RC[it[2]], look: lk, av: !OBJ[it[0]], obj: !!OBJ[it[0]], objItem: it[0], objC: '#2f5f8a', back: false, img: false, txt: false,
+          isOn: on, locked: !owned, on: String(on), aria: it[1] + (owned ? '' : ' (verrouillé, ' + it[4] + ')'), cls: lockCls('it', on, owned), pick: () => set(o) };
+      });
+    }
+    backs = BACKS.filter(b => keepF(!!b[3])).map(b => { var on = st.back === b[0];
+      return { name: b[1], src2: b[3] ? (on ? 'Équipé' : '') : b[4], rc: RC[b[2]], bg: b[5], isOn: on, locked: !b[3], on: String(on), aria: 'Dos ' + b[1] + (b[3] ? '' : ' (verrouillé, ' + b[4] + ')'),
+        cls: lockCls('bk', on, b[3]), pick: () => this.setState({ back: b[0], savedMsg: false }) }; });
+    var prevKey = st.animPrev || (ANIM.find(a => a[3] && st.anim[a[0]]) || ANIM[0])[0];
+    anims = ANIM.filter(a => keepF(!!a[3])).map(a => { var on = !!(a[3] && st.anim[a[0]]);
+      return { name: a[1], img: a[2], sub: a[3] ? a[8] : a[8] + ' · 1 % par coffre', on: String(on), dis: String(!a[3]), locked: !a[3], aria: 'Animer ' + a[1] + ' à la table',
+        cls: lockCls('an', prevKey === a[0], a[3]), swCls: 'sw2' + (on ? ' on' : ''),
+        preview: () => { this.setState({ animPrev: a[0] }); setTimeout(() => this.kick(), 60); },
+        toggle: (e) => { if (e && e.stopPropagation) e.stopPropagation(); if (!a[3]) return; var n = Object.assign({}, st.anim); n[a[0]] = !on; this.setState({ anim: n, animPrev: a[0], savedMsg: false }); setTimeout(() => this.kick(), 60); } }; });
+    titles = TITLES.filter(t => keepF(!!t[2])).map(t => { var on = st.title === t[0], p = t[4];
+      return { name: t[0], bg: PLQ[t[1]], how: t[3], hasProg: !!p, pct: p ? Math.round(p[0] / p[1] * 100) : 0, progTxt: p ? p[0] + ' / ' + p[1] : '',
+        isOn: on, locked: !t[2], on: String(on), aria: 'Titre ' + t[0] + (t[2] ? '' : ' (verrouillé, ' + t[3] + ')'), cls: lockCls('pl', on, t[2]), pick: () => this.setState({ title: t[0], savedMsg: false }) }; });
+    var sayIt = (txt) => { clearTimeout(this.st); this.setState({ say: null }); setTimeout(() => this.setState({ say: txt }), 30); this.st = setTimeout(() => this.setState({ say: null }), 2600); };
+    reacts = REACTS.filter(r => keepF(!!r[2])).map(r => { var i = st.reacts.indexOf(r[0]), on = i >= 0;
+      return { name: r[0], rc: RC[r[1]], src2: r[2] ? (on ? 'Dans la barre · touche ' + (i + 1) : 'Dans la réserve') : r[3], isOn: on, pos: on ? String(i + 1) : '', locked: !r[2], on: String(on),
+        aria: 'Réaction ' + r[0] + (r[2] ? '' : ' (verrouillée, ' + r[3] + ')'), cls: lockCls('rc', on, r[2]),
+        pick: () => { if (!r[2]) { sayIt(r[0]); return; } var n = st.reacts.slice(); if (on) n = n.filter(x => x !== r[0]); else { if (n.length >= 4) n.shift(); n.push(r[0]); sayIt(r[0]); } this.setState({ reacts: n, savedMsg: false }); } }; });
+    var rslots = [0, 1, 2, 3].map(i => { var r = st.reacts[i];
+      return { k: String(i + 1), txt: r ? r : 'Vide', full: !!r, cls: 'rs' + (r ? ' full' : ''), aria: 'Retirer ' + r, remove: () => this.setState({ reacts: st.reacts.filter(x => x !== r), savedMsg: false }) }; });
+    // objets essayés mais non possédés
+    Object.keys(CAT).forEach(k => { var it = CAT[k].find(x => x[0] === look[k]); if (it && !it[3]) tryOn = true; });
+    if (!(BACKS.find(b => b[0] === st.back) || [])[3]) tryOn = true;
+    if (!(TITLES.find(t => t[0] === st.title) || [])[2]) tryOn = true;
+
+    var SK = ['#f3d2b3', '#e6b48f', '#c98e66', '#a56a45', '#7a4a2c', '#5a3420'];
+    var HC = ['#1d1510', '#4a2c1a', '#8a5a2b', '#c9a14a', '#a33a26', '#d8d2c4'];
+    var COLS = [['#d9b25a', 'Or'], ['#c8644b', 'Corail'], ['#7ab874', 'Algue'], ['#5c9db6', 'Lagon'], ['#a982c4', 'Améthyste'], ['#e0954a', 'Ambre'], ['#c9c0ae', 'Écume'], ['#d77fa1', 'Corail rose']];
+    var sw = (label, c, on, pick) => ({ sw: true, tile: false, c: c, label: label, on: String(on), cls: 'sw' + (on ? ' on' : ''), pick: pick });
+    var tl = (label, o) => { var on = Object.keys(o).every(k => look[k] === o[k]); return { sw: false, tile: true, label: label, look: Object.assign({}, look, o, { hat: null, pet: null }), on: String(on), cls: 'bt' + (on ? ' on' : ''), pick: () => set(o) }; };
+    var baseRows = [
+      { label: 'Teint', opts: SK.map((c, i) => sw('Teint ' + (i + 1), c, look.skin === i, () => set({ skin: i }))) },
+      { label: 'Coiffure', opts: [['Court', 'court'], ['Mèche', 'meche'], ['Long', 'long'], ['Bouclé', 'boucles'], ['Chignon', 'chignon'], ['Tresse', 'tresse'], ['Queue', 'queue'], ['Rasé', 'none']].map(h => tl(h[0], { hair: h[1] })) },
+      { label: 'Couleur des cheveux', opts: HC.map((c, i) => sw('Cheveux ' + (i + 1), c, look.hc === i, () => set({ hc: i }))) },
+      { label: 'Pilosité', opts: [['Aucune', 'none'], ['Moustache', 'mous'], ['Barbe courte', 'short'], ['Grande barbe', 'long']].map(b => tl(b[0], { beard: b[1] })) },
+      { label: 'Manteau · c’est aussi votre couleur à la table', opts: COLS.map(c => sw(c[1], c[0], color === c[0], () => this.setState({ color: c[0], savedMsg: false }))) }
+    ];
+    var TT = { base: 'Visage', hat: 'Chapeau', face: 'Yeux et visage', neck: 'Cou', pet: 'Compagnon', bg: 'Décor', frame: 'Cadre', back: 'Dos de cartes', anim: 'Cartes animées', title: 'Titre', react: 'Réactions rapides' };
+    var HINT = { pirate: 'L’apparence de base est entièrement gratuite et modifiable à tout moment. Les objets se gagnent dans les coffres, par les niveaux et les hauts faits, ou s’achètent à l’échoppe de la semaine.',
+                 cartes: 'Les dos se gagnent dans les coffres, par les niveaux ou à l’échoppe. Les cartes animées sont Mythiques (1 % par coffre) : chacune s’active ou se coupe à part, et un doublon rapporte 400 pièces.',
+                 profil: 'Le titre s’affiche sous votre nom, à la table et au survol. Les 4 réactions sont les boutons rapides au-dessus de votre main ; le bouton GIF reste toujours à côté.' };
+    var dirty = JSON.stringify(look) !== JSON.stringify(saved) || color !== st.savedColor;
+    var fan = [0, 1, 2, 3, 4, 5, 6].map(i => ({ x: -27 + (i - 3) * 22, y: Math.abs(i - 3) * 4, r: (i - 3) * 9 }));
+    var pa = ANIM.find(a => a[0] === prevKey), paOn = !!(pa[3] && st.anim[pa[0]]);
+    var tObj = TITLES.find(t => t[0] === st.title);
+    var back = BACKS.find(b => b[0] === st.back);
+    return {
+      tabs: [['pirate', 'Pirate'], ['cartes', 'Cartes'], ['profil', 'Titre et réactions']].map(t => ({ label: t[1], on: String(tab === t[0]), cls: 'tab' + (tab === t[0] ? ' on' : ''),
+        pick: () => { this.setState({ tab: t[0], slot: SLOTS[t[0]][t[0] === 'pirate' ? 1 : 0][0], filter: 'all' }); setTimeout(() => this.kick(), 80); } })),
+      isPirate: tab === 'pirate', isCards: tab === 'cartes', isProfil: tab === 'profil',
+      look: look, color: color, title: st.title, reactBar: st.reacts, fan: fan, backBg: back[5], backName: back[1],
+      animImg: pa[2], animWebm: pa[4], animMp4: pa[5], animCadre: pa[6], animMask: 'mk-' + pa[0], animGlow: paOn ? pa[7] : 'transparent', animPlays: !!pa[3],
+      animCaption: !pa[3] ? pa[1] + ' · pas encore gagnée : aperçu' : paOn ? pa[1] + ' · animée quand vous la jouez' : pa[1] + ' · animation coupée, carte fixe à la table',
+      titleBg: PLQ[tObj[1]], sayOn: !!st.say || slot === 'react', sayText: st.say || st.reacts[0] || 'GG',
+      backs: backs, anims: anims, titles: titles, reacts: reacts, rslots: rslots,
+      isBack: slot === 'back', isAnim: slot === 'anim', isTitle: slot === 'title', isReact: slot === 'react',
+      sndCls: 'sw2' + (st.snd ? ' on' : ''), sndOn: String(st.snd), toggleSnd: () => this.setState({ snd: !st.snd }),
+      othCls: 'sw2' + (st.oth ? ' on' : ''), othOn: String(st.oth), toggleOth: () => this.setState({ oth: !st.oth }),
+      slots: slots, slotTitle: TT[slot], isBase: slot === 'base', isGrid: !!CAT[slot], hasFilters: slot !== 'base',
+      filters: [['all', 'Tout'], ['own', 'Possédés'], ['lock', 'À débloquer']].map(f => ({ label: f[1], cls: 'chip' + (filter === f[0] ? ' on' : ''), pick: () => this.setState({ filter: f[0] }) })),
+      baseRows: baseRows, items: items, hint: HINT[tab], tryOn: tryOn,
+      status: tryOn ? 'Vous essayez un objet que vous ne possédez pas encore.' : st.savedMsg ? 'Enregistré ✓ Les autres joueurs voient votre nouveau look.' : (dirty ? 'Modifications non enregistrées' : 'Tout est enregistré'),
+      statusC: tryOn ? '#ffb38a' : st.savedMsg ? '#9bd69f' : '#a8987f',
+      saveDis: String(tryOn),
+      save: () => { if (tryOn) return; this.setState({ saved: look, savedColor: color, savedMsg: true }); },
+      cancel: () => this.setState({ look: saved, color: st.savedColor, savedMsg: false }),
+      random: () => { var pickOwned = k => { var L = CAT[k].filter(x => x[3]); return L[Math.floor(Math.random() * L.length)][0]; };
+        set({ hat: pickOwned('hat'), face: pickOwned('face'), neck: pickOwned('neck'), pet: pickOwned('pet'), bg: pickOwned('bg'), frame: pickOwned('frame'), skin: Math.floor(Math.random() * 6), hc: Math.floor(Math.random() * 6) }); }
+    };
+  }
+}
+</script>
+</body>
+</html>
