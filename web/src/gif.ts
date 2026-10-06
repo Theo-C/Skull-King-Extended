@@ -39,7 +39,8 @@ export interface GifHost {
   /** Élément du tapis (le GIF surgit en son centre). */
   board(): HTMLElement | null;
   search(q: string, cat: string, cursor: string | null): Promise<{ items: GifItem[]; next: string | null }>;
-  send(id: string): Promise<void>;
+  /** Envoi : en ligne, le serveur diffuse le GIF (seul l'identifiant compte) ; à l'entraînement, il s'affiche sur place. */
+  send(id: string, item: GifItem): Promise<void>;
   /** Vrai pendant son propre tour : le bouton est désactivé. */
   myTurn(): boolean;
   /** Nom, couleur et côté de la table d'un siège (décalage de ~90 px vers l'envoyeur quand plusieurs GIF s'affichent). */
@@ -115,7 +116,7 @@ export class GifCtl {
   private async choose(g: GifItem) {
     if (this.host.myTurn() || Date.now() < this.until) return;
     this.close(); this.cooldown(GIF_COOLDOWN_S);
-    try { await this.host.send(g.id); pushRecent(g); }
+    try { await this.host.send(g.id, g); pushRecent(g); }
     catch (e: any) {
       const m = /encore (\d+) s/.exec(e?.message || ''); this.cooldown(m ? Number(m[1]) : 0);
       this.root.dispatchEvent(new CustomEvent('giferror', { detail: e?.message || "Le GIF n'est pas parti." }));

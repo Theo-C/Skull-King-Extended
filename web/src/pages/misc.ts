@@ -4,7 +4,7 @@ import * as E from '@engine';
 import { TableView } from '../table';
 import { optionsHTML, readOptions, wireOptions, paintRanked } from '../options';
 import { go, setCleanup } from '../main';
-import { sb } from '../api';
+import { sb, callGame } from '../api';
 
 export function practicePage(root: HTMLElement) {
   root.innerHTML = `<section class="page narrow"><div class="box">
@@ -22,6 +22,10 @@ export function practicePage(root: HTMLElement) {
         try { E.apply(S, 0, move); } catch (e: any) { throw new Error(e.message); }
         E.runBots(S); view.push(E.takeEvents(S)); view.setLatest(E.publicView(S), E.privateView(S, 0));
       },
+      // GIF pour essayer : recherche par le serveur (compte connecté), affichage sur place, sans diffusion
+      seatUids: ['local', ...Array(n - 1).fill(null)],
+      gifSearch: (q, cat, cursor) => callGame('gif.search', { q, cat, cursor }),
+      gifSend: async (_id, g) => view.receiveGif({ userId: 'local', seat: 0, gifUrl: g.full, w: g.w, h: g.h }),
     }, () => go('#/'));
     view.push(E.takeEvents(S)); view.setLatest(E.publicView(S), E.privateView(S, 0));
     // connecté : vos cartes animées s'animent aussi à l'entraînement (siège 0)

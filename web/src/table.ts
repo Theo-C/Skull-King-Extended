@@ -43,7 +43,7 @@ export interface TableBackend {
   /** Aperçu d'un joueur (player.card) pour la fenêtre au survol d'un pod. */
   playerCard?(uid: string): Promise<PlayerCardData>;
   /** GIF en partie (A10) : recherche et envoi par le serveur (gif.search, gif.send). */
-  gifSearch?(q: string, cat: string, cursor: string | null): Promise<{ items: GifItem[]; next: string | null }>; gifSend?(id: string): Promise<void>;
+  gifSearch?(q: string, cat: string, cursor: string | null): Promise<{ items: GifItem[]; next: string | null }>; gifSend?(id: string, item: GifItem): Promise<void>;
   /** Son coupé ou remis depuis la table : enregistré aussi dans le profil (réglage « Sons de la table »). */
   saveSound?(on: boolean): void;
 }
@@ -225,7 +225,7 @@ export class TableView {
       this.gif = new GifCtl(root, {
         board: () => this.root.querySelector('#table') as HTMLElement | null,
         search: (q, cat, cursor) => this.backend.gifSearch!(q, cat, cursor),
-        send: id => this.backend.gifSend!(id),
+        send: (id, g) => this.backend.gifSend!(id, g),
         myTurn: () => this.myTurnNow,
         seat: i => { const p = this.pub?.players[i]; return p ? { name: i === this.mySeat ? 'Vous' : p.name, color: this.colorOf(i), ...this.gifSide(i) } : null; },
         uidOf: i => this.backend.seatUids?.[i] ?? null,
