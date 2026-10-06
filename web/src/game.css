@@ -1086,3 +1086,6 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 /* suggestions de GIF : bande posée au-dessus du panneau (par-dessus le journal), sans repousser le champ */
 .reactp{position:relative}
 .reactp:not(.gifmode) .rp-sugg{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:6;margin:0;background:linear-gradient(180deg,#2b2017,#1a120c);border:1px solid rgba(234,208,138,.35);box-shadow:0 -10px 24px rgba(0,0,0,.5)}
+/* champ unique : le champ intérieur n'a ni bordure ni contour à lui ; le focus se voit sur le cadre */
+.reactp .rp-field input,.reactp .rp-field input:focus,.reactp .rp-field input:focus-visible{border:0;outline:none;box-shadow:none;background:transparent;padding:0;border-radius:0;min-height:0}
+.reactp .rp-field:focus-within{border-color:rgba(234,208,138,.65)}
