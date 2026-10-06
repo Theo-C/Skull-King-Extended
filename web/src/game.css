@@ -1024,11 +1024,65 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .emo kbd,.qemo kbd{display:inline-grid;place-items:center;min-width:16px;height:16px;margin-right:6px;padding:0 3px;border-radius:4px;background:rgba(234,208,138,.18);color:#ead08a;font:800 11px 'Alegreya Sans',sans-serif}
 .qreact{display:contents}
 .qemo{overflow-x:auto}
-/* GIF bien visible : dans le panneau Réactions (ordinateur) ; au téléphone, GIF et ✎ toujours visibles, les réactions défilent */
-.emogif{display:flex;align-items:center;gap:10px;margin-top:8px}
-.gifbtn.big{height:40px;padding:0 22px;font-size:14px}
+/* au téléphone, GIF et ✎ toujours visibles, les réactions défilent */
 .qemo{overflow:visible}
 .qemo .gifbtn,.qemo #emoWrite{flex:none}
 .qemo .qreact{display:flex;gap:8px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
 .qemo .qreact::-webkit-scrollbar{display:none}
 .qemo .qreact button{flex:none;white-space:nowrap}
+
+/* Panneau Réactions (docs/gif/SPEC.md) : un seul champ pour écrire ou chercher un GIF ; en mode GIF, le panneau grandit
+   vers le haut par-dessus le journal (le journal rétrécit, rien ne couvre la table). */
+@media (min-width:720px){
+  .tmain{max-height:calc(100vh - 64px)}
+  .side{min-height:0;overflow:hidden}
+  .side .logp{flex:1 1 0;min-height:90px;display:flex;flex-direction:column;overflow:hidden}
+  .side .logp #log{flex:1;min-height:0;overflow:auto}
+}
+.reactp{flex:none;display:flex;flex-direction:column;gap:10px}
+.reactp .emotes .emo{height:46px}
+.rp-field{display:flex;align-items:center;gap:6px;height:46px;padding:0 5px 0 12px;border-radius:12px;border:1px solid rgba(234,208,138,.3);background:rgba(0,0,0,.35);box-sizing:border-box;transition:border-color .2s,box-shadow .2s}
+.rp-field.gif{border-color:#ead08a;box-shadow:0 0 0 3px rgba(234,208,138,.15)}
+.rp-field input{flex:1;min-width:0;height:100%;border:0;background:transparent;color:#f2e7cd;font:500 15px var(--f-body);outline:none}
+.rp-field input::placeholder{color:#8f8270}
+.rp-gifb{flex:none;height:34px;min-width:46px;padding:0 9px;border-radius:8px;border:1px solid rgba(234,208,138,.45);background:transparent;color:#ead08a;font:900 12.5px var(--f-body);letter-spacing:.08em;cursor:pointer}
+.rp-gifb.on{background:linear-gradient(180deg,#e2bd62,#b78c33);border-color:transparent;color:#2b2117}
+.rp-gifb.cool{color:#a8987f;border-color:rgba(234,208,138,.2)}
+.rp-send{flex:none;width:34px;height:34px;border-radius:8px;border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.rp-send[aria-disabled="true"]{background:rgba(234,208,138,.12);color:#8f8270;cursor:default}
+.rp-help{font-size:12px;color:#8f8270;margin-top:-4px}
+.rp-sugg{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding:8px;border-radius:10px;background:rgba(234,208,138,.06);animation:rpGrow .2s ease-out both}
+.rp-sh{display:flex;justify-content:space-between;font-size:12px;color:#a8987f}
+.rp-minis{display:flex;gap:6px}
+.rp-mini{flex:none;width:84px;height:58px;padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;cursor:pointer;background:#000}
+.rp-mini:hover{border-color:#ead08a}
+.rp-mini video,.rp-mini img,.rp-tile video,.rp-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.rp-gif{display:flex;flex-direction:column;gap:10px;animation:rpGrow .2s ease-out both}
+@keyframes rpGrow{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.rp-gh{display:flex;align-items:center;gap:8px}
+.rp-gh b{font:400 19px var(--f-disp);color:#ead08a;margin-left:4px}
+.rp-gh span{margin-left:auto;font-size:11.5px;color:#8f8270}
+.rp-back{min-height:30px;padding:0 10px;border-radius:9px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.35);color:#f2e7cd;font:800 13px var(--f-body);cursor:pointer}
+.rp-cats{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.rp-chip{flex:none;height:30px;padding:0 11px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font:700 13px var(--f-body);cursor:pointer}
+.rp-chip.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.rp-gridw{position:relative;height:340px;max-height:calc(100vh - 360px);min-height:150px;overflow:auto;border-radius:10px}
+.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rp-tile{position:relative;padding:0;border:2px solid transparent;border-radius:9px;overflow:hidden;cursor:pointer;background:#000;height:104px}
+.rp-tile:hover{border-color:#ead08a}
+.rp-tile[aria-disabled="true"],.rp-mini[aria-disabled="true"]{cursor:default;opacity:.35;border-color:transparent}
+.rp-msg{grid-column:1/-1;margin:0;padding:30px 10px;text-align:center;font-size:14px;color:#a8987f}
+.rp-cool{position:sticky;bottom:0;margin-top:-40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(20,14,10,.92);border-radius:8px;font-size:13.5px;font-weight:800;color:#ead08a}
+.rp-cool[hidden]{display:none}
+/* mode GIF : le panneau s'ancre en bas de la colonne et monte par-dessus le journal, sans allonger la page */
+@media (min-width:720px){
+  .side{position:relative}
+  .side .logp{min-height:70px}
+  .reactp.gifmode{position:absolute;left:0;right:0;bottom:0;z-index:6;max-height:100%;box-sizing:border-box;box-shadow:0 -14px 30px rgba(0,0,0,.55)}
+  .reactp.gifmode .rp-gif{flex:1;min-height:0}
+  .reactp.gifmode .rp-gridw{flex:1 1 auto;height:340px;max-height:none;min-height:120px}
+}
+.reactp .emotes{gap:8px}.reactp .emotes .emo{height:40px}
+/* suggestions de GIF : bande posée au-dessus du panneau (par-dessus le journal), sans repousser le champ */
+.reactp{position:relative}
+.reactp:not(.gifmode) .rp-sugg{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:6;margin:0;background:linear-gradient(180deg,#2b2017,#1a120c);border:1px solid rgba(234,208,138,.35);box-shadow:0 -10px 24px rgba(0,0,0,.5)}

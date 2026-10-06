@@ -46,7 +46,22 @@ export interface GifHost {
   /** Utilisateur assis à ce siège (contrôle de l'expéditeur). */
   uidOf(seat: number): string | null;
   mob(): boolean;
+  /** Réaction texte écrite dans le champ du panneau (vrai si elle est partie). */
+  sendText(text: string): boolean;
 }
+/** Catégories du panneau Réactions en mode GIF (Récents par défaut). */
+const PANEL_CATS: [string, string][] = [['recents', 'Récents'], ['tendances', 'Tendances'], ['bravo', 'Bravo'], ['rire', 'Rire'], ['rage', 'Rage'], ['pirate', 'Pirate']];
+const SEND_ICO = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h14M13 6l6 6-6 6"/></svg>';
+/** Panneau Réactions (docs/gif/SPEC.md, « Le panneau Réactions ») : 4 réactions rapides et un seul champ pour écrire une
+ *  réaction ou chercher un GIF (bouton GIF dans le champ, flèche d'envoi, suggestions dès 2 lettres, raccourci « /gif »). */
+export const reactPanelHTML = (max: number) => `<section class="panel reactp" data-gifpanel>
+  <div class="rp-text"><h3>Réactions <small>touches 1 à 4</small></h3><div class="emotes" data-reacts></div><div class="rp-sugg" hidden></div></div>
+  <div class="rp-gif" hidden><div class="rp-gh"><button type="button" class="rp-back">← Réactions</button><b>GIF</b><span>via KLIPY</span></div>
+    <div class="rp-cats">${PANEL_CATS.map(([k, l]) => `<button type="button" class="rp-chip" data-pcat="${k}">${l}</button>`).join('')}</div>
+    <div class="rp-gridw"><div class="rp-grid" aria-live="polite"></div><div class="rp-cool" hidden></div></div></div>
+  <div class="rp-field"><label class="sr" for="rq">Écrire une réaction ou chercher un GIF</label><input id="rq" maxlength="${max}" placeholder="Écrire une réaction ou /gif…" autocomplete="off">
+    <button type="button" class="rp-gifb" aria-pressed="false" aria-label="Chercher un GIF">GIF</button><button type="button" class="rp-send" aria-label="Envoyer le message" aria-disabled="true">${SEND_ICO}</button></div>
+  <div class="rp-help"></div></section>`;
 
 export class GifCtl {
   private until = 0; private tick: any = null;
@@ -57,6 +72,7 @@ export class GifCtl {
   constructor(private root: HTMLElement, private host: GifHost) {
     root.querySelectorAll<HTMLButtonElement>('[data-gifbtn]').forEach(b => { b.hidden = false; b.onclick = () => this.pick ? this.close() : this.open(b); });
     document.addEventListener('pointerdown', this.onDoc, true); document.addEventListener('keydown', this.onKey);
+    this.panel = root.querySelector('[data-gifpanel]'); if (this.panel) this.wirePanel();
     this.refresh();
   }
   destroy() { this.close(); clearInterval(this.tick); document.removeEventListener('pointerdown', this.onDoc, true); document.removeEventListener('keydown', this.onKey); this.shown.forEach(e => e.remove()); }
@@ -69,6 +85,7 @@ export class GifCtl {
       b.title = left ? `Prochain GIF dans ${left} s` : 'Envoyer un GIF à la table';
     });
     this.root.querySelectorAll<HTMLElement>('.gifcool').forEach(s => s.textContent = left ? `Prochain GIF dans ${left} s` : '');
+    this.paintPanel(left);
     if (!left && this.tick) { clearInterval(this.tick); this.tick = null; }
   }
   private cooldown(s: number) { this.until = Date.now() + s * 1000; clearInterval(this.tick); this.tick = setInterval(() => this.refresh(), 1000); this.refresh(); }
@@ -113,11 +130,95 @@ export class GifCtl {
   private async choose(g: GifItem) {
     if (Date.now() < this.until) return;
     this.close(); this.cooldown(GIF_COOLDOWN_S);
+    if (this.mode === 'gif') this.setMode('text', ''); else this.hideSugg();
     try { await this.host.send(g.id, g); pushRecent(g); }
     catch (e: any) {
       const m = /encore (\d+) s/.exec(e?.message || ''); this.cooldown(m ? Number(m[1]) : 0);
       this.root.dispatchEvent(new CustomEvent('giferror', { detail: e?.message || "Le GIF n'est pas parti." }));
     }
+  }
+
+  /* ---------- Panneau Réactions : un seul champ pour écrire ou chercher un GIF ---------- */
+  private panel: HTMLElement | null = null; private mode: 'text' | 'gif' = 'text'; private pcat = 'recents';
+  private gridItems: GifItem[] = []; private pseq = 0; private ptimer: any = null;
+  private q = <T extends HTMLElement>(sel: string) => this.panel!.querySelector(sel) as T;
+  private wirePanel() {
+    const input = this.q<HTMLInputElement>('#rq');
+    input.oninput = () => {
+      const v = input.value;
+      // « /gif » suivi d'un espace : on passe en recherche de GIF avec la suite
+      if (this.mode === 'text' && /^\/gif\s/i.test(v)) { this.setMode('gif', v.replace(/^\/gif\s*/i, '')); return; }
+      clearTimeout(this.ptimer); this.ptimer = setTimeout(() => this.mode === 'gif' ? this.loadGrid() : this.suggest(), 300);
+      this.paintPanel();
+    };
+    input.onkeydown = ev => {
+      if (ev.key === 'Escape' && this.mode === 'gif') { ev.preventDefault(); ev.stopPropagation(); this.setMode('text', ''); }
+      else if (ev.key === 'Enter') { ev.preventDefault(); if (this.mode === 'gif') { if (this.gridItems[0]) this.choose(this.gridItems[0]); } else this.sendTextNow(); }
+    };
+    this.q<HTMLButtonElement>('.rp-gifb').onclick = () => this.setMode(this.mode === 'gif' ? 'text' : 'gif', this.mode === 'gif' ? '' : input.value.replace(/^\/gif\s*/i, ''));
+    this.q<HTMLButtonElement>('.rp-send').onclick = () => this.sendTextNow();
+    this.q<HTMLButtonElement>('.rp-back').onclick = () => this.setMode('text', '');
+    this.panel!.querySelectorAll<HTMLButtonElement>('[data-pcat]').forEach(b => b.onclick = () => { this.pcat = b.dataset.pcat!; input.value = ''; this.loadGrid(); input.focus(); });
+    this.paintPanel();
+  }
+  /** Mode texte ou mode GIF (le panneau grandit vers le haut, par-dessus le journal). */
+  private setMode(m: 'text' | 'gif', value: string) {
+    const input = this.q<HTMLInputElement>('#rq');
+    this.mode = m; input.value = value; this.panel!.classList.toggle('gifmode', m === 'gif');
+    this.q<HTMLElement>('.rp-text').hidden = m === 'gif'; this.q<HTMLElement>('.rp-gif').hidden = m !== 'gif';
+    input.placeholder = m === 'gif' ? 'Chercher un GIF…' : 'Écrire une réaction ou /gif…';
+    this.hideSugg(); if (m === 'gif') this.loadGrid();
+    this.paintPanel(); input.focus();
+  }
+  private sendTextNow() {
+    const input = this.q<HTMLInputElement>('#rq'), t = input.value.trim(); if (!t || this.mode !== 'text') return;
+    if (this.host.sendText(t)) { input.value = ''; this.hideSugg(); this.paintPanel(); }
+  }
+  private hideSugg() { const s = this.panel?.querySelector('.rp-sugg') as HTMLElement | null; if (s) { s.hidden = true; s.innerHTML = ''; } }
+  /** Suggestions en tapant : dès 2 lettres, 3 GIF au-dessus du champ ; un clic envoie le GIF, Entrée envoie toujours le texte. */
+  private async suggest() {
+    const input = this.q<HTMLInputElement>('#rq'), term = input.value.trim(), box = this.q<HTMLElement>('.rp-sugg');
+    if (term.length < 2 || term.startsWith('/') || Date.now() < this.until) { this.hideSugg(); return; }
+    const my = ++this.pseq;
+    try {
+      const items = (await this.host.search(term, 'tendances', null)).items.slice(0, 3);
+      if (my !== this.pseq || this.mode !== 'text' || input.value.trim() !== term) return;
+      if (!items.length) { this.hideSugg(); return; }
+      box.innerHTML = `<div class="rp-sh"><span>GIF pour « ${esc(term)} »</span><span>clic = envoyer</span></div><div class="rp-minis">${items.map((g, i) => `<button type="button" class="rp-mini" data-i="${i}" aria-label="Envoyer ce GIF">${media(g.preview)}</button>`).join('')}</div>`;
+      box.querySelectorAll<HTMLButtonElement>('.rp-mini').forEach(b => b.onclick = () => this.choose(items[Number(b.dataset.i)]));
+      box.hidden = false;
+    } catch { this.hideSugg(); }
+  }
+  /** Grille du mode GIF : Récents (sur cet appareil), une catégorie, ou la recherche tapée dans le champ. */
+  private async loadGrid() {
+    const term = this.q<HTMLInputElement>('#rq').value.trim(), grid = this.q<HTMLElement>('.rp-grid'), my = ++this.pseq;
+    this.panel!.querySelectorAll<HTMLElement>('[data-pcat]').forEach(c => c.classList.toggle('on', !term && c.dataset.pcat === this.pcat));
+    let items: GifItem[];
+    if (!term && this.pcat === 'recents') {
+      items = recents();
+      if (!items.length) { this.gridItems = []; grid.innerHTML = '<p class="rp-msg">Vos derniers GIF envoyés apparaîtront ici. Essayez Tendances.</p>'; return; }
+    } else {
+      grid.innerHTML = '<p class="rp-msg">Chargement…</p>';
+      try { items = (await this.host.search(term, this.pcat === 'recents' ? 'tendances' : this.pcat, null)).items; }
+      catch (e: any) { if (my === this.pseq) grid.innerHTML = `<p class="rp-msg">${esc(e?.message || 'GIF indisponibles pour le moment.')}</p>`; return; }
+      if (my !== this.pseq) return;
+    }
+    this.gridItems = items;
+    grid.innerHTML = items.length ? items.map((g, i) => `<button type="button" class="rp-tile" data-i="${i}" aria-label="Envoyer ce GIF">${media(g.preview)}</button>`).join('') : `<p class="rp-msg">Aucun GIF pour « ${esc(term)} ».</p>`;
+    grid.querySelectorAll<HTMLButtonElement>('.rp-tile').forEach(b => b.onclick = () => this.choose(items[Number(b.dataset.i)]));
+    this.paintPanel();
+  }
+  /** Bouton GIF (plein en mode GIF, décompte après un envoi), flèche grisée si le champ est vide, ligne d'aide, attente. */
+  private paintPanel(left = Math.max(0, Math.ceil((this.until - Date.now()) / 1000))) {
+    if (!this.panel) return;
+    const input = this.q<HTMLInputElement>('#rq'), gb = this.q<HTMLButtonElement>('.rp-gifb'), send = this.q<HTMLButtonElement>('.rp-send'), gif = this.mode === 'gif';
+    this.q<HTMLElement>('.rp-field').classList.toggle('gif', gif);
+    gb.classList.toggle('on', gif); gb.classList.toggle('cool', !gif && left > 0); gb.setAttribute('aria-pressed', String(gif));
+    gb.textContent = !gif && left ? left + ' s' : 'GIF'; gb.setAttribute('aria-label', gif ? 'Fermer les GIF' : left ? `Prochain GIF dans ${left} s` : 'Chercher un GIF');
+    send.hidden = gif; send.setAttribute('aria-disabled', String(!input.value.trim()));
+    this.q<HTMLElement>('.rp-help').textContent = gif ? 'Entrée envoie le premier GIF · Échap pour revenir' : left ? `GIF de nouveau possible dans ${left} s` : 'Entrée pour envoyer · « /gif bravo » pour chercher';
+    const cool = this.q<HTMLElement>('.rp-cool'); cool.hidden = !left; cool.textContent = left ? `Prochain GIF dans ${left} s` : '';
+    this.panel.querySelectorAll<HTMLButtonElement>('.rp-tile, .rp-mini').forEach(b => b.setAttribute('aria-disabled', String(left > 0)));
   }
 
   /* ---------- Affichage pour tous ---------- */

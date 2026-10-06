@@ -2,7 +2,7 @@
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
 import { cname, leadSuitOf, plannedRounds, resolve, roundKind, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
 import { cardHTML, cardKey, backFace, preloadArt } from './cards';
-import { GifCtl, gifsHidden, setGifsHidden, type GifItem, type GifMsg } from './gif';
+import { GifCtl, gifsHidden, setGifsHidden, reactPanelHTML, type GifItem, type GifMsg } from './gif';
 import { impactSound } from './locker';
 import { ANIM, ANIM_MODES, HALO_MS, attachAnim, detachAnim, getAnimMode, onAnimMode, setAnimMode, type AnimMode } from './animatedCards';
 import { $, esc, modal, sleep, toast, signed } from './util';
@@ -178,16 +178,14 @@ export class TableView {
         <div class="opps" id="opps" aria-label="Adversaires"></div>
         <section class="board" id="table" aria-label="Table de jeu"><div class="bstage" id="bstage"><div class="rim"></div><div class="mat">${roseSVG()}</div><div id="layer"></div></div></section>
         <div id="action" aria-live="polite"><div class="prompt">Chargement de la partie…</div></div>
-        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button><span class="gifcool" aria-live="polite"></span></div><div id="hand"></div><div class="qemo"><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button><button id="emoWrite" aria-label="Écrire une réaction">✎</button><span class="qreact" data-reacts></span></div></section>
+        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span></div><div id="hand"></div><div class="qemo"><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button><button id="emoWrite" aria-label="Écrire une réaction">✎</button><span class="qreact" data-reacts></span></div></section>
       </div>
       <aside class="side" id="side">
         <div class="drawerbar"><button class="tb" id="dSheet">Feuille de scores</button><button class="tb" id="dClose">Fermer</button></div>
         <section class="panel"><h3>Classement <small>plis / mise · total</small></h3><div class="ladder" id="mini"></div></section>
         <section class="panel" id="stakesP" hidden><h3>Ce que vaut votre mise</h3><div id="stakes" class="stakes"></div><p class="fine">Les bonus (14, captures, Pacte de Butin) ne comptent que si la mise est exacte.</p></section>
-        <section class="panel"><h3>Réactions <small>touches 1 à 4</small></h3><div class="emotes" data-reacts></div>
-          <form class="emofree" id="emoFree"><input id="emoText" maxlength="${EMOTE_MAX}" placeholder="Votre réaction…" aria-label="Écrire une réaction" autocomplete="off"><button class="emo" type="submit">Envoyer</button></form>
-          <div class="emogif"><button class="gifbtn big" data-gifbtn hidden aria-expanded="false">GIF</button><span class="gifcool" aria-live="polite"></span></div></section>
-        <section class="panel"><h3>Journal <a href="#" id="allLog" class="more">Tout voir</a></h3><div id="log"></div></section>
+        <section class="panel logp"><h3>Journal <a href="#" id="allLog" class="more">Tout voir</a></h3><div id="log"></div></section>
+        ${reactPanelHTML(EMOTE_MAX)}
       </aside>
     </div>`;
     const sp = $('#speed', root) as HTMLSelectElement; sp.value = String(sel);
@@ -211,8 +209,7 @@ export class TableView {
     // touches 1 à 4 : les réactions de la barre (pas pendant la saisie d'un texte)
     document.addEventListener('keydown', this.onReactKey);
     this.paintReactions();
-    // réaction libre : champ du panneau (ordinateur) ou petite fenêtre (téléphone)
-    ($('#emoFree', root) as HTMLFormElement).onsubmit = ev => { ev.preventDefault(); const i = $('#emoText', root) as HTMLInputElement; if (this.sendEmote(i.value)) i.value = ''; };
+    // réaction libre : champ unique du panneau (ordinateur, voir gif.ts) ou petite fenêtre (téléphone)
     ($('#emoWrite', root) as HTMLButtonElement).onclick = async () => {
       const ok = await modal(`<h2>Réaction</h2><input id="emoModal" class="inp" maxlength="${EMOTE_MAX}" placeholder="Votre réaction…" aria-label="Écrire une réaction" autocomplete="off" style="width:100%">`, [{ label: 'Envoyer', value: true }, { label: 'Annuler', value: null, cls: 'alt' }]);
       const t = (document.querySelector('#emoModal') as HTMLInputElement | null)?.value; if (ok && t) this.sendEmote(t);
@@ -229,6 +226,7 @@ export class TableView {
         seat: i => { const p = this.pub?.players[i]; return p ? { name: i === this.mySeat ? 'Vous' : p.name, color: this.colorOf(i), ...this.gifSide(i) } : null; },
         uidOf: i => this.backend.seatUids?.[i] ?? null,
         mob: () => this.mob,
+        sendText: t => this.sendEmote(t),
       });
       root.addEventListener('giferror', ev => toast((ev as CustomEvent).detail, 'err'));
     }

@@ -3,11 +3,22 @@
 Maquette : `docs/maquettes/GifPartie.dc.html`. Les GIF de la maquette sont des exemples dessinés pour l'occasion. Dans le jeu, ils viennent d'une API de GIF.
 
 ## Expérience
-- **Bouton « GIF »** dans la barre de réactions rapides, au-dessus de la main. Il ouvre un sélecteur (un panneau qui monte depuis le bas sur téléphone) qui contient :
-  - un champ de recherche ;
-  - les catégories en un clic : Tendances, Bravo, Rire, Rage, Pirate, Récents ;
-  - une grille de GIF en 4 colonnes (2 sur téléphone).
-- **Un clic sur un GIF l'envoie** et ferme le sélecteur.
+
+### Le panneau Réactions : un seul champ pour écrire ou chercher un GIF
+Le panneau « Réactions » de la colonne de droite (celui qui contient les 4 réactions rapides et le champ de texte) intègre le GIF au lieu d'avoir un bouton GIF isolé sous le champ.
+- **Réactions rapides** : grille 2 × 2, chaque bouton avec son numéro de touche (1 à 4). Un clic affiche la bulle au-dessus de votre plaque.
+- **Le champ unique** (46 px de haut, coins 12 px) contient, de gauche à droite :
+  - la saisie, avec le texte d'aide « Écrire une réaction ou /gif… » ;
+  - le bouton **GIF** à l'intérieur du champ, à droite, comme sur Discord ;
+  - la flèche d'envoi dorée, grisée si le champ est vide.
+  - Sous le champ, une ligne d'aide : « Entrée pour envoyer · tapez « /gif bravo » pour chercher ».
+- **Suggestions en tapant** : dès 2 lettres qui correspondent à des GIF (« bravo »), une bande de 3 vignettes (84 × 58) apparaît au-dessus du champ, avec « GIF pour « bravo » · clic = envoyer ». Un clic sur une vignette envoie le GIF ; Entrée envoie toujours le texte. Recherche avec un délai de 300 ms.
+- **Mode GIF** (clic sur GIF, ou « /gif » suivi d'un espace dans le champ) :
+  - le champ passe en bordure dorée et devient « Chercher un GIF… » ; le bouton GIF devient plein (doré) et la flèche disparaît ;
+  - **le panneau grandit vers le haut, par-dessus le journal** (le journal rétrécit, rien ne couvre la table) : en-tête « ← Réactions · GIF · via KLIPY », catégories en une ligne (Récents, Tendances, Bravo, Rire, Rage, Pirate ; Récents par défaut), grille de 2 colonnes (vignettes de 104 px de haut, nom au survol) qui défile dans 340 px ;
+  - un clic sur un GIF l'envoie et referme le mode GIF ; Entrée envoie le premier résultat ; Échap ou « ← Réactions » revient au texte.
+- **Attente** : après un envoi, le bouton GIF affiche le décompte (« 7 s ») ; en mode GIF, la grille se grise avec une bande « Prochain GIF dans 7 s ». Les réactions texte restent libres pendant ce temps.
+- **Sur téléphone** : le panneau Réactions est replié derrière un bouton ; le mode GIF s'ouvre en panneau qui monte depuis le bas (moitié d'écran), même champ en haut, grille de 2 colonnes.
 - **Affichage pour tous, comme une émote sur Twitch.** Le GIF fait 160 × 120 px sur ordinateur et 110 × 82 px sur téléphone, avec le nom de l'envoyeur dessous. Il surgit au centre du tapis, puis :
   1. **Apparition avec rebond** (0 à 0,6 s) : il grossit de 35 % à 112 %, puis revient à 96 % et à 100 %, et atteint environ 68 % d'opacité.
   2. **Montée qui ralentit** (3,2 s au total) : environ 280 px vers le haut, avec une courbe `cubic-bezier(.22,.61,.36,1)`. L'opacité descend vers 58 %, puis le GIF s'efface sur la fin.
@@ -22,10 +33,10 @@ Maquette : `docs/maquettes/GifPartie.dc.html`. Les GIF de la maquette sont des e
 
   Les keyframes exactes (`gifRise` sur l'élément extérieur, `gifSway` sur l'élément intérieur) sont dans la maquette.
 - **Plusieurs GIF en même temps** : le premier est au centre exact. Les suivants se décalent d'environ 90 px vers le côté de leur envoyeur (gauche, droite, haut ou bas).
-- **Superposition** : le GIF passe au-dessus du tapis et des cartes du pli (il est transparent), mais sous la main, le sélecteur et les boutons, avec `pointer-events: none` pour ne jamais bloquer un clic.
+- **Superposition** : le GIF passe au-dessus du tapis et des cartes du pli (il est transparent), mais sous la main et l'interface, avec `pointer-events: none` pour ne jamais bloquer un clic.
 
 ## Garde-fous
-- **Débit** : 1 GIF toutes les 10 s par joueur, contrôlé côté serveur. Un seul GIF à l'écran par joueur : un nouveau remplace l'ancien. Le compte à rebours s'affiche à côté du bouton.
+- **Débit** : 1 GIF toutes les 10 s par joueur, contrôlé côté serveur. Un seul GIF à l'écran par joueur : un nouveau remplace l'ancien. Le compte à rebours s'affiche dans le bouton GIF.
 - **Bouton désactivé pendant votre propre tour** (on joue, on n'envoie pas de GIF pour faire attendre les autres).
 - **Contenu** : filtre « tout public » côté serveur (paramètre de classement de l'API, le plus strict). Aucune URL libre : le client envoie seulement l'identifiant du GIF, et le serveur reconstruit l'URL à partir de l'API.
 - **Options** :
