@@ -4,7 +4,7 @@
 // sons via sfx (coupés si l'option est désactivée). Le bouton « Passer » reste là pour qui veut sauter l'anim.
 import { esc } from './util';
 import { objectSVG } from './objects';
-import { sfx } from './sound';
+import { sfx } from './sfx';
 
 export interface ChestResult {
   cosmetic_id: string; slot: string; value: string; name: string;

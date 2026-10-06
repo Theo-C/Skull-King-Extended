@@ -7,7 +7,7 @@ import { impactSound } from './locker';
 import { ANIM, ANIM_MODES, HALO_MS, attachAnim, detachAnim, getAnimMode, onAnimMode, setAnimMode, type AnimMode } from './animatedCards';
 import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
-import { sfx, soundOn, setSound } from './sound';
+import { sfx, soundOn, setSound, soundVolume, setVolume, preloadTableSounds, LIVE_BATCH_MAX } from './sfx';
 import { installCardZoom, setZoomNote } from './zoom';
 import { avatarHTML, backBg, CATALOG, reactionTexts, titleName, type AvatarData, type Look } from './avatar';
 import { objectSVG } from './objects';
@@ -141,7 +141,7 @@ export class TableView {
   private flyFrom: { id: number; rect: DOMRect } | null = null; private sendingId: number | null = null;
   private prevScores: (number | undefined)[] = [];
   private wasMyTurn = false; private baseTitle = document.title; private resizeRaf = 0;
-  private k = 1; private evk: string | null = null; private handObs: ResizeObserver | null = null;
+  private k = 1; private evk: string | null = null; private evLive = false; private replayed = new WeakSet<object>(); private handObs: ResizeObserver | null = null;
   private roundGate: Promise<void> | null = null; private roundOpen: { round: number; ready: Set<number>; update: () => void; close: () => void } | null = null;
   private earlyReady: Record<number, number[]> = {};
   private playerCardCtl: PlayerCardCtl | null = null;
@@ -168,7 +168,7 @@ export class TableView {
         <button class="tb" id="bLast" aria-label="Dernier pli">${ICON.last}<span class="lbl">Dernier pli</span></button>
         <button class="tb" id="bScores" aria-label="Scores">${ICON.scores}<span class="lbl">Scores</span></button>
         <button class="tb" id="bRules" aria-label="Règles">${ICON.rules}<span class="lbl">Règles</span></button>
-        <button class="tb ico" id="bSound"></button>
+        <div class="sndw"><button class="tb ico" id="bSound" aria-haspopup="true" aria-expanded="false" aria-controls="sndPop"></button><div class="sndp pop" id="sndPop" hidden></div></div>
         <button class="tb" id="bExit">Quitter</button>
         <button class="tb ico" id="bMenu" aria-label="Menu">${ICON.menu}</button>
       </div>
@@ -215,8 +215,14 @@ export class TableView {
       const t = (document.querySelector('#emoModal') as HTMLInputElement | null)?.value; if (ok && t) this.sendEmote(t);
     };
     const bs = $('#bSound', root);
-    const paintSound = () => { bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff; bs.setAttribute('aria-label', soundOn() ? 'Couper le son' : 'Activer le son'); bs.title = bs.getAttribute('aria-label')!; };
-    paintSound(); bs.onclick = () => { setSound(!soundOn()); paintSound(); this.backend.saveSound?.(soundOn()); if (soundOn()) sfx.coin(); };
+    // le bouton Son ouvre un petit panneau : interrupteur Son et curseur Volume ; clic ailleurs ou Échap pour le fermer
+    const pop = $('#sndPop', root);
+    const closePop = () => { pop.hidden = true; bs.setAttribute('aria-expanded', 'false'); this.paintSound(); };
+    this.paintSound();
+    bs.onclick = () => { if (!pop.hidden) return closePop(); pop.innerHTML = this.soundPanelHTML(); this.wireSoundPanel(pop); pop.hidden = false; bs.setAttribute('aria-expanded', 'true'); (pop.querySelector('[data-snd="on"]') as HTMLElement).focus(); };
+    root.addEventListener('pointerdown', ev => { if (!pop.hidden && !(ev.target as HTMLElement).closest('.sndw')) closePop(); });
+    pop.addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.stopPropagation(); closePop(); bs.focus(); } });
+    preloadTableSounds();
     // GIF en partie : seulement en ligne (le serveur cherche et diffuse)
     if (this.backend.gifSearch && this.backend.gifSend) {
       this.gif = new GifCtl(root, {
@@ -281,11 +287,12 @@ export class TableView {
     // révélation de Marie Thorne en cours : la main qui porte la carte imposée vient d'arriver, on la montre sans attendre la fin de la file
     else if (this.running && this.evk === 'lise' && this.liseNow()) { this.renderHand(); this.renderAction(); }
   }
-  push(events: any[]) { if (!events.length) return; this.queue.push(...events); this.run(); }
+  /** Événements du serveur. Un gros lot (reconnexion, rattrapage) est une resynchronisation : rejoué sans son de carte. */
+  push(events: any[]) { if (!events.length) return; if (events.length > LIVE_BATCH_MAX) events.forEach(e => this.replayed.add(e)); this.queue.push(...events); this.run(); }
 
   private applyLatest() {
     if (!this.latest) return;
-    this.pub = this.latest.pub; this.priv = this.latest.priv; this.evk = null; this.logLines = this.pub.log.slice();
+    this.pub = this.latest.pub; this.priv = this.latest.priv; this.evk = null; this.evLive = false; this.logLines = this.pub.log.slice();
     // this.priv correspond désormais à cette manche : la relecture d'événements d'une manche plus récente n'affichera plus l'ancienne main
     this.privRound = this.pub?.round ?? -1;
     this.banner = null; this.render();
@@ -297,7 +304,7 @@ export class TableView {
       while (this.queue.length) {
         if (this.roundGate) await this.roundGate;
         const ev = this.queue.shift();
-        this.pub = ev.snap; this.evk = ev.k; const last = ev.snap.log?.at(-1);
+        this.pub = ev.snap; this.evk = ev.k; this.evLive = ev.k === 'play' && !this.replayed.has(ev) && this.queue.length <= 40; const last = ev.snap.log?.at(-1);
         if (ev.k === 'lise') this.startLise(ev.by, ev.seat, ev.pos);
         if (ev.k === 'joker' && this.pub) {
           const who = ev.seat === this.mySeat ? 'Vous avez posé' : esc(this.pub.players[ev.seat]?.name ?? '?') + ' a posé';
@@ -552,18 +559,37 @@ export class TableView {
   private async menu() {
     const v = await modal('<h2>Menu</h2><p class="sub">Partie en cours.</p>', [
       { label: 'Dernier pli', value: 'last', cls: 'alt' }, { label: 'Règles', value: 'rules', cls: 'alt' },
-      { label: soundOn() ? 'Couper le son' : 'Activer le son', value: 'sound', cls: 'alt' },
+      { label: soundOn() ? `Son : ${Math.round(soundVolume() * 100)} %` : 'Son : coupé', value: 'sound', cls: 'alt' },
       { label: `Vitesse : ${this.speed === 1 ? 'normale' : this.speed > 1 ? 'lente' : 'rapide'}`, value: 'speed', cls: 'alt' },
       { label: `Ambiance : ${getAmbiance()}`, value: 'amb', cls: 'alt' },
       { label: `Cartes animées : ${ANIM_MODES.find(([m]) => m === getAnimMode())![1]}`, value: 'anim', cls: 'alt' },
       ...(this.gif ? [{ label: `GIF : ${gifsHidden() ? 'masqués' : 'affichés'}`, value: 'gifs', cls: 'alt' }] : []),
       { label: 'Quitter la table', value: 'exit', cls: 'alt' }, { label: 'Fermer', value: null }]);
     if (v === 'last') this.lastTrickModal(); else if (v === 'rules') modal(rulesHTML()); else if (v === 'exit') this.onExit();
-    else if (v === 'sound') { ($('#bSound', this.root) as HTMLButtonElement).click(); }
+    else if (v === 'sound') { modal(`<h2>Son</h2><p class="sub">Sons de la table, sur cet appareil.</p><div class="sndp" id="sndModal">${this.soundPanelHTML()}</div>`); this.wireSoundPanel(document.querySelector('#sndModal') as HTMLElement); }
     else if (v === 'gifs') { setGifsHidden(!gifsHidden()); toast(gifsHidden() ? 'GIF masqués' : 'GIF affichés'); }
     else if (v === 'anim') { const o = ANIM_MODES.map(([m]) => m), nx = o[(o.indexOf(getAnimMode()) + 1) % o.length]; setAnimMode(nx); toast('Cartes animées : ' + ANIM_MODES.find(([m]) => m === nx)![1]); }
     else if (v === 'amb') { const a = $('#amb', this.root) as HTMLSelectElement; a.value = getAmbiance() === 'sobre' ? 'pirate' : 'sobre'; a.dispatchEvent(new Event('change')); toast('Ambiance : ' + a.value); }
     else if (v === 'speed') { const sp = $('#speed', this.root) as HTMLSelectElement; const o = ['1', '0.45', '1.7']; sp.value = o[(o.indexOf(sp.value) + 1) % 3]; sp.dispatchEvent(new Event('change')); toast('Vitesse : ' + sp.selectedOptions[0].text.toLowerCase()); }
+  }
+  /** Réglages du son (A12) : interrupteur Son et curseur Volume (0 à 100 %, sur cet appareil). */
+  private soundPanelHTML() {
+    const v = Math.round(soundVolume() * 100);
+    return `<div class="sndrow"><b>Son</b><button type="button" class="sndsw" role="switch" data-snd="on" aria-label="Son de la table"></button></div>
+      <div class="volrow"><input type="range" data-snd="vol" min="0" max="100" step="5" value="${v}" aria-label="Volume des sons"><output data-snd="out">${v} %</output></div>`;
+  }
+  private wireSoundPanel(el: HTMLElement) {
+    const sw = el.querySelector('[data-snd="on"]') as HTMLButtonElement, r = el.querySelector('[data-snd="vol"]') as HTMLInputElement, o = el.querySelector('[data-snd="out"]') as HTMLElement;
+    const paint = () => { sw.classList.toggle('on', soundOn()); sw.setAttribute('aria-checked', String(soundOn())); el.classList.toggle('muted', !soundOn()); r.value = String(Math.round(soundVolume() * 100)); o.textContent = r.value + ' %'; };
+    paint();
+    sw.onclick = () => { setSound(!soundOn()); this.backend.saveSound?.(soundOn()); this.paintSound(); paint(); if (soundOn()) sfx.coin(); };
+    // le son de pièce sert d'aperçu quand on relâche le curseur
+    r.oninput = () => { setVolume(Number(r.value) / 100); o.textContent = r.value + ' %'; };
+    r.onchange = () => { if (soundOn()) sfx.coin(); };
+  }
+  private paintSound() {
+    const bs = $('#bSound', this.root); bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff;
+    bs.setAttribute('aria-label', 'Son et volume'); bs.title = soundOn() ? `Son : ${Math.round(soundVolume() * 100)} %` : 'Son coupé';
   }
   /** Joueur dont on attend l'action : celui qui joue (ou choisit), ou vous tant que vous n'avez pas misé. */
   private isActive(i: number) {
@@ -689,7 +715,11 @@ export class TableView {
       w.classList.toggle('behind', li != null && !win);
       (w.querySelector('.topen') as HTMLElement).hidden = s.idx !== 0;
       setHTML(w.querySelector('.tft') as HTMLElement, win ? `<span class="twin">${CROWN}prend le pli</span>` : '');
-      if (fresh) { this.flyIn(c, e.p, e.card.id); const ak = this.animKey(e.p, e.card); if (ak) this.trickAnimate(w, c, e.p, ak); }
+      if (fresh) {
+        // son « carte posée » à l'arrivée sur le tapis (A12) : en direct seulement, pas pour une carte animée (son impact la remplace)
+        const ak = this.animKey(e.p, e.card), land = { mine: e.p === this.mySeat, animated: !!ak, live: this.evLive };
+        this.flyIn(c, e.p, e.card.id, () => sfx.cardPlaced(land)); if (ak) this.trickAnimate(w, c, e.p, ak);
+      }
     });
     for (const [key, el] of this.tempty) if (!seen.has(key)) { el.remove(); this.tempty.delete(key); }
     // petites flèches entre les places
@@ -887,18 +917,18 @@ export class TableView {
     setTimeout(end, ms * this.animMs + 120);
   }
   /** Carte qui arrive sur le pli : depuis la main en se redressant (550 ms) ou depuis la plaque de l'adversaire (450 ms). */
-  private flyIn(c: HTMLElement, seat: number, id: number) {
-    sfx.card(); if (!this.animMs) return;
+  private flyIn(c: HTMLElement, seat: number, id: number, land?: () => void) {
+    if (!this.animMs) { land?.(); return; }
     const to = c.getBoundingClientRect(); let from: DOMRect | null = null, mine = false;
     if (this.flyFrom && this.flyFrom.id === id) { from = this.flyFrom.rect; mine = true; this.flyFrom = null; }
     else { const pl = this.anchor(seat); if (pl) from = pl.getBoundingClientRect(); }
     const r0 = c.style.rotate || '0deg';
-    if (!from) { this.animate(c, 'fly', { '--fx': '0px', '--fy': '-20px', '--fs': '.8', '--fr': r0, '--r0': r0, '--fo': '0' }, 450); return; }
+    if (!from) { this.animate(c, 'fly', { '--fx': '0px', '--fy': '-20px', '--fs': '.8', '--fr': r0, '--r0': r0, '--fo': '0' }, 450, land); return; }
     const [fx, fy] = center(from), [tx, ty] = center(to);
     this.animate(c, mine ? 'fly flyme' : 'fly', {
       '--fx': (fx - tx) / this.k + 'px', '--fy': (fy - ty) / this.k + 'px', '--fs': mine ? (from.width / Math.max(1, to.width)).toFixed(3) : '.45',
       '--fr': mine ? '-16deg' : r0, '--r0': r0, '--fo': '0',
-    }, mine ? 550 : 450);
+    }, mine ? 550 : 450, land);
   }
   /** Fin du pli : les cartes filent vers la plaque du gagnant en rétrécissant (600 ms), ou coulent vers le centre (Kraken, pli défaussé). */
   private flyOut(w: HTMLElement, seat: number | null, i: number) {

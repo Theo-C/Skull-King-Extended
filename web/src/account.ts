@@ -3,7 +3,7 @@ import { sb } from './api';
 import { $, esc } from './util';
 import { avatarHTML, fromProfile, type Look } from './avatar';
 import { xpLine } from './xp';
-import { setSound } from './sound';
+import { setSound } from './sfx';
 
 export interface Profile {
   id: string; pseudo: string; color: string; avatar_kind: string; avatar_art: number | null; avatar_url: string | null;
