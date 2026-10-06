@@ -22,8 +22,8 @@ function elFrom(html: string) { const t = document.createElement('template'); t.
 const center = (r: DOMRect) => [r.left + r.width / 2, r.top + r.height / 2];
 /** Écran tactile sans survol : premier appui = aperçu, second appui = jouer. */
 const TOUCH = () => matchMedia('(hover: none)').matches;
-/** « du Doublon », « de la Carte marine » ; « d'Ysolde », « de Corentin ». */
-const du = (s: string) => /^Carte/.test(s) ? 'de la ' + s : 'du ' + s;
+/** « du Trésor », « de la Méduse » ; « d'Ysolde », « de Corentin ». */
+const du = (s: string) => /^Méduse/.test(s) ? 'de la ' + s : 'du ' + s;
 const de = (s: string) => s === 'vous' ? 'à vous' : /^[aeiouyhéèêàâîôûAEIOUYHÉÈÊÀÂÎÔÛ]/.test(s) ? "d'" + s : 'de ' + s;
 
 export interface TableBackend {

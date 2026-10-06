@@ -13,7 +13,7 @@ export function rulesHTML(): string {
   <li>Le gagnant du pli entame le suivant.</li></ul>
   ${ex([{kind:'num',suit:'black',rank:14},{kind:'num',suit:'yellow',rank:14},{kind:'num',suit:'purple',rank:9},{kind:'num',suit:'green',rank:3}])}
   <h3>Ordre des forces</h3><ul>
-  <li>Le Pavillon noir est l'atout et bat les trois autres couleurs (Perroquet, Doublon, Carte marine). Sinon, la plus haute carte de la couleur demandée gagne.</li>
+  <li>Le Pavillon noir est l'atout et bat les trois autres couleurs (Perroquet, Trésor, Méduse). Sinon, la plus haute carte de la couleur demandée gagne.</li>
   <li>Sirène &gt; toutes les cartes numérotées. Pirate &gt; Sirène. Skull King &gt; Pirates. Une Sirène capture Skull King.</li>
   <li>Plusieurs cartes du même rang : la première jouée gagne. Si Pirate, Skull King et Sirène sont réunis, la Sirène gagne.</li>
   <li>Drapeau blanc (Fuite) : perd toujours. Si le pli n'est fait que de Fuites, la première gagne.</li></ul>
@@ -32,7 +32,7 @@ export function rulesHTML(): string {
   <ul>
   <li><b>7 et 8</b> de l'extension : cartes normales. Capturer un 8 rapporte +5, un 7 coûte −5.</li>
   <li><b>0/14</b> : annoncez 0 ou 14 en la jouant. Aucun bonus de 14. À égalité de 14, le premier joué gagne.</li>
-  <li><b>Le Grand Quinze</b> : se joue comme un 15 Doublon, Carte marine ou Perroquet. Si la couleur du pli n'est pas encore définie, vous choisissez sa couleur et il la fixe. Si une couleur (sauf le noir) est déjà demandée, il prend cette couleur. Si le noir est demandé, il ne prend aucune couleur. Il se joue à tout moment et perd contre le Pavillon noir comme toute carte de couleur.</li>
+  <li><b>Le Grand Quinze</b> : se joue comme un 15 Trésor, Méduse ou Perroquet. Si la couleur du pli n'est pas encore définie, vous choisissez sa couleur et il la fixe. Si une couleur (sauf le noir) est déjà demandée, il prend cette couleur. Si le noir est demandé, il ne prend aucune couleur. Il se joue à tout moment et perd contre le Pavillon noir comme toute carte de couleur.</li>
   <li><b>Marie Thorne</b> : Pirate. Pouvoir : tirez à l'aveugle une carte dans la main de n'importe quel joueur (vous compris) ; il devra la jouer au pli suivant, sans tenir compte des règles de couleur.</li>
   <li><b>Con le belliqueux</b> : bat toutes les cartes sauf Skull King et les Sirènes. Il ne gagne pas de bonus en capturant des Pirates mais utilise leurs pouvoirs. Skull King ou une Sirène qui le capture gagne +30. Pirate + Sirène + Con : la Sirène gagne.</li>
   <li><b>Dernière Bordée</b> : ne gagne pas ; vous jouez une carte supplémentaire après tous les autres (si vous en avez encore). Vous serez sans carte un pli plus tôt.</li>

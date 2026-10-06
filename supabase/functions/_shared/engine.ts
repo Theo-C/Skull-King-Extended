@@ -41,7 +41,7 @@ export interface LiseInfo { by: number; seat: number; pos: number; round: number
 
 /* ---------- Données ---------- */
 export const SUIT_ORDER: Suit[] = ['black', 'yellow', 'purple', 'green'];
-export const SUIT: Record<string, { n: string }> = { yellow: { n: 'Doublon' }, purple: { n: 'Carte marine' }, green: { n: 'Perroquet' }, black: { n: 'Pavillon noir' } };
+export const SUIT: Record<string, { n: string }> = { yellow: { n: 'Trésor' }, purple: { n: 'Méduse' }, green: { n: 'Perroquet' }, black: { n: 'Pavillon noir' } };
 export const PIRATES: Record<string, { n: string; s: string; pw: string }> = {
   rosie: { n: 'Rosie la douce', s: 'Rosie', pw: 'choisit qui entame le prochain pli' },
   bahij: { n: 'Bendt le Ripate', s: 'Bendt', pw: 'pioche 2 cartes non distribuées puis en défausse 2' },
@@ -69,7 +69,7 @@ export const DESC: Record<string, string> = {
   stingray: "La Raie Étoilée : les cartes spéciales perdent leur effet, la plus petite carte numérotée l'emporte.",
   davy: 'La Fosse des Noyés : ne gagne pas. Engloutit tous les monstres des abysses du pli (+20 par monstre pour vous).',
   plank: 'La Planche : ne gagne pas. En fin de pli, vous retirez un Pirate du pli.',
-  wild: "Le Grand Quinze : se joue comme un 15 Doublon, Carte marine ou Perroquet. Il suit la couleur demandée ; s'il ouvre la couleur, vous choisissez laquelle. Le Pavillon noir le bat.",
+  wild: "Le Grand Quinze : se joue comme un 15 Trésor, Méduse ou Perroquet. Il suit la couleur demandée ; s'il ouvre la couleur, vous choisissez laquelle. Le Pavillon noir le bat.",
   zf: '0/14 : annoncez 0 ou 14 en la jouant. Pas de bonus de 14.',
 };
 export const WILD_SUITS: Suit[] = ['yellow', 'purple', 'green'];
