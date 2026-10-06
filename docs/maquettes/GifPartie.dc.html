@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>GIF en partie</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+body{margin:0}
+button,input{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible,input:focus-visible{outline:2px solid #ead08a;outline-offset:2px}
+.btn{min-height:40px;padding:0 14px;border-radius:9px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.35);color:#f2e7cd;font-weight:800;font-size:14px;cursor:pointer}
+.btn.gold{border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117}
+.react{height:36px;padding:0 12px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:rgba(20,14,10,.85);color:#f2e7cd;font-weight:700;font-size:13.5px;cursor:pointer}
+.react.gif{background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;border:0;font-weight:800;letter-spacing:.06em}
+.chip{height:30px;padding:0 11px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font-weight:700;font-size:13px;cursor:pointer}
+.chip.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.tile{padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;cursor:pointer;background:#000;width:118px;height:88px}
+.tile:hover{border-color:#ead08a}
+.tile img{width:100%;height:100%;object-fit:cover;display:block}
+@keyframes gifRise{0%{opacity:0;transform:translateY(90px) scale(.35)}7%{opacity:.68;transform:translateY(60px) scale(1.12)}13%{transform:translateY(44px) scale(.96)}18%{transform:translateY(34px) scale(1)}78%{opacity:.58}100%{opacity:0;transform:translateY(-190px) scale(.92)}}
+.float{animation:gifRise 3.2s cubic-bezier(.22,.61,.36,1) both;pointer-events:none}
+@keyframes gifSway{0%{transform:translateX(calc(var(--sw) * -1)) rotate(calc(var(--rot) * -1))}100%{transform:translateX(var(--sw)) rotate(var(--rot))}}
+.sway{animation:gifSway 1s ease-in-out infinite alternate}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+.picker{animation:pop .18s ease-out both}
+@media (prefers-reduced-motion: reduce){.float{animation:gifFade 3.2s both}.sway{animation:none}@keyframes gifFade{0%,100%{opacity:0}10%,75%{opacity:.6}}}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; font-family: 'Alegreya Sans', sans-serif; background: #120c08;">
+<div style="position: absolute; left: 0; top: 0;"><dc-import name="TableAmbiance" hint-size="1440px,900px"></dc-import></div>
+
+<!-- GIF flottants : au-dessus de la table, sous l'interface -->
+<sc-for list="{{floats}}" as="f" hint-placeholder-count="0">
+<div class="float" style="position: absolute; left: {{f.x}}px; top: {{f.y}}px; width: 160px; z-index: 20; text-align: center;">
+<div class="sway" style="animation-duration: {{f.sd}}s; animation-delay: {{f.sdl}}s; --sw: {{f.sw}}px; --rot: {{f.rot}}deg;">
+<img src="{{f.src}}" alt="" style="width: 160px; height: 120px; object-fit: cover; border-radius: 10px; box-shadow: 0 8px 22px rgba(0,0,0,.45);">
+<div style="margin-top: 4px; display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 3px; border-radius: 999px; background: rgba(10,8,6,.75); color: #f2e7cd; font-size: 12px; font-weight: 700;"><span style="width: 16px; height: 16px; border-radius: 50%; background: {{f.c}}; color: #1b140e; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center;">{{f.init}}</span>{{f.name}}</div>
+</div>
+</div>
+</sc-for>
+
+<!-- barre de réactions au-dessus de la main -->
+<div style="position: absolute; left: 296px; top: 640px; display: flex; gap: 6px; align-items: center; z-index: 30;">
+<button class="react" onClick="{{q1}}">Bien joué</button>
+<button class="react" onClick="{{q2}}">Aïe…</button>
+<button class="react" onClick="{{q3}}">GG</button>
+<button class="react gif" onClick="{{togglePicker}}" aria-expanded="{{open}}">GIF</button>
+<span style="font-size: 12.5px; color: #bfb29a; margin-left: 4px;">{{coolLabel}}</span>
+</div>
+
+<!-- sélecteur de GIF -->
+<sc-if value="{{open}}" hint-placeholder-val="{{true}}">
+<div class="picker" role="dialog" aria-label="Choisir un GIF" style="position: absolute; left: 296px; top: 262px; width: 520px; height: 368px; box-sizing: border-box; padding: 14px; border-radius: 14px; background: linear-gradient(180deg, #2b2017, #1a120c); border: 1px solid rgba(234,208,138,.4); box-shadow: 0 20px 50px rgba(0,0,0,.6); z-index: 40; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; gap: 8px; align-items: center;">
+<label for="gifq" style="position: absolute; left: -9999px;">Rechercher un GIF</label>
+<input id="gifq" value="{{q}}" onInput="{{onQ}}" placeholder="Rechercher un GIF… (pirate, bravo, rage)" style="flex: 1; height: 38px; box-sizing: border-box; padding: 0 12px; border-radius: 9px; border: 1px solid rgba(234,208,138,.35); background: rgba(0,0,0,.35); color: #f2e7cd; font-size: 14.5px;">
+<button class="btn" onClick="{{togglePicker}}" aria-label="Fermer" style="min-height: 38px; padding: 0 12px;">Fermer</button>
+</div>
+<div style="display: flex; gap: 6px; flex-wrap: wrap;">
+<sc-for list="{{cats}}" as="c" hint-placeholder-count="6"><button class="{{c.cls}}" onClick="{{c.pick}}">{{c.label}}</button></sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;">
+<sc-for list="{{tiles}}" as="t" hint-placeholder-count="8"><button class="tile" onClick="{{t.send}}" aria-label="Envoyer : {{t.label}}"><img src="{{t.src}}" alt=""></button></sc-for>
+</div>
+<div style="font-size: 13px; color: #a8987f;">{{emptyLabel}}</div>
+<div style="margin-top: auto; display: flex; justify-content: space-between; font-size: 12px; color: #8f8270;"><span>Cliquez un GIF pour l'envoyer à la table</span><span>GIF fournis par KLIPY</span></div>
+</div>
+</sc-if>
+
+<!-- panneau d'explication (recouvre celui de la table) -->
+<div style="position: absolute; left: 1078px; top: 0; width: 362px; height: 900px; box-sizing: border-box; padding: 80px 24px 24px 12px; background: #140e0a; z-index: 50; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">GIF en partie</div>
+<div style="font-size: 14px; color: #d9cdb6; line-height: 1.5;">Comme sur Discord : on cherche un GIF et on l'envoie. Il flotte quelques secondes au centre de la table, à moitié transparent, avec le nom de celui qui l'a envoyé, puis s'efface. Tout le monde le voit.</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;"><button class="btn gold" onClick="{{fromC}}">GIF de Corentin</button><button class="btn" onClick="{{fromM}}">GIF de Maëlle</button></div>
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="5">
+<div style="display: flex; gap: 10px;"><span style="flex: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;">{{n.i}}</span><span style="font-size: 13.5px; color: #d9cdb6; line-height: 1.4;"><b style="color: #f2e7cd;">{{n.t}}</b> · {{n.d}}</span></div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  state = { open: true, q: '', cat: 'tendances', floats: [], n: 0, cool: 0 };
+  componentWillUnmount() { (this.t || []).forEach(clearTimeout); }
+  later(ms, f) { (this.t = this.t || []).push(setTimeout(f, ms)); }
+  send(src, who) {
+    var P = { vous: { name: 'Vous', init: 'T', c: '#d9b25a', dx: 0, dy: 40 }, corentin: { name: 'Corentin', init: 'C', c: '#c8644b', dx: 0, dy: -40 },
+              maelle: { name: 'Maëlle', init: 'M', c: '#7ab874', dx: -90, dy: 0 }, ysolde: { name: 'Ysolde', init: 'Y', c: '#5c9db6', dx: 90, dy: 0 } }[who];
+    var others = this.state.floats.filter(x => x.who !== who).length;
+    var cx = 544 + (others ? P.dx : 0), cy = 318 + (others ? P.dy : 0);
+    var key = this.state.n + 1;
+    var r = (a, b) => a + Math.random() * (b - a);
+    var f = { key: key, src: src, name: P.name, init: P.init, c: P.c, x: Math.round(cx - 80 + r(-50, 50)), y: Math.round(cy + 40),
+              sw: Math.round(r(10, 22)), rot: r(3, 8).toFixed(1), sd: r(.8, 1.3).toFixed(2), sdl: (-r(0, 1)).toFixed(2) };
+    var fl = this.state.floats.filter(x => x.who !== who).concat([Object.assign({ who: who }, f)]);
+    this.setState({ floats: fl, n: key });
+    this.later(3300, () => this.setState({ floats: this.state.floats.filter(x => x.key !== key) }));
+    if (who === 'vous') {
+      this.setState({ open: false, cool: 10 });
+      var tick = () => { if (this.state.cool > 0) { this.setState({ cool: this.state.cool - 1 }); this.later(1000, tick); } };
+      this.later(1000, tick);
+    }
+  }
+  renderVals() {
+    var s = this.state;
+    var G = [
+      { id: 'abordage', label: "À l'abordage", src: '/_blob/d202faccc5630fb8b7aa0aea20b7f885', tags: 'pirate abordage attaque go tendances' },
+      { id: 'rire', label: 'Rire de pirate', src: '/_blob/95d00607a8890fdb130ad5d2ba5e7081', tags: 'rire lol mdr pirate tendances' },
+      { id: 'butin', label: 'Le butin', src: '/_blob/30a150f9320533c542b77c7f62be2a28', tags: 'bravo or butin argent tendances' },
+      { id: 'coule', label: 'Coulé', src: '/_blob/9e26936b0b6c34491c9067c738d96da2', tags: 'rage perdu coule triste rip' },
+      { id: 'bravo', label: 'Bien joué', src: '/_blob/b1009cc3f1f07c4c04768ce25a2ebf27', tags: 'bravo bien joue gg tendances' },
+      { id: 'trahison', label: 'Trahison', src: '/_blob/65dbb8fba394ca81c2f24c9cd621e6b5', tags: 'rage trahison traitre pirate' },
+      { id: 'kraken', label: 'Le Kraken', src: '/_blob/bdb1cc9645a60962aadb463d18e7448b', tags: 'pirate kraken monstre rage' },
+      { id: 'gg', label: 'GG', src: '/_blob/7572fdba6bfece66f73c237b38d8ddf0', tags: 'gg bravo fin victoire tendances' }
+    ];
+    var q = (s.q || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    var list = G.filter(g => q ? (g.tags + ' ' + g.label.toLowerCase()).normalize('NFD').replace(/[̀-ͯ]/g, '').indexOf(q) >= 0 : (s.cat === 'tendances' ? true : g.tags.indexOf(s.cat) >= 0));
+    var CATS = [['tendances', 'Tendances'], ['bravo', 'Bravo'], ['rire', 'Rire'], ['rage', 'Rage'], ['pirate', 'Pirate']];
+    return {
+      floats: s.floats, open: s.open, q: s.q,
+      onQ: (e) => this.setState({ q: e.target.value }),
+      togglePicker: () => this.setState({ open: !s.open }),
+      cats: CATS.map(c => ({ label: c[1], cls: 'chip' + (!q && s.cat === c[0] ? ' on' : ''), pick: () => this.setState({ cat: c[0], q: '' }) })),
+      tiles: list.map(g => ({ src: g.src, label: g.label, send: () => { if (!this.state.cool) this.send(g.src, 'vous'); } })),
+      emptyLabel: list.length ? '' : 'Aucun GIF pour « ' + s.q + ' ».',
+      coolLabel: s.cool ? 'Prochain GIF dans ' + s.cool + ' s' : '',
+      q1: () => {}, q2: () => {}, q3: () => {},
+      fromC: () => this.send(G[1].src, 'corentin'),
+      fromM: () => this.send(G[5].src, 'maelle'),
+      notes: [
+        { i: 1, t: 'Chercher', d: 'bouton GIF à côté des réactions rapides. Tendances et catégories pirates (Bravo, Rire, Rage, Pirate) en un clic, recherche libre, derniers GIF utilisés.' },
+        { i: 2, t: 'Afficher', d: 'comme une émote sur Twitch : le GIF (160 × 120, ~60 % d’opacité) surgit au centre du tapis avec un petit rebond, puis monte en se balançant de gauche à droite et s’efface en 3,2 s. Chaque GIF a son propre balancement, légèrement aléatoire.' },
+        { i: 3, t: 'Doser', d: '1 GIF toutes les 10 s par joueur, un seul à l’écran par joueur. Coupé automatiquement pendant votre tour de jeu (pas de spam pour presser).' },
+        { i: 4, t: 'Modérer', d: 'filtre de contenu « tout public » côté serveur. Option « Masquer les GIF » et « Masquer les GIF de ce joueur » dans l’aperçu au survol.' },
+        { i: 5, t: 'Technique', d: 'recherche via KLIPY (Tenor a fermé son API le 30 juin 2026) appelée par l’Edge Function, puis diffusion à la table par Supabase Realtime.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
