@@ -11,7 +11,7 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
 | `docs/table-v2/SPEC.md` | Table de jeu v2 : plaques, pli, tour, panneau, mises, fin de manche, animations, mobile |
 | `docs/ecrans-compte/SPEC.md` | Écrans du compte, XP, Élo, garde-robe, coffre |
 | `docs/ecrans-compte/PROMPT-claude-code.md` | Prompts 1 à 3 (main, écrans du compte, garde-robe) |
-| `web/public/cards/anim/` | Vidéos en boucle des 6 cartes animées (webm + mp4) |
+| `web/public/cards/anim/` | 6 cartes animées : vidéo en boucle (webm + mp4) et cadre seul à poser par-dessus (`*-cadre.webp`) |
 | `docs/maquettes/*.dc.html` | **Toutes** les maquettes, dans leur dernière version. Ouvre-les comme du HTML. Les données d'exemple et la logique sont dans le `<script type="text/x-dc">` en bas de chaque fichier. Lis-les pour la mise en page, ne copie pas le format `.dc.html`. |
 
 ## Étape 0 : état des lieux (obligatoire, avant d'écrire du code)
@@ -34,6 +34,7 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
 - [ ] A6. Zoom au survol long (450 ms) : la carte s'affiche sur 300 px de large, avec à côté une fiche parchemin qui donne le nom et la règle.
 - [ ] A8. Pli en ligne : les cartes du pli s'alignent au centre de gauche à droite, dans l'ordre de pose, avec le rang et le nom de chaque joueur, des places vides pour ceux qui doivent encore jouer et la carte qui mène entourée d'or. Détails dans `docs/table-v2/PLI-EN-LIGNE.md`, maquette `PliOrdre`.
 - [ ] A9. Ambiance pirate de la table (maquette `TableAmbiance`, détails dans `docs/table-v2/AMBIANCE.md`) : cabine en planches, table en bois cloutée de laiton, tapis en carte marine très discrète, lanterne et hublot dans les coins vides, rang du pli en sceau de cire, couleur demandée sur parchemin, manches en nœuds de corde. Option « Ambiance sobre » dans les réglages.
+- [ ] A10. GIF en partie : recherche de GIF (KLIPY, via l'Edge Function) et envoi à la table. Le GIF surgit au centre du tapis et monte en se balançant, semi-transparent, comme une émote Twitch (3,2 s). Débit de 1 GIF toutes les 10 s, option pour masquer. Voir `docs/gif/` et la maquette `GifPartie`.
 - [ ] A7. Aperçu d'un joueur au survol (maquette `ApercuJoueur`) :
   - contenu : identité, niveau, titre, Élo et tendance, présence en ligne ; barre manche par manche de la partie en cours ; 3 stats (victoires, mises tenues, parties) ; objets rares portés ; lien vers le profil ;
   - comportement : ouverture après 250 ms de survol ou au toucher, une version courte pour les bots ;
@@ -92,7 +93,7 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
 
 ## Ordre conseillé
 
-Commence par l'étape 0. Ensuite : A3 et A2 (corrections rapides), B (cartes), A1 / A4 à A6 / A8 / A9, C, D, puis A7 en dernier, car il dépend de l'Élo et des objets.
+Commence par l'étape 0. Ensuite : A3 et A2 (corrections rapides), B (cartes), A1 / A4 à A6 / A8 / A9 / A10, C, D, puis A7 en dernier, car il dépend de l'Élo et des objets.
 
 ## Contrôle final
 
