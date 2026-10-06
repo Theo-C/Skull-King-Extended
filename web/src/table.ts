@@ -1471,7 +1471,16 @@ function logLine(l: { s: LogSeg[]; cls?: string }, me?: string) {
   }
   return `<div class="${l.cls || ''}">${l.s.map(seg => typeof seg === 'string' ? esc(vous(seg)) : lc(seg.c, seg.e)).join('')}</div>`;
 }
-function lc(c: any, e: any) { const cl = c.kind === 'num' && !c.wild ? ' s-' + c.suit : ''; return `<span class="lc${cl}">${esc(cname(c, e))}</span>`; }
+/** Famille d'une carte pour sa couleur dans le journal : couleur de la suite pour les cartes numérotées, rouge pour les
+ *  pirates, bleu pour les sirènes, etc. Morgane prend la couleur de ce qu'elle a été jouée (pirate ou fuite). */
+function lfam(c: any, e: any): string {
+  if (c.kind === 'num') return c.wild ? 'k-wild' : 's-' + c.suit;
+  if (c.kind === 'tigress') return e?.as === 'escape' ? 'k-escape' : 'k-pirate';
+  if (c.kind === 'kraken' || c.kind === 'whale' || c.kind === 'stingray' || c.kind === 'davy') return 'k-monster';
+  if (c.kind === 'volley' || c.kind === 'plank') return 'k-other';
+  return 'k-' + c.kind; // pirate, con, mermaid, sk, escape, loot
+}
+function lc(c: any, e: any) { return `<span class="lc ${lfam(c, e)}">${esc(cname(c, e))}</span>`; }
 function roseSVG(): string {
   const cx=500,cy=300;let s: string=`<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g stroke="#ead08a" fill="none">`;
   for(let k=0;k<32;k++){const a=k*Math.PI/16;s+=`<line x1="${cx}" y1="${cy}" x2="${(cx+1100*Math.cos(a)).toFixed(1)}" y2="${(cy+1100*Math.sin(a)).toFixed(1)}" stroke-opacity="${k%4?0.06:0.12}" stroke-width="1"/>`;}

@@ -324,6 +324,9 @@ select.tbtn{appearance:auto;padding:6px 8px;background:var(--panel)}
 #log .rnd{border-left-color:var(--brass2);color:var(--brass2);font-family:var(--f-disp);font-size:14px;margin-top:6px}
 .lc{font-weight:700;padding:0 5px;border-radius:3px;background:rgba(255,255,255,.07);color:var(--parch);white-space:nowrap}
 .lc.s-yellow{color:#e8b94a}.lc.s-purple{color:#c7a0ea}.lc.s-green{color:#86c995}.lc.s-black{color:#fff;background:#000}
+/* cartes spéciales : une couleur par famille (pirates rouges, sirènes bleues, monstres des abysses turquoise…) */
+.lc.k-pirate{color:#ff8a78}.lc.k-con{color:#ff6b6b;background:rgba(255,80,80,.12)}.lc.k-mermaid{color:#7cc8ff}.lc.k-sk{color:#1b140e;background:#ead08a}
+.lc.k-escape{color:#d9d2c3;background:rgba(255,255,255,.14)}.lc.k-monster{color:#6fe0c8}.lc.k-loot{color:#ffc76b}.lc.k-wild{color:#f7b0e0}.lc.k-other{color:#c9b8ff}
 
 /* Fenêtres */
 .overlay{position:fixed;inset:0;background:rgba(8,6,4,.84);z-index:50;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 16px}
@@ -612,6 +615,8 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .fulllog .lc{background:rgba(43,33,23,.08);color:var(--ink)}
 /* dans le journal complet (parchemin), on garde une teinte plus foncée mais reconnaissable par couleur de carte */
 .fulllog .lc.s-yellow{color:#8a5e14}.fulllog .lc.s-purple{color:#5a2d7a}.fulllog .lc.s-green{color:#2f6f3a}.fulllog .lc.s-black{color:#fff;background:#000}
+.fulllog .lc.k-pirate{color:#a8291c}.fulllog .lc.k-con{color:#8f1414;background:rgba(160,20,20,.1)}.fulllog .lc.k-mermaid{color:#1f5f9a}.fulllog .lc.k-sk{color:#1b140e;background:#d9b25a}
+.fulllog .lc.k-escape{color:#5d4c37;background:rgba(43,33,23,.12)}.fulllog .lc.k-monster{color:#16705f}.fulllog .lc.k-loot{color:#8a5e14}.fulllog .lc.k-wild{color:#9a2f78}.fulllog .lc.k-other{color:#4b3a8f}
 /* Bulle de réaction, posée à côté de la plaque */
 .bubble{position:absolute;z-index:70;transform:translate(-30%,-50%);padding:9px 14px;border-radius:14px 14px 14px 4px;background:#f2e7cd;color:#2b2117;
   font-weight:800;font-size:15px;white-space:nowrap;box-shadow:0 8px 20px rgba(0,0,0,.5);pointer-events:none;animation:bubble 2.2s ease-out forwards}
