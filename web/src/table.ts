@@ -178,14 +178,15 @@ export class TableView {
         <div class="opps" id="opps" aria-label="Adversaires"></div>
         <section class="board" id="table" aria-label="Table de jeu"><div class="bstage" id="bstage"><div class="rim"></div><div class="mat">${roseSVG()}</div><div id="layer"></div></div></section>
         <div id="action" aria-live="polite"><div class="prompt">Chargement de la partie…</div></div>
-        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button><span class="gifcool" aria-live="polite"></span></div><div id="hand"></div><div class="qemo"><span class="qreact" data-reacts></span><button id="emoWrite" aria-label="Écrire une réaction">✎</button><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button></div></section>
+        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button><span class="gifcool" aria-live="polite"></span></div><div id="hand"></div><div class="qemo"><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button><button id="emoWrite" aria-label="Écrire une réaction">✎</button><span class="qreact" data-reacts></span></div></section>
       </div>
       <aside class="side" id="side">
         <div class="drawerbar"><button class="tb" id="dSheet">Feuille de scores</button><button class="tb" id="dClose">Fermer</button></div>
         <section class="panel"><h3>Classement <small>plis / mise · total</small></h3><div class="ladder" id="mini"></div></section>
         <section class="panel" id="stakesP" hidden><h3>Ce que vaut votre mise</h3><div id="stakes" class="stakes"></div><p class="fine">Les bonus (14, captures, Pacte de Butin) ne comptent que si la mise est exacte.</p></section>
         <section class="panel"><h3>Réactions <small>touches 1 à 4</small></h3><div class="emotes" data-reacts></div>
-          <form class="emofree" id="emoFree"><input id="emoText" maxlength="${EMOTE_MAX}" placeholder="Votre réaction…" aria-label="Écrire une réaction" autocomplete="off"><button class="emo" type="submit">Envoyer</button></form></section>
+          <form class="emofree" id="emoFree"><input id="emoText" maxlength="${EMOTE_MAX}" placeholder="Votre réaction…" aria-label="Écrire une réaction" autocomplete="off"><button class="emo" type="submit">Envoyer</button></form>
+          <div class="emogif"><button class="gifbtn big" data-gifbtn hidden aria-expanded="false">GIF</button><span class="gifcool" aria-live="polite"></span></div></section>
         <section class="panel"><h3>Journal <a href="#" id="allLog" class="more">Tout voir</a></h3><div id="log"></div></section>
       </aside>
     </div>`;

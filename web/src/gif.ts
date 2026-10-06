@@ -69,7 +69,7 @@ export class GifCtl {
       b.disabled = turn || left > 0;
       b.title = turn ? 'Pas de GIF pendant votre tour' : left ? `Prochain GIF dans ${left} s` : 'Envoyer un GIF à la table';
     });
-    this.root.querySelectorAll<HTMLElement>('.gifcool').forEach(s => s.textContent = left ? `Prochain GIF dans ${left} s` : turn ? 'À vous de jouer' : '');
+    this.root.querySelectorAll<HTMLElement>('.gifcool').forEach(s => s.textContent = left ? `Prochain GIF dans ${left} s` : turn ? 'Pas de GIF pendant votre tour' : '');
     if (turn && this.pick) this.close();
     if (!left && this.tick) { clearInterval(this.tick); this.tick = null; }
   }

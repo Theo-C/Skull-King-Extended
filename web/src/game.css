@@ -1024,3 +1024,11 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .emo kbd,.qemo kbd{display:inline-grid;place-items:center;min-width:16px;height:16px;margin-right:6px;padding:0 3px;border-radius:4px;background:rgba(234,208,138,.18);color:#ead08a;font:800 11px 'Alegreya Sans',sans-serif}
 .qreact{display:contents}
 .qemo{overflow-x:auto}
+/* GIF bien visible : dans le panneau Réactions (ordinateur) ; au téléphone, GIF et ✎ toujours visibles, les réactions défilent */
+.emogif{display:flex;align-items:center;gap:10px;margin-top:8px}
+.gifbtn.big{height:40px;padding:0 22px;font-size:14px}
+.qemo{overflow:visible}
+.qemo .gifbtn,.qemo #emoWrite{flex:none}
+.qemo .qreact{display:flex;gap:8px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.qemo .qreact::-webkit-scrollbar{display:none}
+.qemo .qreact button{flex:none;white-space:nowrap}
