@@ -16,6 +16,8 @@ export interface ChestCallbacks {
   onEquip?: (slot: string, value: string, cosmeticId: string) => Promise<void>;
   /** Ouvrir le coffre suivant ; renvoie le nouveau résultat ou null si plus de coffres. */
   onOpenNext?: () => Promise<ChestResult>;
+  /** Échec du tirage côté serveur (la superposition se ferme d'elle-même). */
+  onError?: (e: unknown) => void;
   /** Fermeture (après Équiper, Continuer, ou Échap). */
   onClose?: () => void;
   /** Couleur de manteau du joueur, pour les objets qui tombent sur un avatar en repli. */
@@ -141,8 +143,9 @@ const SOCKET_SVG = `<svg viewBox="0 0 1440 100" style="width:100%;display:block"
 <ellipse cx="720" cy="50" rx="220" ry="36" fill="none" stroke="#c9a14a" stroke-width="2" opacity=".6"/>
 </svg>`;
 
-/** Ouvre la superposition. L'appelant a déjà obtenu le résultat du serveur (chest.open). */
-export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}): void {
+/** Ouvre la superposition tout de suite. Le résultat du serveur (chest.open) peut encore être en route : le coffre flotte,
+ *  tremble et luit en attendant ; il ne prend la couleur de la rareté qu'une fois le tirage connu. */
+export function openChestOverlay(initial: ChestResult | Promise<ChestResult>, cb: ChestCallbacks = {}): void {
   installStyles();
   const prev = document.querySelector<HTMLElement>('.chov'); if (prev) prev.remove();
   const ov = document.createElement('div'); ov.className = 'chov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Ouverture de coffre');
@@ -155,28 +158,44 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
   const later = (ms: number, f: () => void) => timers.push(setTimeout(f, ms));
   let busy = false;
 
-  const render = (r: ChestResult) => {
-    timers.forEach(clearTimeout); timers.length = 0;
-    const R = RAR[r.rarity]; ov.classList.remove('myth');
-    const sparks = Array.from({ length: 26 }, (_, k) => {
+  /** Étincelles, objet, texte et en-tête : tout ce qui dépend du tirage. */
+  const sparksHTML = (r: ChestResult) => { const R = RAR[r.rarity]; return Array.from({ length: 26 }, (_, k) => {
       const a = k / 26 * Math.PI * 2, d = 140 + ((k * 53) % 160);
       const dx = Math.round(Math.cos(a) * d), dy = Math.round(Math.sin(a) * d * .7 - 40);
       const sz = 4 + (k % 4) * 2, t = (.7 + (k % 4) * .15).toFixed(2), delay = ((k % 5) * .02).toFixed(2);
       const c = k % 3 ? R.color : '#ffffff';
       const cc = r.rarity === 'm' && c !== '#ffffff' ? ['#ff9ad5', '#ffd36b', '#8dffb0', '#7fc8ff', '#c39bff'][k % 5] : c;
       return `<span style="--dx:${dx}px;--dy:${dy}px;--t:${t}s;--d:${delay}s;left:-4px;top:-4px;width:${sz}px;height:${sz}px;background:${cc};box-shadow:0 0 10px ${cc}"></span>`;
-    }).join('');
+    }).join(''); };
+  const textHTML = (r: ChestResult) => {
+    const R = RAR[r.rarity];
+    const stars = Array.from({ length: ['c','r','e','l','m'].indexOf(r.rarity) + 1 },
+      (_, i) => `<svg class="cstar" viewBox="0 0 24 24" style="width:16px;height:16px;animation-delay:${(.2 + i * .15).toFixed(2)}s" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z" fill="${R.color}"/></svg>`).join('');
+    return `<div class="crow1"><span class="crlbl${r.rarity === 'm' ? ' irid' : ''}" style="color:${R.color}">${esc(R.label)}</span><span style="display:flex;gap:3px">${stars}</span></div>
+          <div class="cname">${esc(r.name)}</div>
+          <div class="csub">${esc(SLOT_LABEL[r.slot] || r.slot)} · ${r.duplicate ? (r.slot === 'carte' ? 'déjà possédée' : 'déjà possédé') + ' · +' + r.coins_gained + ' pièces' : r.slot === 'carte' ? 'nouvelle carte : elle s\'anime quand vous la jouez' : 'nouvel objet'}</div>`;
+  };
+  const fill = (r: ChestResult) => {
+    (ov.querySelector('.count') as HTMLElement).textContent = r.chests > 0 ? r.chests + ' coffre' + (r.chests > 1 ? 's' : '') + ' après celui-ci' : 'dernier coffre';
+    // le compteur garde l'ancien solde tant que le doublon n'a pas fondu en pièces
+    (ov.querySelector('.cwal b') as HTMLElement).textContent = String(r.duplicate ? r.coins - r.coins_gained : r.coins);
+    (ov.querySelector('.csparks') as HTMLElement).innerHTML = sparksHTML(r);
+    (ov.querySelector('.citem .cfloat') as HTMLElement).innerHTML = objectSVG(r.slot, r.value, 210, '#2f5f8a', cb.color || '#d9b25a');
+    (ov.querySelector('.ctext') as HTMLElement).innerHTML = textHTML(r);
+  };
+  const fail = (e: unknown) => { close(); if (cb.onError) cb.onError(e); else alert((e as any)?.message || 'Coffre impossible à ouvrir pour l\'instant.'); };
+
+  const render = (pr: ChestResult | Promise<ChestResult>) => {
+    timers.forEach(clearTimeout); timers.length = 0; ov.classList.remove('myth');
     const coinsFly = Array.from({ length: 12 }, (_, j) => {
       const dx = 530 + (j % 3) * 6, dy = -164 - (j % 2) * 4, delay = (j * .06).toFixed(2);
       const l = ((j * 29) % 60) - 30, t = ((j * 17) % 40) - 20;
       return `<span style="--dx:${dx}px;--dy:${dy}px;--d:${delay}s;left:${l}px;top:${t}px"></span>`;
     }).join('');
-    const stars = Array.from({ length: ['c','r','e','l','m'].indexOf(r.rarity) + 1 },
-      (_, i) => `<svg class="cstar" viewBox="0 0 24 24" style="width:16px;height:16px;animation-delay:${(.2 + i * .15).toFixed(2)}s" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z" fill="${R.color}"/></svg>`).join('');
     ov.innerHTML = `<div class="chead">
         <h2>Coffre de victoire</h2>
-        <span class="count">${r.chests > 0 ? r.chests + ' coffre' + (r.chests > 1 ? 's' : '') + ' après celui-ci' : 'dernier coffre'}</span>
-        <span class="cwal"><span class="coin"></span><b>${r.coins}</b><span>pièces</span></span>
+        <span class="count">…</span>
+        <span class="cwal"><span class="coin"></span><b>…</b><span>pièces</span></span>
         <button type="button" class="chskip" hidden>Passer</button>
       </div>
       <div class="cstage">
@@ -189,21 +208,23 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
           <div class="clid">${CHEST_LID_SVG}</div>
         </div>
         <div class="cburst"></div>
-        <div class="csparks" hidden>${sparks}</div>
-        <div class="citem" hidden><div class="cfloat">${objectSVG(r.slot, r.value, 210, '#2f5f8a', cb.color || '#d9b25a')}</div></div>
+        <div class="csparks" hidden></div>
+        <div class="citem" hidden><div class="cfloat"></div></div>
         <div class="ccoins" hidden>${coinsFly}</div>
-        <div class="ctext" aria-live="polite"><div class="crow1"><span class="crlbl${r.rarity === 'm' ? ' irid' : ''}" style="color:${R.color}">${esc(R.label)}</span><span style="display:flex;gap:3px">${stars}</span></div>
-          <div class="cname">${esc(r.name)}</div>
-          <div class="csub">${esc(SLOT_LABEL[r.slot] || r.slot)} · ${r.duplicate ? (r.slot === 'carte' ? 'déjà possédée' : 'déjà possédé') + ' · +' + r.coins_gained + ' pièces' : r.slot === 'carte' ? 'nouvelle carte : elle s\'anime quand vous la jouez' : 'nouvel objet'}</div>
-        </div>
+        <div class="ctext" aria-live="polite"></div>
         <div class="cidle"></div>
         <div class="cact" hidden></div>
       </div>`;
-    installPhases(r);
+    // le tirage arrive (ou est déjà là) : on complète l'affichage ; en cas d'échec, installPhases ferme et prévient
+    const result = Promise.resolve(pr); result.then(fill, () => { /* voir installPhases */ });
+    installPhases(result);
   };
 
-  const installPhases = (r: ChestResult) => {
-    const R = RAR[r.rarity];
+  const installPhases = (result: Promise<ChestResult>) => {
+    // tirage connu plus tard : r et R sont fixés au plus tard avant le changement de teinte
+    let r!: ChestResult, R!: typeof RAR[string];
+    const known = result.then(x => { r = x; R = RAR[x.rarity]; return x; });
+    known.catch(fail);
     const chest = ov.querySelector('.cchest') as HTMLElement;
     const halo = ov.querySelector('.chalo') as HTMLElement;
     const raysWrap = ov.querySelector('.crays') as HTMLElement;
@@ -241,7 +262,7 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
         const a = b.dataset.act;
         if (a === 'close') close();
         else if (a === 'equip') { busy = true; b.disabled = true; cb.onEquip!(r.slot, r.value, r.cosmetic_id).then(close, (e) => { busy = false; b.disabled = false; alert((e as any)?.message || 'Erreur à l\'équipement.'); }); }
-        else if (a === 'again') { busy = true; b.disabled = true; cb.onOpenNext!().then((n) => { busy = false; render(n); }, (e) => { busy = false; b.disabled = false; alert((e as any)?.message || 'Erreur à l\'ouverture.'); }); }
+        else if (a === 'again') render(cb.onOpenNext!());
       };
     };
     /** Objet sorti, sans animation de montée (bouton Passer) : couvercle ouvert, teinte de rareté. */
@@ -286,8 +307,10 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
       setGlow(WHITE, WHITE_SOFT, .55, 1);
       seam.style.opacity = '1'; seam.style.boxShadow = `0 0 30px 8px ${WHITE}`;
       raysWrap.style.opacity = '.35';
-      try { sfx.breath(R.hold / 1000); } catch { /* son indisponible */ }
-      later(R.hold, tint);
+      try { sfx.breath(RAR.c.hold / 1000); } catch { /* son indisponible */ }
+      // la lueur blanche dure selon la rareté ; si le serveur tarde, elle continue jusqu'à sa réponse
+      const t0 = Date.now();
+      known.then(() => later(Math.max(0, R.hold - (Date.now() - t0)), tint), () => { /* fail() a fermé */ });
     };
     const shake = () => {
       chest.classList.remove('bob'); chest.classList.add('shake');
@@ -309,7 +332,7 @@ export function openChestOverlay(initial: ChestResult, cb: ChestCallbacks = {}):
       <div class="codds">${Object.entries(RAR).map(([, R]) => `<span><i style="background:${R === RAR.m ? IRID : R.color}"></i>${esc(R.label)} ${R.p}</span>`).join('')}</div>`;
     (idle.querySelector('.ciopen') as HTMLButtonElement).onclick = start;
     (idle.querySelector('.ciopen') as HTMLButtonElement).focus();
-    skipBtn.onclick = () => { reveal(); if (r.duplicate) convert(); else done(); };
+    skipBtn.onclick = () => { skipBtn.disabled = true; known.then(() => { reveal(); if (r.duplicate) convert(); else done(); }, () => { /* fail() a fermé */ }); };
   };
 
   render(initial);

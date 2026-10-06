@@ -1346,13 +1346,15 @@ export class TableView {
         if (chestEl.dataset.state === 'opening') return;
         chestEl.dataset.state = 'opening';
         try {
-          const r = await this.backend.openChest!();
+          // superposition immédiate : le tirage du serveur arrive pendant que le coffre tremble
+          let opened = false;
           const look = this.backend.myLook?.();
-          openChestOverlay(r, {
+          openChestOverlay(this.backend.openChest!().then(r => { opened = true; return r; }), {
             color: look?.color,
             onEquip: this.backend.equipItem,
             onOpenNext: this.backend.openChest ? () => this.backend.openChest!() : undefined,
-            onClose: () => { chestEl.dataset.state = 'open'; chestEl.innerHTML = '<span class="fchest-txt"><span class="ftag">Coffre ouvert ✓</span><b>Objet reçu</b><span>Retrouvez-le dans votre garde-robe.</span></span>'; },
+            onError: (e: any) => { chestEl.dataset.state = 'closed'; toast(e?.message || 'Coffre impossible à ouvrir pour l\'instant.', 'err'); },
+            onClose: () => { if (!opened) return; chestEl.dataset.state = 'open'; chestEl.innerHTML = '<span class="fchest-txt"><span class="ftag">Coffre ouvert ✓</span><b>Objet reçu</b><span>Retrouvez-le dans votre garde-robe.</span></span>'; },
           });
         } catch (e: any) { chestEl.dataset.state = 'closed'; toast(e?.message || 'Coffre impossible à ouvrir pour l\'instant.', 'err'); }
       };

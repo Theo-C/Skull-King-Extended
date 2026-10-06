@@ -469,21 +469,22 @@ function openWardrobe(root: HTMLElement, uid: string, p: Profile, data: Wardrobe
   async function openChestFlow(btn: HTMLButtonElement) {
     if (st.busy) return; st.busy = true; btn.disabled = true;
     try {
-      const r = await callGame<ChestResult>('chest.open', {});
-      // Après chaque ouverture, on met à jour le porte-monnaie et l'inventaire local, puis on continue l'anim
+      // Après chaque ouverture, on met à jour le porte-monnaie et l'inventaire local
       const applyResult = (res: ChestResult) => {
         st.coins = res.coins; st.chests = res.chests; chestBadge(res.chests);
         if (!res.duplicate) st.owned.add(res.cosmetic_id);
+        return res;
       };
-      applyResult(r);
-      openChestOverlay(r, {
+      // la superposition s'ouvre tout de suite ; le tirage du serveur arrive pendant que le coffre tremble
+      openChestOverlay(callGame<ChestResult>('chest.open', {}).then(applyResult), {
         color: st.color,
         onEquip: async (_slot, _value, cosmeticId) => {
           st.look = withItem(st.look, cosmeticId); st.saved = { ...st.look }; st.savedColor = st.color;
           await callGame('profile.update', { look: st.look });
           onSaved({ look: { ...st.look } });
         },
-        onOpenNext: async () => { const n = await callGame<ChestResult>('chest.open', {}); applyResult(n); return n; },
+        onOpenNext: () => callGame<ChestResult>('chest.open', {}).then(applyResult),
+        onError: (e: any) => toast(e?.message || 'Coffre impossible à ouvrir pour l\'instant.', 'err'),
         onClose: () => { st.busy = false; render(); },
       });
     } catch (e: any) { st.busy = false; btn.disabled = false; toast(e.message, 'err'); render(); }
