@@ -43,8 +43,15 @@ export interface TableBackend {
   /** Son coupé ou remis depuis la table : enregistré aussi dans le profil (réglage « Sons de la table »). */
   saveSound?(on: boolean): void;
 }
-/** Réactions proposées (les seules acceptées, y compris depuis le réseau). */
+/** Réactions proposées en un clic ; on peut aussi écrire la sienne (60 caractères au plus). */
 export const EMOTES = ['Bien joué !', 'Aïe !', 'Hissez haut !', 'Bluff ?'];
+export const EMOTE_MAX = 60;
+/** Caractères de contrôle et de mise en forme invisibles (sens d'écriture, espaces de largeur nulle). */
+const EMOTE_STRIP = new RegExp('[' + [[0x00, 0x1f], [0x7f, 0x9f], [0x200b, 0x200f], [0x202a, 0x202e], [0x2066, 0x2069]].map(([a, b]) => String.fromCharCode(a) + '-' + String.fromCharCode(b)).join('') + ']', 'g');
+/** Réaction libre nettoyée (aussi à la réception : le texte vient d'un autre navigateur) : une ligne, 60 caractères. */
+export function cleanEmote(t: unknown): string {
+  return typeof t === 'string' ? t.replace(EMOTE_STRIP, ' ').replace(/\s+/g, ' ').trim().slice(0, EMOTE_MAX) : '';
+}
 const PCOL = ['#d9b25a', '#c8644b', '#5c9db6', '#7ab874', '#a982c4', '#e0954a', '#cfc6b0', '#6f8fd0', '#d47fa6'];
 // Pauses entre deux événements rejoués (ms, multipliées par la vitesse choisie) : assez longues pour suivre ce que font les bots.
 /** Durée de la révélation du pouvoir de Marie Thorne (× vitesse). */
@@ -169,13 +176,14 @@ export class TableView {
         <div class="opps" id="opps" aria-label="Adversaires"></div>
         <section class="board" id="table" aria-label="Table de jeu"><div class="bstage" id="bstage"><div class="rim"></div><div class="mat">${roseSVG()}</div><div id="layer"></div></div></section>
         <div id="action" aria-live="polite"><div class="prompt">Chargement de la partie…</div></div>
-        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span></div><div id="hand"></div><div class="qemo">${[EMOTES[0], EMOTES[1], EMOTES[3]].map(e => `<button data-emo="${esc(e)}">${esc(e)}</button>`).join('')}</div></section>
+        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span></div><div id="hand"></div><div class="qemo">${[EMOTES[0], EMOTES[1], EMOTES[3]].map(e => `<button data-emo="${esc(e)}">${esc(e)}</button>`).join('')}<button id="emoWrite" aria-label="Écrire une réaction">✎</button></div></section>
       </div>
       <aside class="side" id="side">
         <div class="drawerbar"><button class="tb" id="dSheet">Feuille de scores</button><button class="tb" id="dClose">Fermer</button></div>
         <section class="panel"><h3>Classement <small>plis / mise · total</small></h3><div class="ladder" id="mini"></div></section>
         <section class="panel" id="stakesP" hidden><h3>Ce que vaut votre mise</h3><div id="stakes" class="stakes"></div><p class="fine">Les bonus (14, captures, Pacte de Butin) ne comptent que si la mise est exacte.</p></section>
-        <section class="panel"><h3>Réactions</h3><div class="emotes">${EMOTES.map(e => `<button class="emo" data-emo="${esc(e)}">${esc(e)}</button>`).join('')}</div></section>
+        <section class="panel"><h3>Réactions</h3><div class="emotes">${EMOTES.map(e => `<button class="emo" data-emo="${esc(e)}">${esc(e)}</button>`).join('')}</div>
+          <form class="emofree" id="emoFree"><input id="emoText" maxlength="${EMOTE_MAX}" placeholder="Votre réaction…" aria-label="Écrire une réaction" autocomplete="off"><button class="emo" type="submit">Envoyer</button></form></section>
         <section class="panel"><h3>Journal <a href="#" id="allLog" class="more">Tout voir</a></h3><div id="log"></div></section>
       </aside>
     </div>`;
@@ -197,6 +205,12 @@ export class TableView {
     $('#action', root).addEventListener('focusin', ev => { const n = coinN(ev); if (n != null) this.renderStakes(n); });
     $('#allLog', root).onclick = ev => { ev.preventDefault(); this.fullLog(); };
     root.addEventListener('click', ev => { const b = (ev.target as HTMLElement).closest('[data-emo]') as HTMLElement | null; if (b) this.sendEmote(b.dataset.emo!); });
+    // réaction libre : champ du panneau (ordinateur) ou petite fenêtre (téléphone)
+    ($('#emoFree', root) as HTMLFormElement).onsubmit = ev => { ev.preventDefault(); const i = $('#emoText', root) as HTMLInputElement; if (this.sendEmote(i.value)) i.value = ''; };
+    ($('#emoWrite', root) as HTMLButtonElement).onclick = async () => {
+      const ok = await modal(`<h2>Réaction</h2><input id="emoModal" class="inp" maxlength="${EMOTE_MAX}" placeholder="Votre réaction…" aria-label="Écrire une réaction" autocomplete="off" style="width:100%">`, [{ label: 'Envoyer', value: true }, { label: 'Annuler', value: null, cls: 'alt' }]);
+      const t = (document.querySelector('#emoModal') as HTMLInputElement | null)?.value; if (ok && t) this.sendEmote(t);
+    };
     const bs = $('#bSound', root);
     const paintSound = () => { bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff; bs.setAttribute('aria-label', soundOn() ? 'Couper le son' : 'Activer le son'); bs.title = bs.getAttribute('aria-label')!; };
     paintSound(); bs.onclick = () => { setSound(!soundOn()); paintSound(); this.backend.saveSound?.(soundOn()); if (soundOn()) sfx.coin(); };
@@ -998,7 +1012,7 @@ export class TableView {
   }
   /** Réaction : bulle à côté de la plaque de l'expéditeur, 2,2 s ; au plus une toutes les 2 s par joueur. */
   showEmote(seat: number, text: string) {
-    if (!EMOTES.includes(text) || !this.pub || !this.pub.players[seat]) return;
+    text = cleanEmote(text); if (!text || !this.pub || !this.pub.players[seat]) return;
     const now = Date.now(); if (now - (this.lastEmote[seat] ?? 0) < 1900) return; this.lastEmote[seat] = now;
     if (this.mob) {
       const a = this.anchor(seat); if (!a) return;
@@ -1009,12 +1023,14 @@ export class TableView {
     el.style.left = g.px + 'px'; el.style.top = (g.py < 140 ? g.py + 52 : g.py - 52) + 'px';
     $('#layer', this.root).append(el); sfx.coin(); setTimeout(() => el.remove(), 2200);
   }
-  private sendEmote(text: string) {
-    if (this.mySeat == null || Date.now() - (this.lastEmote[this.mySeat] ?? 0) < 2000) return;
+  private sendEmote(raw: string): boolean {
+    const text = cleanEmote(raw);
+    if (!text || this.mySeat == null || Date.now() - (this.lastEmote[this.mySeat] ?? 0) < 2000) return false;
     this.showEmote(this.mySeat, text);
     this.backend.emote?.(text);
     const btns = this.root.querySelectorAll<HTMLButtonElement>('[data-emo]'); btns.forEach(x => x.disabled = true);
     setTimeout(() => btns.forEach(x => x.disabled = false), 2000);
+    return true;
   }
 
   /* ---------- Actions ---------- */

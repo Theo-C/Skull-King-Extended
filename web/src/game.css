@@ -610,6 +610,10 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .lrow .sc b{font-weight:800;font-size:20px;color:var(--parch);font-variant-numeric:tabular-nums}
 .lrow .sc small{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
 .emotes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.emofree{display:flex;gap:8px;margin-top:8px}
+.emofree input{flex:1;min-width:0;height:40px;padding:0 10px;border-radius:10px;border:1px solid rgba(234,208,138,.22);background:rgba(0,0,0,.25);color:var(--parch);font:600 14px var(--f-body)}
+.emofree .emo{height:40px;padding:0 12px}
+
 .emo{display:flex;align-items:center;justify-content:center;height:44px;border-radius:10px;border:1px solid rgba(234,208,138,.22);background:rgba(0,0,0,.25);
   color:var(--text);font:700 14px var(--f-body);cursor:pointer}
 .emo:hover{border-color:var(--brass2);background:rgba(201,161,74,.12)}
@@ -973,3 +977,5 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 
 /* manches de départage (égalité en tête) : points en pointillés dorés */
 .gdots i.xtra{outline:1.5px dashed rgba(234,208,138,.65);outline-offset:1px}
+/* réactions libres : jusqu'à 60 caractères, sur plusieurs lignes si besoin */
+.tablepage .bubble{max-width:220px;white-space:normal;overflow-wrap:anywhere;text-align:center}
