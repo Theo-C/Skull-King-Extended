@@ -68,7 +68,7 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
           <div class="eloval"><span class="big">${eloNow}</span>
             ${!elo.length ? '<span class="lbl">pas encore de partie classée</span>' : lastDelta ? `<span class="${lastDelta > 0 ? 'pos' : 'neg'}">${arrow(lastDelta)} à la dernière partie</span>` : '<span>= 0 à la dernière partie</span>'}
             <span class="lbl">record ${Math.round(Number(st.elo_best))}${fr ? ` · ${nth(fr.rank)} entre amis` : ''}${gl ? ` · #${fmt(gl.rank)} sur ${fmt((global as any[]).length)}` : ''}</span></div>
-          ${eloChart(elo as any[])}
+          ${eloChart(elo as any[], p.color)}
         </div>
         <p class="note">L'Élo mesure votre niveau, l'XP mesure votre assiduité. À chaque partie, vous êtes comparé à chaque adversaire : finir devant un joueur mieux classé rapporte beaucoup, finir derrière un joueur moins bien classé coûte cher. Les 10 premières parties classées comptent double, pour trouver vite votre niveau.</p>
       </section>
@@ -102,7 +102,7 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
     </section>
   </section>`;
 
-  const paintHero = (pp: Profile) => { $('#heroAv', root).innerHTML = avatarHTML(av(pp), 120, `0 0 0 3px #1b140e,0 0 0 6px ${pp.color}`); $('#heroName', root).textContent = pp.pseudo; };
+  const paintHero = (pp: Profile) => { root.querySelector<SVGElement>('svg.echart')?.style.setProperty('--ec', pp.color); $('#heroAv', root).innerHTML = avatarHTML(av(pp), 120, `0 0 0 3px #1b140e,0 0 0 6px ${pp.color}`); $('#heroName', root).textContent = pp.pseudo; };
   paintHero(p);
   const achNames = new Map((all as any[]).map(a => [a.code as string, a.name as string]));
   openWardrobe(root, uid, p, ward as any, achNames, (saved) => { Object.assign(p, saved); paintHero(p); forgetProfile(); });
@@ -142,18 +142,19 @@ const pref = (k: string, t: string, d: string, on: boolean) => `<div class="prow
 
 /** Courbe de l'Élo sur les dernières parties classées (SVG, ligne des 100 en pointillés).
  *  Point de départ : l'Élo avant la plus ancienne partie affichée (100 seulement pour un débutant). */
-function eloChart(rows: { elo_before: number | null; elo_after: number; elo_delta: number }[]) {
+/** Courbe tracée à la couleur du manteau du joueur (variable --ec, mise à jour quand il change de couleur). */
+function eloChart(rows: { elo_before: number | null; elo_after: number; elo_delta: number }[], color: string) {
   if (!rows.length) return '<div class="echart empty">La courbe apparaîtra après votre première partie classée.</div>';
   const r0 = rows[0], start = r0.elo_before != null ? Number(r0.elo_before) : Number(r0.elo_after) - Number(r0.elo_delta);
   const E = [start, ...rows.map(r => Number(r.elo_after))], lo = Math.min(80, ...E) - 5, hi = Math.max(110, ...E) + 10;
   const X = (i: number) => 30 + i * 600 / Math.max(1, E.length - 1), Y = (v: number) => 140 - (v - lo) * 130 / (hi - lo);
   const pts = E.map((v, i) => `${X(i).toFixed(1)} ${Y(v).toFixed(1)}`);
   const n = rows.length, span = n > 1 ? `les ${n} dernières parties classées` : 'la dernière partie classée';
-  return `<svg class="echart" viewBox="0 0 640 150" role="img" aria-label="Évolution de l'Élo sur ${span}, de ${Math.round(E[0])} à ${Math.round(E[E.length - 1])}">
+  return `<svg class="echart" viewBox="0 0 640 150" style="--ec:${esc(color)}" role="img" aria-label="Évolution de l'Élo sur ${span}, de ${Math.round(E[0])} à ${Math.round(E[E.length - 1])}">
     <line x1="30" x2="630" y1="${Y(100).toFixed(1)}" y2="${Y(100).toFixed(1)}" stroke="rgba(234,208,138,.3)" stroke-dasharray="4 6"/>
     <text x="24" y="${(Y(100) + 4).toFixed(1)}" text-anchor="end" font-size="12" fill="#a8987f">100</text>
-    <path d="M${pts.join(' L')} L${X(E.length - 1).toFixed(1)} 150 L30 150 Z" fill="rgba(201,161,74,.14)"/>
-    <path d="M${pts.join(' L')}" fill="none" stroke="#ead08a" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M${pts.join(' L')} L${X(E.length - 1).toFixed(1)} 150 L30 150 Z" style="fill:var(--ec);fill-opacity:.16"/>
+    <path d="M${pts.join(' L')}" fill="none" style="stroke:var(--ec)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
     ${E.map((v, i) => i ? `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4" fill="${v < E[i - 1] ? '#f0a08b' : '#9bd69f'}" stroke="#1f1813" stroke-width="1.5"><title>Partie ${i} : ${Math.round(v)}</title></circle>` : '').join('')}
   </svg>`;
 }
