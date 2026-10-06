@@ -89,8 +89,9 @@ export async function casierPage(root: HTMLElement, uid: string, query: URLSearc
       const key = st.animPrev ?? (L().card_anims[0] || animOwned[0] || 'kraken'), it = item('card_anim', key)!, mine = animOwned.includes(key), on = mine && L().card_anims.includes(key);
       const cap = !mine ? `${it.name} · pas encore gagnée : aperçu` : on ? `${it.name} · animée quand vous la jouez` : `${it.name} · animation coupée, carte fixe à la table`;
       const glow = on ? ANIM[KEY_OF_FILE[key]]?.halo ?? 'transparent' : 'transparent';
+      // animation coupée : la carte reste fixe dans l'aperçu, comme à la table (une carte pas encore gagnée joue pour donner envie)
       return `<div class="ck-felt ck-felt-cards"><div class="ck-felt-t">Ce que voient les autres</div><div class="ck-fan">${fan}</div>
-          <div class="ck-played card" style="--glow:${glow}" data-anim-key="${esc(KEY_OF_FILE[key] ?? '')}"><div class="art"><img src="${ART[KEY_OF_FILE[key]]}" alt=""></div></div>
+          <div class="ck-played card" style="--glow:${glow}" data-anim-key="${on || !mine ? esc(KEY_OF_FILE[key] ?? '') : ''}"><div class="art"><img src="${ART[KEY_OF_FILE[key]]}" alt=""></div></div>
           <div class="ck-cap">${esc(cap)}</div></div>
         <p class="ck-note">Dos <b>${esc(item('card_back', L().card_back)?.name ?? 'Classique')}</b> sur vos cartes face cachée, vues par toute la table.</p>`;
     }
