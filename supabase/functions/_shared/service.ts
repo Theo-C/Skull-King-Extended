@@ -36,6 +36,8 @@ const bad = (m: string) => new HttpError(400, m);
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function newCode() { let s = ''; for (let i = 0; i < 6; i++) s += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]; return s; }
 function botName(used: Set<string>) { const n = E.BOT_NAMES.find(x => !used.has(x)) ?? `Bot ${used.size + 1}`; used.add(n); return n; }
+/** Entier au hasard dans [0, n) (Web Crypto : Deno et navigateurs). */
+function randomInt(n: number) { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; }
 function sanitizeSeatTypes(list: any): boolean[] {
   if (!Array.isArray(list) || list.length < 3 || list.length > 9) throw bad('Il faut entre 3 et 9 sièges.');
   return list.map((s: any) => !!(s && s.bot));
@@ -157,6 +159,9 @@ async function start(store: Store, uid: string, body: any) {
   // les sièges humains restés vides sont confiés à des bots
   const used = new Set(seats.filter(s => s.bot).map(s => s.name));
   for (const s of seats) if (!s.bot && !s.user_id) { s.bot = true; s.name = botName(used); }
+  // places tirées au sort au lancement (l'ordre du salon ne décide plus de qui joue après qui)
+  for (let i = seats.length - 1; i > 0; i--) { const j = randomInt(i + 1); [seats[i], seats[j]] = [seats[j], seats[i]]; }
+  seats.forEach((s, i) => { s.seat = i; });
   const S = E.newGame(seats.map(s => ({ name: s.name, bot: s.bot, uid: s.user_id })), g.options);
   E.runBots(S);
   const events = E.takeEvents(S);

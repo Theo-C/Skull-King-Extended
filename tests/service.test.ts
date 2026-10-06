@@ -97,16 +97,20 @@ await expectErr('seul l’hôte lance', handle(store, U.bob, { action: 'start', 
 await handle(store, U.alice, { action: 'start', id: G });
 await expectErr('rejoindre une partie lancée', handle(store, U.eve, { action: 'join', code }));
 ok('statut en cours', (await as(U.bob, 'select status from games'))[0].status === 'playing');
+// places tirées au sort au lancement : mêmes joueurs, sièges 0 à 3, et l'état de partie suit le nouvel ordre
+const after = (await db.query<any>('select seat, user_id, name from game_players where game_id=$1 order by seat', [G])).rows;
+const users = after.map((s: any) => s.user_id as string), bobSeat = users.indexOf(U.bob);
+ok('places tirées au sort : mêmes joueurs, sièges 0 à 3', after.map((s: any) => s.seat).join() === '0,1,2,3' && [...users].sort().join() === [U.alice, U.bob, U.chloe, U.david].sort().join(), after);
+ok('places tirées au sort : noms de l’état dans l’ordre des sièges', ((await as(U.bob, 'select state from games'))[0].state as E.PublicView).players.map(p => p.name).join() === after.map((s: any) => s.name).join());
 
 // ---------- Confidentialité ----------
 const handsBob = await as(U.bob, 'select seat, data from hands');
-ok('Bob ne lit que sa main', handsBob.length === 1 && handsBob[0].seat === 1);
+ok('Bob ne lit que sa main', handsBob.length === 1 && handsBob[0].seat === bobSeat);
 ok('la vue publique ne contient aucune main', !JSON.stringify((await as(U.bob, 'select state from games'))[0].state).includes('"hand"'));
 ok('les secrets restent inaccessibles', (await as(U.bob, 'select * from game_secrets')).length === 0);
 ok('un étranger ne voit rien', (await as(U.eve, 'select * from hands')).length === 0 && (await as(U.eve, 'select * from game_events')).length === 0);
 
 // ---------- Partie complète, chaque client ne lisant que sa vue ----------
-const users = [U.alice, U.bob, U.chloe, U.david];
 let seed = 42; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
 let moves = 0, wrongTurnChecked = false, illegalChecked = false;
 for (let step = 0; step < 5000; step++) {
