@@ -402,7 +402,7 @@ async function gifSearch(store: Store, body: any) {
   const cursor = typeof body.cursor === 'string' && body.cursor.length <= 64 ? body.cursor : null;
   return store.gif.search(q, cursor);
 }
-/** Envoi d'un GIF : joueur assis, pas pendant son tour, 1 toutes les 10 s ; l'URL est reconstruite par le serveur. */
+/** Envoi d'un GIF : joueur assis (pendant son tour aussi), 1 toutes les 10 s ; l'URL est reconstruite par le serveur. */
 async function gifSend(store: Store, uid: string, body: any) {
   if (!store.gif || !store.broadcast) throw new HttpError(503, 'Les GIF sont indisponibles pour le moment.');
   const gifId = typeof body.gifId === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(body.gifId) ? body.gifId : null;
@@ -410,8 +410,6 @@ async function gifSend(store: Store, uid: string, body: any) {
   const g = await mustGame(store, body.gameId ?? body.id);
   if (g.status !== 'playing') throw bad("La partie n'est pas en cours.");
   const me = (await store.seats(g.id)).find(s => s.user_id === uid); if (!me) throw new HttpError(403, 'Vous ne jouez pas dans cette partie.');
-  const S = await store.secret(g.id); if (!S) throw new HttpError(500, 'État de partie manquant.');
-  if (E.waitingFor(S).includes(me.seat)) throw bad("Pas de GIF pendant votre tour : jouez d'abord.");
   const item = await store.gif.get(gifId); if (!item) throw bad('GIF introuvable.');
   const wait = Number(await store.rpc('gif_rate_take', { p_user: uid }));
   if (wait > 0) throw new HttpError(429, `Un GIF toutes les ${GIF.cooldownS} s : encore ${wait} s.`);

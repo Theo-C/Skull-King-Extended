@@ -253,19 +253,19 @@ async function playUntil(id: string, users: string[], stop: (pub: E.PublicView) 
   await handle(store, U.chloe, { action: 'join', code: jc });
   await handle(store, U.eve, { action: 'start', id: J });
 
-  // GIF en partie : recherche, puis envoi (joueur assis, pas pendant son tour, 1 toutes les 10 s, URL du serveur)
+  // GIF en partie : recherche, puis envoi (joueur assis, pendant son tour aussi, 1 toutes les 10 s, URL du serveur)
   const gs = await handle(store, U.eve, { action: 'gif.search', cat: 'bravo' });
   ok('gif : recherche', gs.items.length === 5 && gs.next === '24', gs);
   await expectErr('gif : hors de la partie → refus', handle(store, U.alice, { action: 'gif.send', gameId: J, gifId: 'gif1' }), 403);
-  await expectErr('gif : pendant son tour (mise à faire) → refus', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'gif1' }), 400);
-  await handle(store, U.chloe, { action: 'act', id: J, move: { t: 'bid', n: 0 } });
   await expectErr('gif : identifiant inconnu → refus', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'zzz' }), 400);
   await expectErr('gif : identifiant mal formé → refus', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'https://evil.example/x.gif' }), 400);
+  // pendant son tour (sa mise n'est pas encore faite) : permis
   const gsend = await handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'gif2' });
   const msg = sent.at(-1);
-  ok('gif : diffusé sur le canal de la partie avec l\'URL du serveur', gsend?.ok && msg?.topic === 'partie-' + J && msg.event === 'gif' && msg.payload.userId === U.chloe && msg.payload.gifUrl === FAKE_GIFS[2].full, msg);
+  ok('gif : diffusé sur le canal de la partie avec l\'URL du serveur, même pendant son tour', gsend?.ok && msg?.topic === 'partie-' + J && msg.event === 'gif' && msg.payload.userId === U.chloe && msg.payload.gifUrl === FAKE_GIFS[2].full, msg);
   await expectErr('gif : un toutes les 10 s', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'gif3' }), 429);
   ok('gif : rien de diffusé quand c\'est refusé', sent.length === 1, sent.length);
+  await handle(store, U.chloe, { action: 'act', id: J, move: { t: 'bid', n: 0 } });
 
   // Joker : acheté à la Boutique, proposé à la fin de la dernière manche à qui en possède un, avant les résultats
   await db.exec(`insert into user_wallet (user_id, coins, chests) values ('${U.eve}', 100, 0) on conflict (user_id) do update set coins = 100, chests = 0, jokers = 0`);

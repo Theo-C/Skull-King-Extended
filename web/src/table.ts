@@ -226,7 +226,6 @@ export class TableView {
         board: () => this.root.querySelector('#table') as HTMLElement | null,
         search: (q, cat, cursor) => this.backend.gifSearch!(q, cat, cursor),
         send: (id, g) => this.backend.gifSend!(id, g),
-        myTurn: () => this.myTurnNow,
         seat: i => { const p = this.pub?.players[i]; return p ? { name: i === this.mySeat ? 'Vous' : p.name, color: this.colorOf(i), ...this.gifSide(i) } : null; },
         uidOf: i => this.backend.seatUids?.[i] ?? null,
         mob: () => this.mob,
@@ -336,7 +335,7 @@ export class TableView {
     $('#action', this.root).classList.toggle('mine', mine);
     if (mine && !this.wasMyTurn && document.hidden) notifyTurn();
     if (mine && !this.wasMyTurn) { this.turnStart = Date.now(); this.previewId = null; sfx.turn(); const a = $('#action', this.root); a.classList.remove('nudge'); void a.offsetWidth; a.classList.add('nudge'); }
-    this.wasMyTurn = mine; this.myTurnNow = mine; this.gif?.refresh();
+    this.wasMyTurn = mine; this.gif?.refresh();
     document.title = mine && document.hidden ? '⚓ À vous de jouer ! · ' + this.baseTitle : this.baseTitle;
   }
   private get animMs() { return Math.max(.5, Math.min(this.speed, 1.4)); }
@@ -394,7 +393,7 @@ export class TableView {
   private animOwned: Set<string>[] = [];
   private offAnim: (() => void) | null = null;
   private trickAnim: { card: HTMLElement; seat: number } | null = null;
-  private gif: GifCtl | null = null; private myTurnNow = false;
+  private gif: GifCtl | null = null;
   /** GIF reçu sur le canal de la partie (game.ts). */
   receiveGif(m: GifMsg) { this.gif?.receive(m); }
   /** Côté de la table d'un siège, pour décaler un GIF de ~90 px vers son envoyeur. */

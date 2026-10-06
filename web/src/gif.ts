@@ -41,8 +41,6 @@ export interface GifHost {
   search(q: string, cat: string, cursor: string | null): Promise<{ items: GifItem[]; next: string | null }>;
   /** Envoi : en ligne, le serveur diffuse le GIF (seul l'identifiant compte) ; à l'entraînement, il s'affiche sur place. */
   send(id: string, item: GifItem): Promise<void>;
-  /** Vrai pendant son propre tour : le bouton est désactivé. */
-  myTurn(): boolean;
   /** Nom, couleur et côté de la table d'un siège (décalage de ~90 px vers l'envoyeur quand plusieurs GIF s'affichent). */
   seat(seat: number): { name: string; color: string; dx: number; dy: number } | null;
   /** Utilisateur assis à ce siège (contrôle de l'expéditeur). */
@@ -63,15 +61,14 @@ export class GifCtl {
   }
   destroy() { this.close(); clearInterval(this.tick); document.removeEventListener('pointerdown', this.onDoc, true); document.removeEventListener('keydown', this.onKey); this.shown.forEach(e => e.remove()); }
 
-  /** Bouton : désactivé pendant son tour et pendant le délai de 10 s (compte à rebours à côté). */
+  /** Bouton : désactivé pendant le délai de 10 s entre deux GIF (compte à rebours à côté) ; permis aussi pendant son tour. */
   refresh() {
-    const left = Math.max(0, Math.ceil((this.until - Date.now()) / 1000)), turn = this.host.myTurn();
+    const left = Math.max(0, Math.ceil((this.until - Date.now()) / 1000));
     this.root.querySelectorAll<HTMLButtonElement>('[data-gifbtn]').forEach(b => {
-      b.disabled = turn || left > 0;
-      b.title = turn ? 'Pas de GIF pendant votre tour' : left ? `Prochain GIF dans ${left} s` : 'Envoyer un GIF à la table';
+      b.disabled = left > 0;
+      b.title = left ? `Prochain GIF dans ${left} s` : 'Envoyer un GIF à la table';
     });
-    this.root.querySelectorAll<HTMLElement>('.gifcool').forEach(s => s.textContent = left ? `Prochain GIF dans ${left} s` : turn ? 'Pas de GIF pendant votre tour' : '');
-    if (turn && this.pick) this.close();
+    this.root.querySelectorAll<HTMLElement>('.gifcool').forEach(s => s.textContent = left ? `Prochain GIF dans ${left} s` : '');
     if (!left && this.tick) { clearInterval(this.tick); this.tick = null; }
   }
   private cooldown(s: number) { this.until = Date.now() + s * 1000; clearInterval(this.tick); this.tick = setInterval(() => this.refresh(), 1000); this.refresh(); }
@@ -114,7 +111,7 @@ export class GifCtl {
   }
   private close() { this.pick?.remove(); this.pick = null; this.anchor?.setAttribute('aria-expanded', 'false'); this.anchor = null; }
   private async choose(g: GifItem) {
-    if (this.host.myTurn() || Date.now() < this.until) return;
+    if (Date.now() < this.until) return;
     this.close(); this.cooldown(GIF_COOLDOWN_S);
     try { await this.host.send(g.id, g); pushRecent(g); }
     catch (e: any) {
