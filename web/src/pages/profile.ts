@@ -8,6 +8,7 @@ import { xpLine, LEVEL_TITLES, xpToReach, fmt } from '../xp';
 import { getAmbiance, setAmbiance } from '../ambiance';
 import { openChestOverlay, type ChestResult } from '../chest';
 import { ART } from '../cards';
+import { gifsHidden, setGifsHidden } from '../gif';
 import { ANIM_MODES, KEY_OF_FILE, attachAnim, detachAnim, getAnimMode, setAnimMode, type AnimMode } from '../animatedCards';
 
 const COLOR_NAMES = ['Or', 'Corail', 'Algue', 'Lagon', 'Améthyste', 'Ambre', 'Écume', 'Corail rose'];
@@ -96,6 +97,7 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
         ${pref('sounds', 'Sons de la table', 'cartes, plis gagnés, fin de manche', p.sounds)}
         ${pref('ambiance', 'Ambiance pirate à la table', 'cabine, lanterne et carte marine ; sinon ambiance sobre (aussi réglable pendant la partie)', getAmbiance() !== 'sobre')}
         <div class="prow"><span><b>Cartes animées</b><span class="lbl">cartes Mythiques, les vôtres et celles des autres joueurs (aussi réglable pendant la partie)</span></span><select id="pAnim" class="inp" style="width:auto" aria-label="Cartes animées">${ANIM_MODES.map(([v, l]) => `<option value="${v}"${getAnimMode() === v ? ' selected' : ''}>${l.charAt(0).toUpperCase() + l.slice(1)}</option>`).join('')}</select></div>
+        ${pref('gifs', 'GIF des joueurs à la table', "sinon, les GIF envoyés pendant les parties ne s'affichent pas chez vous (aussi réglable pendant la partie)", !gifsHidden())}
         ${pref('public_rank', 'Apparaître dans le classement public', 'sinon, visible seulement par vos amis', p.public_rank)}
       </div>
       <div class="acc-foot"><button class="abtn gold" id="bPseudo">Enregistrer le pseudo</button><button class="abtn ghost" id="bOut">Se déconnecter</button></div>
@@ -116,10 +118,11 @@ export async function profilePage(root: HTMLElement, uid: string, email: string)
   // cartes animées : réglage de ce navigateur (localStorage pli.cartesAnimees), comme l'ambiance
   ($('#pAnim', root) as HTMLSelectElement).onchange = ev => setAnimMode((ev.target as HTMLSelectElement).value as AnimMode);
   root.querySelectorAll<HTMLButtonElement>('.tg').forEach(t => t.onclick = async () => {
-    const k = t.dataset.k as 'notify_turn' | 'sounds' | 'public_rank' | 'ambiance', on = t.getAttribute('aria-checked') !== 'true';
+    const k = t.dataset.k as 'notify_turn' | 'sounds' | 'public_rank' | 'ambiance' | 'gifs', on = t.getAttribute('aria-checked') !== 'true';
     const set = (v: boolean) => { t.setAttribute('aria-checked', String(v)); t.classList.toggle('on', v); };
     // ambiance : réglage de ce navigateur (localStorage pli.ambiance), pas du compte
     if (k === 'ambiance') { setAmbiance(on ? 'pirate' : 'sobre'); set(on); return; }
+    if (k === 'gifs') { setGifsHidden(!on); set(on); return; }
     if (k === 'notify_turn' && on && 'Notification' in window) {
       if (Notification.permission === 'default') await Notification.requestPermission().catch(() => { });
       if (Notification.permission === 'denied') { set(false); toast('Notifications bloquées par le navigateur : autorisez-les dans les réglages du site.', 'err'); return; }

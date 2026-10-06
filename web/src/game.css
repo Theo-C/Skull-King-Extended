@@ -981,3 +981,40 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .tablepage .bubble{max-width:220px;white-space:normal;overflow-wrap:anywhere;text-align:center}
 /* joker : dans l'en-tête de la main, visible seulement quand on peut le jouer */
 .handhead .jokerbtn{margin-left:auto;min-height:32px;padding:0 12px;border-radius:999px;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;border:0;font-weight:800}
+
+/* en-tête de la main (ordinateur) : ses boutons restent cliquables */
+.handhead .jokerbtn,.handhead .gifbtn{pointer-events:auto}
+/* GIF en partie (A10, maquette GifPartie) : bouton, sélecteur, GIF qui flotte au-dessus du tapis */
+.gifbtn{height:32px;padding:0 12px;border-radius:999px;border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;font:800 13px var(--f-body);letter-spacing:.06em;cursor:pointer}
+.gifbtn:disabled{opacity:.45;cursor:default}
+.qemo .gifbtn{height:44px}
+.gifcool{font-size:12px;color:#bfb29a}
+.gifpick{position:fixed;z-index:95;box-sizing:border-box;height:min(400px,70vh);padding:14px;border-radius:14px;background:linear-gradient(180deg,#2b2017,#1a120c);border:1px solid rgba(234,208,138,.4);box-shadow:0 20px 50px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:10px;color:#f2e7cd;animation:gpPop .18s ease-out both}
+@keyframes gpPop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+.gifpick.sheet{left:0;right:0;bottom:0;height:72vh;border-radius:16px 16px 0 0;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));animation:gpSheet .22s ease-out both}
+@keyframes gpSheet{from{transform:translateY(100%)}to{transform:none}}
+.gp-top{display:flex;gap:8px}
+.gp-top input{flex:1;min-width:0;height:38px;box-sizing:border-box;padding:0 12px;border-radius:9px;border:1px solid rgba(234,208,138,.35);background:rgba(0,0,0,.35);color:#f2e7cd;font:500 14.5px var(--f-body)}
+.gp-cats{display:flex;gap:6px;flex-wrap:wrap}
+.gp-chip{height:30px;padding:0 11px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font:700 13px var(--f-body);cursor:pointer}
+.gp-chip.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.gp-grid{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:88px;gap:8px;align-content:start}
+.gifpick.sheet .gp-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:110px}
+.gp-tile{padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;cursor:pointer;background:#000}
+.gp-tile:hover,.gp-tile:focus-visible{border-color:#ead08a}
+.gp-tile video,.gp-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.gp-more{grid-column:1/-1}
+.gp-msg{grid-column:1/-1;margin:0;font-size:13px;color:#a8987f}
+.gp-foot{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#8f8270}
+.gifs{position:absolute;inset:0;pointer-events:none;z-index:60}
+.gf{position:absolute;left:50%;top:50%;width:160px;margin:-60px 0 0 -80px;translate:var(--x,0) var(--y,0);text-align:center;pointer-events:none;animation:gifRise 3.2s cubic-bezier(.22,.61,.36,1) both}
+.gf-sway{animation:gifSway 1s ease-in-out infinite alternate}
+.gf-m{display:block;width:160px;height:120px;object-fit:cover;border-radius:10px;box-shadow:0 8px 22px rgba(0,0,0,.45)}
+.gf-who{margin-top:4px;display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 3px;border-radius:999px;background:rgba(10,8,6,.75);color:#f2e7cd;font-size:12px;font-weight:700;white-space:nowrap}
+.gf-who span{width:16px;height:16px;border-radius:50%;color:#1b140e;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+@keyframes gifRise{0%{opacity:0;transform:translateY(90px) scale(.35)}7%{opacity:.68;transform:translateY(60px) scale(1.12)}13%{transform:translateY(44px) scale(.96)}18%{transform:translateY(34px) scale(1)}78%{opacity:.58}100%{opacity:0;transform:translateY(-190px) scale(.92)}}
+@keyframes gifSway{0%{transform:translateX(calc(var(--sw) * -1)) rotate(calc(var(--rot) * -1))}100%{transform:translateX(var(--sw)) rotate(var(--rot))}}
+@media (max-width:719px){.gf{width:110px;margin:-41px 0 0 -55px}.gf-m{width:110px;height:82px}}
+.pc-gifmute{margin-left:auto;padding:4px 10px;border-radius:999px;border:1px solid rgba(234,208,138,.35);background:transparent;color:#d9cdb6;font:700 12px var(--f-body);cursor:pointer}
+.pc-gifmute + .pc-prof{margin-left:8px}
+.gp-close{flex:none;height:38px;padding:0 12px;border-radius:9px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.35);color:#f2e7cd;font:800 14px var(--f-body);cursor:pointer}

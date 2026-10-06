@@ -3,6 +3,7 @@
 // en pressant Échap. Le positionnement évite la main et le pli en cours.
 import { avatarHTML, CATALOG, type Look } from './avatar';
 import { objectSVG } from './objects';
+import { isGifMuted, toggleGifMute } from './gif';
 import { xpLine } from './xp';
 import { esc } from './util';
 
@@ -112,6 +113,9 @@ export class PlayerCardCtl {
       if (this.shownFor !== pod || !data) return;
       this.el.innerHTML = fullCardHTML(data, snapshot, snapshot.isMe);
       this.show(pod);
+      // « Masquer les GIF de ce joueur » (GIF en partie, A10)
+      const mute = this.el.querySelector('.pc-gifmute') as HTMLButtonElement | null;
+      if (mute) mute.onclick = () => { const on = toggleGifMute(uid); mute.textContent = on ? 'Afficher ses GIF' : 'Masquer ses GIF'; mute.setAttribute('aria-pressed', String(on)); };
       const prof = this.el.querySelector('.pc-prof') as HTMLButtonElement | null;
       if (prof) prof.onclick = () => { this.close(); this.goProfile(uid, snapshot.isMe); };
     } catch { /* on garde l'état de chargement */ }
@@ -219,6 +223,7 @@ function fullCardHTML(d: PlayerCardData, s: SeatSnapshot, isMe: boolean): string
   <div class="pc-items">
     ${worn.length ? worn.map(it => itemHTML(it, d.color, (look as any)[it.variantKey ?? ''])).join('') : '<span class="pc-ilbl">Pas encore d\'objet rare porté.</span>'}
     ${worn.length ? '<span class="pc-ilbl">Objets rares portés</span>' : ''}
+    ${isMe ? '' : `<button class="pc-gifmute" type="button" aria-pressed="${isGifMuted(d.user_id)}" title="Les GIF de ce joueur ne s'afficheront plus chez vous">${isGifMuted(d.user_id) ? 'Afficher ses GIF' : 'Masquer ses GIF'}</button>`}
     <button class="pc-prof" type="button" aria-label="${isMe ? 'Votre profil' : 'Profil de ' + esc(d.pseudo)}">Profil ›</button>
   </div>`;
 }

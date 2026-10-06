@@ -29,7 +29,23 @@ export interface Store {
   wallet(uid: string): Promise<{ coins: number; chests: number; jokers: number }>;
   /** Boutique du jour (3 objets déterministes à partir de la date, prix inclus). */
   shopDay(day?: string): Promise<{ cosmetic_id: string; price: number }[]>;
+  /** API de GIF (KLIPY), clé côté serveur ; absente si la clé n'est pas configurée. */
+  gif?: GifApi;
+  /** Message Realtime envoyé par le serveur sur le canal d'une partie (« partie-<id> »). */
+  broadcast?(topic: string, event: string, payload: Record<string, unknown>): Promise<void>;
 }
+/** Un GIF tel que le site le reçoit : aperçu léger pour la grille, média complet pour la table (mp4 ou webp de préférence). */
+export interface GifItem { id: string; preview: string; full: string; w: number; h: number }
+export interface GifApi {
+  /** Tendances si q est vide. cursor : page suivante renvoyée par l'appel précédent. */
+  search(q: string, cursor: string | null): Promise<{ items: GifItem[]; next: string | null }>;
+  /** Un GIF par son identifiant (pour reconstruire l'URL côté serveur à l'envoi). */
+  get(id: string): Promise<GifItem | null>;
+}
+/** Catégories du sélecteur → recherche (« tendances » = GIF du moment). */
+export const GIF_CATS: Record<string, string> = { tendances: '', bravo: 'bravo', rire: 'rire', rage: 'rage', pirate: 'pirate' };
+/** Débit et domaine autorisé des médias (le site refuse tout GIF hors de ce domaine). */
+export const GIF = { cooldownS: 10, host: 'klipy.com' } as const;
 export class HttpError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 const bad = (m: string) => new HttpError(400, m);
 
@@ -61,6 +77,8 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'shop.list': return { shop: await store.shopDay() };
     case 'shop.buy': return shopBuy(store, uid, body);
     case 'chest.buy': { const r = await store.rpc('chest_buy', { p_user: uid }); if (r?.error) throw bad(r.error); return r; }
+    case 'gif.search': return gifSearch(store, body);
+    case 'gif.send': return gifSend(store, uid, body);
     case 'joker.buy': { const r = await store.rpc('joker_buy', { p_user: uid }); if (r?.error) throw bad(r.error); return r; }
     case 'joker.use': return withRetry(() => jokerUse(store, uid, body));
     case 'history.list': return historyList(store, uid, body);
@@ -325,6 +343,30 @@ async function playerCard(store: Store, body: any) {
 async function wardrobe(store: Store, uid: string) {
   const [owned, w, shop] = await Promise.all([store.userCosmetics(uid), store.wallet(uid), store.shopDay()]);
   return { owned, coins: w.coins, chests: w.chests, jokers: w.jokers, shop };
+}
+/* ---------- GIF en partie (A10) ---------- */
+async function gifSearch(store: Store, body: any) {
+  if (!store.gif) throw new HttpError(503, 'Les GIF sont indisponibles pour le moment.');
+  const cat = typeof body.cat === 'string' && body.cat in GIF_CATS ? body.cat : 'tendances';
+  const q = typeof body.q === 'string' && body.q.trim() ? body.q.trim().slice(0, 50) : GIF_CATS[cat];
+  const cursor = typeof body.cursor === 'string' && body.cursor.length <= 64 ? body.cursor : null;
+  return store.gif.search(q, cursor);
+}
+/** Envoi d'un GIF : joueur assis, pas pendant son tour, 1 toutes les 10 s ; l'URL est reconstruite par le serveur. */
+async function gifSend(store: Store, uid: string, body: any) {
+  if (!store.gif || !store.broadcast) throw new HttpError(503, 'Les GIF sont indisponibles pour le moment.');
+  const gifId = typeof body.gifId === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(body.gifId) ? body.gifId : null;
+  if (!gifId) throw bad('GIF inconnu.');
+  const g = await mustGame(store, body.gameId ?? body.id);
+  if (g.status !== 'playing') throw bad("La partie n'est pas en cours.");
+  const me = (await store.seats(g.id)).find(s => s.user_id === uid); if (!me) throw new HttpError(403, 'Vous ne jouez pas dans cette partie.');
+  const S = await store.secret(g.id); if (!S) throw new HttpError(500, 'État de partie manquant.');
+  if (E.waitingFor(S).includes(me.seat)) throw bad("Pas de GIF pendant votre tour : jouez d'abord.");
+  const item = await store.gif.get(gifId); if (!item) throw bad('GIF introuvable.');
+  const wait = Number(await store.rpc('gif_rate_take', { p_user: uid }));
+  if (wait > 0) throw new HttpError(429, `Un GIF toutes les ${GIF.cooldownS} s : encore ${wait} s.`);
+  await store.broadcast('partie-' + g.id, 'gif', { type: 'gif', userId: uid, seat: me.seat, gifUrl: item.full, w: item.w, h: item.h, at: Date.now() });
+  return { ok: true, cooldown: GIF.cooldownS };
 }
 /** Joker joué pendant une partie : retiré du porte-monnaie, puis appliqué à l'état (rendu en cas de conflit). */
 async function jokerUse(store: Store, uid: string, body: any) {

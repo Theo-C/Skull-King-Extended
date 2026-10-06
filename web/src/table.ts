@@ -2,6 +2,7 @@
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
 import { cname, leadSuitOf, plannedRounds, resolve, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
 import { cardHTML, cardKey, backFace, preloadArt } from './cards';
+import { GifCtl, gifsHidden, setGifsHidden, type GifItem, type GifMsg } from './gif';
 import { ANIM, ANIM_MODES, HALO_MS, attachAnim, detachAnim, getAnimMode, onAnimMode, setAnimMode, type AnimMode } from './animatedCards';
 import { $, esc, modal, sleep, toast, signed } from './util';
 import { rulesHTML } from './rules';
@@ -42,6 +43,8 @@ export interface TableBackend {
   myLook?: () => { color: string; look: Look | null };
   /** Aperçu d'un joueur (player.card) pour la fenêtre au survol d'un pod. */
   playerCard?(uid: string): Promise<PlayerCardData>;
+  /** GIF en partie (A10) : recherche et envoi par le serveur (gif.search, gif.send). */
+  gifSearch?(q: string, cat: string, cursor: string | null): Promise<{ items: GifItem[]; next: string | null }>; gifSend?(id: string): Promise<void>;
   /** Jokers en poche (échoppe) et utilisation pendant la partie (joker.use). */
   jokers?(): Promise<number>; useJoker?(): Promise<void>;
   /** Son coupé ou remis depuis la table : enregistré aussi dans le profil (réglage « Sons de la table »). */
@@ -180,7 +183,7 @@ export class TableView {
         <div class="opps" id="opps" aria-label="Adversaires"></div>
         <section class="board" id="table" aria-label="Table de jeu"><div class="bstage" id="bstage"><div class="rim"></div><div class="mat">${roseSVG()}</div><div id="layer"></div></div></section>
         <div id="action" aria-live="polite"><div class="prompt">Chargement de la partie…</div></div>
-        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span><button class="tb jokerbtn" id="bJoker" hidden></button></div><div id="hand"></div><div class="qemo">${[EMOTES[0], EMOTES[1], EMOTES[3]].map(e => `<button data-emo="${esc(e)}">${esc(e)}</button>`).join('')}<button id="emoWrite" aria-label="Écrire une réaction">✎</button></div></section>
+        <section class="rail"><div class="handhead"><span id="handTitle"><b>Votre main</b></span><span id="handMeta" class="tags"></span><button class="tb jokerbtn" id="bJoker" hidden></button><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button><span class="gifcool" aria-live="polite"></span></div><div id="hand"></div><div class="qemo">${[EMOTES[0], EMOTES[1], EMOTES[3]].map(e => `<button data-emo="${esc(e)}">${esc(e)}</button>`).join('')}<button id="emoWrite" aria-label="Écrire une réaction">✎</button><button class="gifbtn" data-gifbtn hidden aria-expanded="false">GIF</button></div></section>
       </div>
       <aside class="side" id="side">
         <div class="drawerbar"><button class="tb" id="dSheet">Feuille de scores</button><button class="tb" id="dClose">Fermer</button></div>
@@ -218,6 +221,19 @@ export class TableView {
     const bs = $('#bSound', root);
     const paintSound = () => { bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff; bs.setAttribute('aria-label', soundOn() ? 'Couper le son' : 'Activer le son'); bs.title = bs.getAttribute('aria-label')!; };
     paintSound(); bs.onclick = () => { setSound(!soundOn()); paintSound(); this.backend.saveSound?.(soundOn()); if (soundOn()) sfx.coin(); };
+    // GIF en partie : seulement en ligne (le serveur cherche et diffuse)
+    if (this.backend.gifSearch && this.backend.gifSend) {
+      this.gif = new GifCtl(root, {
+        board: () => this.root.querySelector('#table') as HTMLElement | null,
+        search: (q, cat, cursor) => this.backend.gifSearch!(q, cat, cursor),
+        send: id => this.backend.gifSend!(id),
+        myTurn: () => this.myTurnNow,
+        seat: i => { const p = this.pub?.players[i]; return p ? { name: i === this.mySeat ? 'Vous' : p.name, color: this.colorOf(i), ...this.gifSide(i) } : null; },
+        uidOf: i => this.backend.seatUids?.[i] ?? null,
+        mob: () => this.mob,
+      });
+      root.addEventListener('giferror', ev => toast((ev as CustomEvent).detail, 'err'));
+    }
     // joker : visible seulement en ligne, quand on en a un et qu'il est encore temps de le jouer
     if (this.backend.jokers) this.backend.jokers().then(n => { this.jokerCount = n; this.paintJoker(); }, () => { /* sans joker */ });
     $('#bJoker', root).onclick = () => this.playJoker();
@@ -256,7 +272,7 @@ export class TableView {
   }
   private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
   private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
-  destroy() { this.offAnim?.(); this.root.querySelectorAll<HTMLElement>('.card.animated').forEach(detachAnim); this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.roundOpen?.close(); this.playerCardCtl?.destroy(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
+  destroy() { this.gif?.destroy(); this.offAnim?.(); this.root.querySelectorAll<HTMLElement>('.card.animated').forEach(detachAnim); this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.roundOpen?.close(); this.playerCardCtl?.destroy(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {
@@ -318,7 +334,7 @@ export class TableView {
     $('#action', this.root).classList.toggle('mine', mine);
     if (mine && !this.wasMyTurn && document.hidden) notifyTurn();
     if (mine && !this.wasMyTurn) { this.turnStart = Date.now(); this.previewId = null; sfx.turn(); const a = $('#action', this.root); a.classList.remove('nudge'); void a.offsetWidth; a.classList.add('nudge'); }
-    this.wasMyTurn = mine;
+    this.wasMyTurn = mine; this.myTurnNow = mine; this.gif?.refresh();
     document.title = mine && document.hidden ? '⚓ À vous de jouer ! · ' + this.baseTitle : this.baseTitle;
   }
   private get animMs() { return Math.max(.5, Math.min(this.speed, 1.4)); }
@@ -364,6 +380,16 @@ export class TableView {
   private animOwned: Set<string>[] = [];
   private offAnim: (() => void) | null = null;
   private trickAnim: { card: HTMLElement; seat: number } | null = null;
+  private gif: GifCtl | null = null; private myTurnNow = false;
+  /** GIF reçu sur le canal de la partie (game.ts). */
+  receiveGif(m: GifMsg) { this.gif?.receive(m); }
+  /** Côté de la table d'un siège, pour décaler un GIF de ~90 px vers son envoyeur. */
+  private gifSide(i: number) {
+    if (i === this.mySeat) return { dx: 0, dy: 40 };
+    if (this.mob) return { dx: 0, dy: -40 };
+    const n = this.pub!.players.length, g = geometry(n)[(i - this.bottom() + n) % n], ax = g.px - BW / 2, ay = g.py - 262;
+    return Math.abs(ax) > Math.abs(ay) * 1.4 ? { dx: Math.sign(ax) * 90, dy: 0 } : { dx: 0, dy: Math.sign(ay) * 40 };
+  }
   private jokerCount = 0;
   private jokerOk() { const pb = this.pub; return !!pb && !!this.backend.useJoker && this.mySeat != null && this.jokerCount > 0 && pb.phase !== 'end' && pb.round < plannedRounds(pb) && !(pb.jokers ?? []).includes(this.mySeat); }
   private paintJoker() {
@@ -533,10 +559,12 @@ export class TableView {
       { label: `Ambiance : ${getAmbiance()}`, value: 'amb', cls: 'alt' },
       { label: `Cartes animées : ${ANIM_MODES.find(([m]) => m === getAnimMode())![1]}`, value: 'anim', cls: 'alt' },
       ...(this.jokerOk() ? [{ label: `Jouer un joker (×${this.jokerCount})`, value: 'joker', cls: 'alt' }] : []),
+      ...(this.gif ? [{ label: `GIF : ${gifsHidden() ? 'masqués' : 'affichés'}`, value: 'gifs', cls: 'alt' }] : []),
       { label: 'Quitter la table', value: 'exit', cls: 'alt' }, { label: 'Fermer', value: null }]);
     if (v === 'last') this.lastTrickModal(); else if (v === 'rules') modal(rulesHTML()); else if (v === 'exit') this.onExit();
     else if (v === 'sound') { ($('#bSound', this.root) as HTMLButtonElement).click(); }
     else if (v === 'joker') this.playJoker();
+    else if (v === 'gifs') { setGifsHidden(!gifsHidden()); toast(gifsHidden() ? 'GIF masqués' : 'GIF affichés'); }
     else if (v === 'anim') { const o = ANIM_MODES.map(([m]) => m), nx = o[(o.indexOf(getAnimMode()) + 1) % o.length]; setAnimMode(nx); toast('Cartes animées : ' + ANIM_MODES.find(([m]) => m === nx)![1]); }
     else if (v === 'amb') { const a = $('#amb', this.root) as HTMLSelectElement; a.value = getAmbiance() === 'sobre' ? 'pirate' : 'sobre'; a.dispatchEvent(new Event('change')); toast('Ambiance : ' + a.value); }
     else if (v === 'speed') { const sp = $('#speed', this.root) as HTMLSelectElement; const o = ['1', '0.45', '1.7']; sp.value = o[(o.indexOf(sp.value) + 1) % 3]; sp.dispatchEvent(new Event('change')); toast('Vitesse : ' + sp.selectedOptions[0].text.toLowerCase()); }

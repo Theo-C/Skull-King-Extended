@@ -2,6 +2,7 @@
 // Déploiement : supabase functions deploy game
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { handle, HttpError, type Store, type GameRow, type SeatRow, type CosmeticRow } from '../_shared/service.ts';
+import { klipy } from './klipy.ts';
 
 const URL_ = Deno.env.get('SUPABASE_URL')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -83,6 +84,17 @@ const store: Store = {
     const { data, error } = await admin.rpc('shop_day', day ? { p_day: day } : {});
     if (error) fail(error, 'boutique');
     return ((data ?? []) as { cosmetic_id: string; price: number }[]).map(r => ({ cosmetic_id: r.cosmetic_id, price: r.price }));
+  },
+  // GIF en partie : API KLIPY si la clé est configurée (npx supabase secrets set KLIPY_API_KEY=…)
+  gif: Deno.env.get('KLIPY_API_KEY') ? klipy(Deno.env.get('KLIPY_API_KEY')!) : undefined,
+  // diffusion Realtime par l'API REST (pas besoin d'ouvrir de connexion) : tous les clients du canal la reçoivent
+  async broadcast(topic, event, payload) {
+    const res = await fetch(`${URL_}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ topic, event, payload }] }),
+    });
+    if (!res.ok) throw new Error(`diffusion Realtime : ${res.status}`);
   },
 };
 let cosmeticsCache: { at: number; rows: CosmeticRow[] } | null = null;

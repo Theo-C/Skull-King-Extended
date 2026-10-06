@@ -71,6 +71,8 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       myLook: () => myLookCache || { color: '#d9b25a', look: null },
       // aperçu d'un joueur au survol de son pod
       playerCard: (u: string) => callGame<any>('player.card', { user_id: u }),
+      gifSearch: (q, cat, cursor) => callGame('gif.search', { q, cat, cursor }),
+      gifSend: async gifId => { await callGame('gif.send', { gameId: id, gifId }); },
       jokers: async () => Number((await sb.from('user_wallet').select('jokers').eq('user_id', uid).maybeSingle()).data?.jokers ?? 0),
       useJoker: async () => { await callGame('joker.use', { id }); await sync(); },
       saveSound: on => { callGame('profile.update', { sounds: on }).then(() => forgetProfile(), () => { /* réglage gardé sur cet appareil */ }); },
@@ -102,6 +104,7 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
   channel = sb.channel('partie-' + id, { config: { broadcast: { self: false }, presence: { key: uid } } })
     .on('presence', { event: 'sync' }, () => { if (channel) table?.setOnline(new Set(Object.keys(channel.presenceState()))); })
     .on('broadcast', { event: 'emote' }, ({ payload }) => { if (seatOk(payload?.seat) && typeof payload.text === 'string') table?.showEmote(payload.seat, payload.text); })
+    .on('broadcast', { event: 'gif' }, ({ payload }) => { table?.receiveGif(payload as any); })
     .on('broadcast', { event: 'ready' }, ({ payload }) => { if (seatOk(payload?.seat) && Number.isInteger(payload?.round)) table?.markReady(payload.seat, payload.round); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${id}` }, ping)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${id}` }, ping)

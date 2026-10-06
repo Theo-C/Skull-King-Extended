@@ -25,8 +25,16 @@ for (const f of readdirSync(dir).sort()) await db.exec(readFileSync(new URL(f, d
 
 // Store branché sur PGlite (équivalent de game/index.ts, en SQL direct, rôle « service »)
 const ORIGIN = 'https://proj.supabase.co';
+/** Messages Realtime « envoyés » par le serveur pendant les tests. */
+const sent: { topic: string; event: string; payload: any }[] = [];
+const FAKE_GIFS = Array.from({ length: 5 }, (_, i) => ({ id: 'gif' + i, preview: `https://static.klipy.com/p${i}.mp4`, full: `https://static.klipy.com/f${i}.mp4`, w: 200, h: 150 }));
 const store: Store = {
   origin: ORIGIN,
+  gif: {
+    async search(q, cursor) { return { items: FAKE_GIFS.filter(g => !q || g.id.length > 0), next: cursor ? null : '24' }; },
+    async get(id) { return FAKE_GIFS.find(g => g.id === id) ?? null; },
+  },
+  async broadcast(topic, event, payload) { sent.push({ topic, event, payload }); },
   async pseudo(uid) { return (await db.query<any>('select pseudo from profiles where id=$1', [uid])).rows[0]?.pseudo ?? 'Pirate'; },
   async insertGame(row) {
     try { return (await db.query<any>('insert into games(code,host,options) values($1,$2,$3) returning id,code,host,status,options,state,version', [row.code, row.host, JSON.stringify(row.options)])).rows[0]; }
@@ -243,6 +251,20 @@ ok('écriture concurrente détectée', v1 != null && v2 == null, { v1, v2 });
   await expectErr('joker : un seul par partie', handle(store, U.eve, { action: 'joker.use', id: J }), 400);
   ok('joker : refusé sans être retiré du porte-monnaie', (await store.wallet(U.eve)).jokers === 1);
   await expectErr('joker : hors de la partie → refus', handle(store, U.alice, { action: 'joker.use', id: J }), 403);
+
+  // GIF en partie : recherche, puis envoi (joueur assis, pas pendant son tour, 1 toutes les 10 s, URL du serveur)
+  const gs = await handle(store, U.eve, { action: 'gif.search', cat: 'bravo' });
+  ok('gif : recherche', gs.items.length === 5 && gs.next === '24', gs);
+  await expectErr('gif : hors de la partie → refus', handle(store, U.alice, { action: 'gif.send', gameId: J, gifId: 'gif1' }), 403);
+  await expectErr('gif : pendant son tour (mise à faire) → refus', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'gif1' }), 400);
+  await handle(store, U.chloe, { action: 'act', id: J, move: { t: 'bid', n: 0 } });
+  await expectErr('gif : identifiant inconnu → refus', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'zzz' }), 400);
+  await expectErr('gif : identifiant mal formé → refus', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'https://evil.example/x.gif' }), 400);
+  const gsend = await handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'gif2' });
+  const msg = sent.at(-1);
+  ok('gif : diffusé sur le canal de la partie avec l\'URL du serveur', gsend?.ok && msg?.topic === 'partie-' + J && msg.event === 'gif' && msg.payload.userId === U.chloe && msg.payload.gifUrl === FAKE_GIFS[2].full, msg);
+  await expectErr('gif : un toutes les 10 s', handle(store, U.chloe, { action: 'gif.send', gameId: J, gifId: 'gif3' }), 429);
+  ok('gif : rien de diffusé quand c\'est refusé', sent.length === 1, sent.length);
 }
 
 // ---------- Cosmétiques : coffre, boutique, apparence ----------
