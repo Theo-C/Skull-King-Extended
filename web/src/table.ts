@@ -235,7 +235,7 @@ export class TableView {
   }
   private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
   private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
-  destroy() { this.offAnim?.(); this.root.querySelectorAll<HTMLElement>('.card.animated').forEach(detachAnim); this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.thread?.remove(); this.roundOpen?.close(); this.playerCardCtl?.destroy(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
+  destroy() { this.offAnim?.(); this.root.querySelectorAll<HTMLElement>('.card.animated').forEach(detachAnim); this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.roundOpen?.close(); this.playerCardCtl?.destroy(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {
@@ -271,7 +271,6 @@ export class TableView {
         if (last && JSON.stringify(this.logLines.at(-1)) !== JSON.stringify(last)) this.logLines.push(last);
         if (ev.k === 'trick') this.banner = ev.msg; else if (ev.k !== 'play') this.banner = null;
         this.render();
-        if (ev.k === 'lise') this.drawThread();
         if (ev.k === 'trick') { sfx.win(); this.trickFx(ev.snap.trick?.res?.mode ?? null); } else if (ev.k === 'bids') sfx.coin();
         // fin de manche : la suite attend que la fenêtre soit fermée (tout le monde prêt, ou délai écoulé)
         if (ev.k === 'round') { this.roundGate = this.roundEnd(ev.snap); await this.roundGate; }
@@ -400,7 +399,7 @@ export class TableView {
   private startLise(by: number, seat: number, pos: number) {
     const ms = LISE_MS * this.speed; // même durée que la pause de l'événement « lise »
     this.lise = { by, seat, pos, until: Date.now() + ms };
-    clearTimeout(this.liseTimer); this.liseTimer = setTimeout(() => { this.lise = null; this.thread?.remove(); if (this.pub) this.render(); }, ms + 30);
+    clearTimeout(this.liseTimer); this.liseTimer = setTimeout(() => { this.lise = null; if (this.pub) this.render(); }, ms + 30);
     sfx.coin();
   }
   /** Éventails face cachée : au choix (chez tous les joueurs ciblables), puis à la révélation (main ciblée). */
@@ -454,19 +453,6 @@ export class TableView {
     } else return null;
     const title = by === me ? `Pouvoir de ${PIRATES.mary.n}` : `${nm(by)} utilise ${PIRATES.mary.n}`;
     return `<div class="lisemid">${LISE_PORTRAIT}<b>${esc(title)}</b><span>${esc(text)}</span></div>`;
-  }
-  private thread: SVGSVGElement | null = null;
-  /** Fil doré en pointillés, de la plaque de celui qui a choisi vers la main ciblée (coordonnées de l'écran). */
-  private drawThread() {
-    const lf = this.liseNow(); this.thread?.remove(); this.thread = null; if (!lf) return;
-    const from = this.anchor(lf.by)?.getBoundingClientRect();
-    const toEl = (this.root.querySelector('#liseFan') as HTMLElement | null) ?? (lf.seat === this.mySeat ? $('#hand', this.root) : this.anchor(lf.seat));
-    const to = toEl?.getBoundingClientRect(); if (!from || !to) return;
-    const [x1, y1] = center(from), [x2, y2] = center(to), mx = (x1 + x2) / 2 + (y2 - y1) * .25, my = (y1 + y2) / 2 - Math.abs(x2 - x1) * .15;
-    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('class', 'lthread'); svg.setAttribute('aria-hidden', 'true');
-    svg.innerHTML = `<path d="M${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}" fill="none" stroke="#ead08a" stroke-width="2.5" stroke-linecap="round" opacity=".85"/>`;
-    document.body.append(svg); this.thread = svg;
   }
   /** Repère d'un joueur pour les animations : sa plaque (ordinateur), sa case du bandeau ou votre ligne (téléphone). */
   private anchor(i: number): HTMLElement | null {
@@ -662,7 +648,8 @@ export class TableView {
     chip.hidden = !(pb.phase === 'play' && t);
     setHTML(chip, !t || !t.entries.length ? 'La première carte fixe la couleur' : ls ? `<span>Couleur demandée</span><i class="s-${ls}"></i><b>${SUIT[ls].n}</b>` : 'Aucune couleur demandée');
     chip.classList.toggle('none', !ls);
-    const why = this.piece('whyEl', 'twhy', ''), wt = pb.phase === 'play' && t && !this.banner ? this.whyLeads() : '';
+    // pendant la révélation de Marie Thorne, l'éventail face cachée occupe cette place : pas d'explication dessous
+    const why = this.piece('whyEl', 'twhy', ''), wt = pb.phase === 'play' && t && !this.banner && !this.liseNow() ? this.whyLeads() : '';
     why.hidden = !wt; why.textContent = wt; why.style.left = cx + 'px'; why.style.maxWidth = Math.max(240, cnt * cw + (cnt - 1) * gap + 40) + 'px'; why.style.top = rowBottom + (mob ? 10 : 16) + 'px';
 
     let mid = ''; const lm = this.banner ? null : this.liseMid();
