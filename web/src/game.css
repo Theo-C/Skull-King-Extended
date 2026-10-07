@@ -368,48 +368,48 @@ legend{font:400 17px var(--f-disp);padding:0 6px}
 .rules .aides{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:10px 0}
 .rules .aides .card{--s:.82}
 .privacy .sheet{text-align:center;max-width:440px}
-/* Pouvoir de Juanita Jade (A13, docs/juanita/SPEC.md, maquette Juanita.dc.html) : fenêtre compacte 810 × 400,
-   une ligne par couleur en cases 26×36 alignées par valeur (1→14 puis 7−5, 8+5, 0/14 après un séparateur),
-   une ligne de spéciales en vignettes 31×44 rangées par famille, aperçu de la carte survolée à droite. */
+/* Pouvoir de Juanita Jade (A13, docs/juanita/SPEC.md, maquette Juanita.dc.html) : fenêtre élargie à 1000 px pour
+   plus de confort visuel, une ligne par couleur en cases 32×44 alignées par valeur (1→14 puis 7−5, 8+5, 0/14 après
+   séparateur), une ligne de spéciales en vignettes 38×54 rangées par famille, aperçu 180×256 à droite. */
 .juov{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;background:rgba(10,6,3,.72);animation:fadein .2s ease-out both}
 .juov.out{animation:fadeout .2s ease-in both}
-.juanita{width:min(810px,100%);box-sizing:border-box;padding:18px 20px 16px;border-radius:12px;color:#2b2117;
+.juanita{width:min(1000px,100%);box-sizing:border-box;padding:22px 26px 20px;border-radius:14px;color:#2b2117;
   background:linear-gradient(180deg,#f6ecd6,#efe2c3);border:1px solid #c9a96a;box-shadow:0 24px 60px rgba(0,0,0,.65),inset 0 0 0 5px rgba(201,169,106,.16);animation:pop .22s cubic-bezier(.2,.8,.3,1.2) both}
-.jhead{display:flex;align-items:center;gap:12px}
-.jport{width:34px;height:48px;border-radius:4px;object-fit:cover;flex:none;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.jhead{display:flex;align-items:center;gap:14px}
+.jport{width:42px;height:60px;border-radius:4px;object-fit:cover;flex:none;box-shadow:0 2px 6px rgba(0,0,0,.35)}
 .jhtxt{flex:1;min-width:0}
-.jtitle{font:400 23px/1 'IM Fell English SC','IM Fell English SC Fallback',serif;color:#2b2117}
-.jsub{margin-top:4px;font-size:13px;color:#5d4c37}
+.jtitle{font:400 27px/1 'IM Fell English SC','IM Fell English SC Fallback',serif;color:#2b2117}
+.jsub{margin-top:5px;font-size:14px;color:#5d4c37}
 .jsub b{color:#2b2117}
-.jtotal{padding:5px 12px;border-radius:999px;background:#2b2117;color:#f2e7cd;font-size:13px;font-weight:800;flex:none}
-.jtotal b{font:400 18px/1 'Pirata One','Pirata One Fallback',serif;color:#ead08a;margin-right:4px}
-.jbody{display:flex;gap:18px;margin-top:14px}
-.jleft{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
-.jrow{display:flex;align-items:center;gap:3px}
-.jname{flex:none;width:84px;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:#2b2117}
-.jname i{flex:none;width:10px;height:10px;border-radius:3px}
-.jcell{position:relative;flex:none;width:26px;height:36px;padding:0;border-radius:5px;border:0;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;font:400 17px/1 'Pirata One','Pirata One Fallback',serif;
+.jtotal{padding:6px 14px;border-radius:999px;background:#2b2117;color:#f2e7cd;font-size:14px;font-weight:800;flex:none}
+.jtotal b{font:400 20px/1 'Pirata One','Pirata One Fallback',serif;color:#ead08a;margin-right:4px}
+.jbody{display:flex;gap:22px;margin-top:18px}
+.jleft{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px}
+.jrow{display:flex;align-items:center;gap:4px}
+.jname{flex:none;width:96px;display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:#2b2117}
+.jname i{flex:none;width:11px;height:11px;border-radius:3px}
+.jcell{position:relative;flex:none;width:32px;height:44px;padding:0;border-radius:6px;border:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font:400 21px/1 'Pirata One','Pirata One Fallback',serif;
   box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.18),0 1px 3px rgba(60,40,10,.3);transition:transform .12s,box-shadow .12s}
 .jcell:hover,.jcell:focus-visible,.jcell.sel{transform:translateY(-2px);box-shadow:0 0 0 2px #8a5e0e,0 4px 10px rgba(60,40,10,.4);outline:none;z-index:1}
 .jcell.gap{visibility:hidden;pointer-events:none;background:transparent;box-shadow:none}
-.jcell .jcsm{position:absolute;top:2px;left:0;right:0;text-align:center;font:900 8px/1 var(--f-body);opacity:.85}
-.jsep{flex:none;width:1px;height:28px;background:rgba(107,84,52,.3);margin:0 4px}
-.jspec{margin-top:5px;align-items:center}
-.jspecials{display:flex;flex-wrap:wrap;gap:6px;flex:1}
-.jempty{font-size:12px;color:#5d4c37;font-style:italic}
-.jsp{position:relative;flex:none;width:31px;height:44px;padding:0;border:0;border-radius:4px;cursor:pointer;background:none;transition:transform .12s}
-.jsp img{width:31px;height:44px;border-radius:4px;object-fit:cover;display:block;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:box-shadow .12s}
+.jcell .jcsm{position:absolute;top:2px;left:0;right:0;text-align:center;font:900 9px/1 var(--f-body);opacity:.85}
+.jsep{flex:none;width:1px;height:34px;background:rgba(107,84,52,.3);margin:0 6px}
+.jspec{margin-top:7px;align-items:center}
+.jspecials{display:flex;flex-wrap:wrap;gap:8px;flex:1}
+.jempty{font-size:13px;color:#5d4c37;font-style:italic}
+.jsp{position:relative;flex:none;width:38px;height:54px;padding:0;border:0;border-radius:5px;cursor:pointer;background:none;transition:transform .12s}
+.jsp img{width:38px;height:54px;border-radius:5px;object-fit:cover;display:block;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:box-shadow .12s}
 .jsp:hover,.jsp:focus-visible,.jsp.sel{transform:translateY(-2px);outline:none}
 .jsp:hover img,.jsp:focus-visible img,.jsp.sel img{box-shadow:0 0 0 2px #8a5e0e,0 4px 10px rgba(60,40,10,.4)}
-.jsp .jsx{position:absolute;right:-5px;bottom:-5px;min-width:16px;height:16px;padding:0 3px;box-sizing:border-box;
-  border-radius:8px;background:#2b2117;color:#f2e7cd;font:900 10px/16px var(--f-body);text-align:center}
-.jright{flex:none;width:150px;display:flex;flex-direction:column;align-items:center;gap:6px}
-.jprev{position:relative;width:150px;height:214px}
-.jprev img{width:150px;height:214px;border-radius:8px;box-shadow:0 8px 18px rgba(60,40,10,.45);display:block;object-fit:cover}
-.jpnum{position:absolute;right:8px;top:7px;width:39px;height:39px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font:400 24px/1 'Pirata One','Pirata One Fallback',serif;pointer-events:none}
-.jpname{font-size:13.5px;text-align:center;line-height:1.2;color:#2b2117}
+.jsp .jsx{position:absolute;right:-6px;bottom:-6px;min-width:18px;height:18px;padding:0 4px;box-sizing:border-box;
+  border-radius:9px;background:#2b2117;color:#f2e7cd;font:900 11px/18px var(--f-body);text-align:center}
+.jright{flex:none;width:180px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.jprev{position:relative;width:180px;height:257px}
+.jprev img{width:180px;height:257px;border-radius:9px;box-shadow:0 8px 18px rgba(60,40,10,.45);display:block;object-fit:cover}
+.jpnum{position:absolute;right:10px;top:8px;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font:400 28px/1 'Pirata One','Pirata One Fallback',serif;pointer-events:none}
+.jpname{font-size:15px;text-align:center;line-height:1.2;color:#2b2117}
 .jfoot{display:flex;align-items:center;gap:14px;margin-top:14px;font-size:12px;color:#5d4c37}
 .jhint{flex:1}
 .jfoot .btn.gold{color:#2b2117;min-height:38px;padding:0 20px;border-radius:9px}
