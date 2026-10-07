@@ -171,31 +171,39 @@ for (let g = 0; g < 60; g++) {
     ok('Lise : ordre secret absent de la vue publique', !JSON.stringify(pub).includes('perm') && !JSON.stringify(E.privateView(S, by)).includes('perm'));
     ok('Lise : ordre secret présent côté serveur', opts.every(o => Array.isArray(pd.data.perm[o.v]) && pd.data.perm[o.v].length === o.count));
     const target = opts.find(o => o.v !== by) ?? opts[0];
-    // positions invalides refusées
-    for (const pos of [-1, target.count, 1.5, '0' as any]) {
-      const T = roundTrip(S); let refused = false;
-      try { E.apply(T, by, { t: 'choose', v: { seat: target.v, pos } }); } catch (e) { refused = e instanceof E.RuleError; }
-      ok('Lise : position invalide refusée (' + pos + ')', refused);
+    // Position tirée au hasard par le serveur : qu'elle soit absente, hors bornes ou invalide, le choix est accepté
+    // et renvoie une carte au hasard dans la main cible (les joueurs ne peuvent plus viser une position précise).
+    for (const pos of [undefined, -1, target.count, 1.5, '0' as any]) {
+      const T = roundTrip(S); let threw = false;
+      try { E.apply(T, by, { t: 'choose', v: { seat: target.v, pos } }); } catch { threw = true; }
+      ok('Lise : position cliquée ignorée (' + pos + ') — pas d\'erreur, tirage au hasard', !threw && T.players[target.v].hand.some(c => c.id === T.forced[target.v]));
     }
-    // la carte cliquée devient la carte imposée
-    const pos = target.count - 1, T = roundTrip(S);
-    const expected = T.players[target.v].hand[T.pending[0].data.perm[target.v][pos]].id;
-    E.apply(T, by, { t: 'choose', v: { seat: target.v, pos } });
-    ok('Lise : la carte cliquée devient S.forced[seat]', T.forced[target.v] === expected, { got: T.forced[target.v], expected });
+    // Même sans pos, la carte imposée est bien l'une des cartes de la main de la cible
+    const T = roundTrip(S);
+    E.apply(T, by, { t: 'choose', v: { seat: target.v, pos: target.count - 1 } });
+    const forcedId = T.forced[target.v];
+    ok('Lise : la carte forcée est une carte de la main de la cible', T.players[target.v].hand.some(c => c.id === forcedId), { forcedId, hand: T.players[target.v].hand.map(c => c.id) });
     const ll = E.publicView(T).lastLise;
-    ok('Lise : lastLise public', !!ll && ll.by === by && ll.seat === target.v && ll.pos === pos);
+    ok('Lise : lastLise public', !!ll && ll.by === by && ll.seat === target.v && Number.isInteger(ll.pos) && ll.pos >= 0 && ll.pos < target.count);
     ok("Lise : lastLise ne révèle pas la carte", !!ll && Object.keys(ll).sort().join() === 'by,pos,round,seat,trickNo');
     const ev = E.takeEvents(T).find((x: any) => x.k === 'lise');
-    ok('Lise : événement « lise »', !!ev && ev.seat === target.v && ev.pos === pos && !JSON.stringify(ev).includes('perm'));
-    // l'ancien format (siège seul) tire toujours une carte au hasard dans cette main
+    ok('Lise : événement « lise »', !!ev && ev.seat === target.v && Number.isInteger(ev.pos) && ev.pos >= 0 && ev.pos < target.count && !JSON.stringify(ev).includes('perm'));
+    // le format court (siège seul) marche aussi
     const U = roundTrip(S); E.apply(U, by, { t: 'choose', v: target.v });
     ok('Lise : siège seul accepté', U.players[target.v].hand.some(c => c.id === U.forced[target.v]));
+    // la position cliquée n'influence pas la carte tirée : à partir du même état, toutes les positions
+    // donnent la même carte imposée (le serveur utilise rand(S), pas la pos envoyée par le joueur).
+    if (target.count > 1) {
+      const forced = new Set<number>();
+      for (let i = 0; i < target.count; i++) { const V = roundTrip(S); E.apply(V, by, { t: 'choose', v: { seat: target.v, pos: i } }); forced.add(V.forced[target.v]); }
+      ok('Lise : la position cliquée n\'influence pas la carte imposée', forced.size === 1, { tries: target.count, distinct: forced.size });
+    }
     // au pli suivant, la carte arrive sur la table marquée « imposée »
     let seed = 99; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
     let played: E.Entry | undefined;
     for (let k = 0; k < 200 && !played && T.phase === 'play'; k++) {
       const w = E.waitingFor(T); E.apply(T, w[0], randomAction(T, w[0], r)); E.takeEvents(T);
-      played = (T.trick?.entries || []).find(e => e.card.id === expected) ?? (T.lastTrick?.entries || []).find((e: E.Entry) => e.card.id === expected);
+      played = (T.trick?.entries || []).find(e => e.card.id === forcedId) ?? (T.lastTrick?.entries || []).find((e: E.Entry) => e.card.id === forcedId);
     }
     ok('Lise : carte jouée marquée imposée', !!played && played.imposed === true && played.p === target.v, played);
   }

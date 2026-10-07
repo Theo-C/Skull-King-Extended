@@ -598,11 +598,10 @@ function choose(S: State, pd: Pending, v: any) {
       const seat = v && typeof v === 'object' ? v.seat : v;
       if (!allowed(seat)) throw new RuleError('Choix invalide.');
       const q = S.players[seat];
-      let pos: number;
-      if (v && typeof v === 'object' && v.pos != null) {
-        pos = v.pos;
-        if (!Number.isInteger(pos) || pos < 0 || pos >= q.hand.length) throw new RuleError('Cette carte n\'existe pas.');
-      } else pos = Math.floor(rand(S) * q.hand.length);
+      // Position tirée au hasard par le serveur, qu'importe celle cliquée côté client : les joueurs apprenaient à
+      // viser systématiquement les extrémités de l'éventail pour éviter Skull King ou Kraken. Le perm restait secret
+      // mais l'habitude restait exploitable (les cartes « sûres » tombent souvent au milieu quand les mains sont triées).
+      const pos = Math.floor(rand(S) * q.hand.length);
       const perm: number[] = pd.data?.perm?.[seat] ?? q.hand.map((_, k) => k);
       S.forced[seat] = q.hand[perm[pos] ?? pos].id; (S.forcedBy ??= {})[seat] = pd.seat;
       S.lastLise = { by: pd.seat, seat, pos, round: S.round, trickNo: S.trickNo };
