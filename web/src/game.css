@@ -405,12 +405,12 @@ legend{font:400 17px var(--f-disp);padding:0 6px}
 .jfamt{font:900 11px/1 var(--f-body);letter-spacing:.08em;color:#6b5434;text-transform:uppercase}
 .jfamn{font:400 15px/1 'Pirata One','Pirata One Fallback',serif;color:#2b2117;background:rgba(43,33,23,.08);border-radius:999px;min-width:22px;height:20px;padding:0 7px;display:flex;align-items:center;justify-content:center}
 .jfamc{display:flex;flex-wrap:wrap;gap:8px}
-/* Vignette = juste l'illustration (48 × 68), nom tiré uniquement du parchemin cursive intégré au dessin de la carte.
-   Pas de libellé externe sous l'image : chaque illustration a déjà son nom écrit en cursive sur un parchemin au bas
-   (Rosie, Alyra, Circé, Kraken…) et le dupliquer sous forme de texte sans-serif donnait un rendu confus. */
+/* Vignette : on recadre AGRESSIVEMENT dans l'illustration pour ne garder que le portrait du personnage, car le
+   cadre décoratif rouge/burgundy / parchemin / médaillon de bordure est très sombre et apparaît comme une « bande
+   noire » à cette échelle. transform:scale enlargit l'image, overflow:hidden du conteneur coupe les bords. */
 .jsp{position:relative;flex:none;width:48px;padding:0;border:0;border-radius:5px;cursor:pointer;background:none;transition:transform .12s;display:block}
-.jspw{position:relative;width:48px;height:68px;border-radius:5px}
-.jsp img{width:48px;height:68px;border-radius:5px;object-fit:cover;display:block;transition:box-shadow .12s}
+.jspw{position:relative;width:48px;height:68px;border-radius:5px;overflow:hidden}
+.jsp img{width:48px;height:68px;object-fit:cover;display:block;transform:scale(1.5);transform-origin:center 32%;transition:transform .12s,box-shadow .12s}
 /* survol / focus / .sel : contour doré de 2 px dessiné en INSET (à l'intérieur de l'image), pour qu'il ne déborde
    sous l'image et ne cache pas le nom court .jspn qui suit. Aucune ombre portée nulle part. */
 .jsp:hover,.jsp:focus-visible,.jsp.sel{outline:none}
