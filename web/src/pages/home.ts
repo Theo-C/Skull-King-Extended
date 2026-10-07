@@ -4,8 +4,8 @@
 import { sb, callGame } from '../api';
 import { $, esc, toast, relDay, signed, de, modal } from '../util';
 import { optionsHTML, readOptions, wireOptions, paintRanked } from '../options';
-import { buildDeck, cname, DEFAULT_OPTS, SUIT, roundsOf, sortKey } from '@engine';
-import { cardHTML } from '../cards';
+import { buildDeck, DEFAULT_OPTS, roundsOf } from '@engine';
+import { deckviewHTML } from '../cards';
 import { go } from '../main';
 import { myProfile } from '../account';
 import { avatarHTML, fromProfile } from '../avatar';
@@ -168,24 +168,15 @@ async function loadFeats(root: HTMLElement, uid: string) {
 }
 
 /** TEST — à retirer : rejoue le rendu de la pioche affichée par le pouvoir de Juanita Jade sur un paquet réaliste.
- *  On simule une manche 3 à 4 joueurs : 12 cartes distribuées, le reste du paquet (≈ 80 cartes avec extension complète)
- *  est affiché comme Juanita le verrait vraiment en jeu. Permet de tester lisibilité + survol sans démarrer de partie. */
+ *  On simule une manche 3 à 4 joueurs : 12 cartes distribuées, le reste (≈ 80 cartes avec extension complète) passe
+ *  par le même deckviewHTML() que le vrai pouvoir, groupé par couleur et empilé — pour tester sans démarrer de partie. */
 function previewJuanitaDeck() {
   const ROUND = 3, PLAYERS = 4, DEALT = ROUND * PLAYERS;
-  const sorted = buildDeck(DEFAULT_OPTS).slice().sort((a, b) => sortKey(a) - sortKey(b));
-  // on retire DEALT cartes au hasard de la pioche triée pour obtenir la pioche restante, puis on la retrie
+  const full = buildDeck(DEFAULT_OPTS);
   const dealtIdx = new Set<number>();
-  while (dealtIdx.size < DEALT) dealtIdx.add(Math.floor(Math.random() * sorted.length));
-  const deck = sorted.filter((_, i) => !dealtIdx.has(i));
-  const label = (c: any) => {
-    if (c.kind === 'num' && !c.wild) {
-      const n = c.zf ? '0/14' : String(c.rank);
-      return `<figcaption class="dklbl s-${c.suit}"><b>${n}</b> ${SUIT[c.suit].n}</figcaption>`;
-    }
-    return `<figcaption class="dklbl">${esc(cname(c))}</figcaption>`;
-  };
-  const cards = deck.map(c => `<figure class="dkc">${cardHTML(c)}${label(c)}</figure>`).join('');
-  modal(`<h2>Cartes non distribuées <small style="font-weight:400;color:var(--ink2);font-size:14px">(aperçu test — manche ${ROUND}, ${PLAYERS} joueurs)</small></h2><p class="sub">${deck.length} cartes hors du jeu cette manche. Survolez une carte pour l'agrandir.</p><div class="deckview">${cards}</div>`, [{ label: 'Fermer', value: 1 }]);
+  while (dealtIdx.size < DEALT) dealtIdx.add(Math.floor(Math.random() * full.length));
+  const deck = full.filter((_, i) => !dealtIdx.has(i));
+  modal(`<h2>Cartes non distribuées <small style="font-weight:400;color:var(--ink2);font-size:14px">(aperçu test — manche ${ROUND}, ${PLAYERS} joueurs)</small></h2><p class="sub">${deck.length} cartes hors du jeu cette manche. Survolez une carte pour l'agrandir.</p>${deckviewHTML(deck)}`, [{ label: 'Fermer', value: 1 }]);
 }
 
 function openCreate(root: HTMLElement) {

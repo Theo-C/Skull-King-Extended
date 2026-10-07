@@ -1,7 +1,7 @@
 // Vue de la table, partagée par le mode en ligne et l'entraînement hors ligne.
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
 import { cname, leadSuitOf, plannedRounds, resolve, roundKind, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
-import { cardHTML, cardKey, backFace, preloadArt } from './cards';
+import { cardHTML, cardKey, backFace, deckviewHTML, preloadArt } from './cards';
 import { GifCtl, gifsHidden, setGifsHidden, reactPanelHTML, type GifItem, type GifMsg } from './gif';
 import { impactSound } from './locker';
 import { ANIM, ANIM_MODES, HALO_MS, attachAnim, detachAnim, getAnimMode, onAnimMode, setAnimMode, type AnimMode } from './animatedCards';
@@ -1229,17 +1229,7 @@ export class TableView {
   }
   private async showDeck() {
     const deck = this.priv?.pendingData?.deck || [];
-    // chaque carte reçoit un libellé lisible sous l'illustration (chiffre + couleur pour les numérotées, nom court sinon) :
-    // à l'échelle de la main, les chiffres du médaillon restent petits et peuvent se perdre sur l'illustration.
-    const label = (c: any) => {
-      if (c.kind === 'num' && !c.wild) {
-        const n = c.zf ? '0/14' : String(c.rank);
-        return `<figcaption class="dklbl s-${c.suit}"><b>${n}</b> ${SUIT[c.suit].n}</figcaption>`;
-      }
-      return `<figcaption class="dklbl">${esc(cname(c))}</figcaption>`;
-    };
-    const cards = deck.map((c: any) => `<figure class="dkc">${cardHTML(c)}${label(c)}</figure>`).join('');
-    await modal(`<h2>Cartes non distribuées</h2><p class="sub">${deck.length} carte${deck.length > 1 ? 's' : ''} hors du jeu cette manche.</p><div class="deckview">${cards}</div>`, [{ label: 'Compris', value: 1 }]);
+    await modal(`<h2>Cartes non distribuées</h2><p class="sub">${deck.length} carte${deck.length > 1 ? 's' : ''} hors du jeu cette manche. Survolez une carte pour l'agrandir.</p>${deckviewHTML(deck)}`, [{ label: 'Compris', value: 1 }]);
     this.send({ t: 'choose', v: 1 });
   }
 
