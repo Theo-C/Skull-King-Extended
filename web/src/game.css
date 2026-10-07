@@ -412,8 +412,9 @@ legend{font:400 17px var(--f-disp);padding:0 6px}
 .jsp:hover img,.jsp:focus-visible img,.jsp.sel img{box-shadow:0 0 0 2px #8a5e0e,0 4px 10px rgba(60,40,10,.4)}
 .jsp .jsx{position:absolute;right:-6px;bottom:-6px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;
   border-radius:10px;background:#2b2117;color:#f2e7cd;font:900 12px/20px var(--f-body);text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.4)}
-/* libellé externe sous la vignette : léger (500) et teinte muted pour ne pas lire comme une « bande sombre » */
-.jspn{font:500 10.5px/1.1 var(--f-body);color:#6b5434;text-align:center;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* libellé externe sous la vignette : couleur quasi transparente (rgba 45 %), poids regular — le libellé reste lisible
+   si on cherche à l'identifier, mais ne crée plus aucun bloc visuel sous la carte. */
+.jspn{font:400 10.5px/1.1 var(--f-body);color:rgba(43,33,23,.45);text-align:center;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .jright{flex:none;width:180px;display:flex;flex-direction:column;align-items:center;gap:8px}
 .jprev{position:relative;width:180px;height:257px}
 .jprev img{width:180px;height:257px;border-radius:9px;box-shadow:0 8px 18px rgba(60,40,10,.45);display:block;object-fit:cover}
