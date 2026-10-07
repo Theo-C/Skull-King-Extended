@@ -185,8 +185,10 @@ export function openJuanita(deck: Card[], round: number): Promise<void> {
     const show = (el: HTMLElement) => {
       const art = el.dataset.art || '', nm = el.dataset.name || '', n = el.dataset.num || '', ink = el.dataset.ink || '';
       img.src = ART[art] || ''; num.textContent = n; num.style.color = ink; name.textContent = nm;
-      ov.querySelectorAll('.sel').forEach(x => x.classList.remove('sel'));
-      el.classList.add('sel');
+      // nom de classe local .jsel (pas .sel) pour éviter la collision avec la classe globale .sel d'app.css,
+      // qui applique un fond noir et un padding/min-height de bouton (visible comme un gros rectangle sombre)
+      ov.querySelectorAll('.jsel').forEach(x => x.classList.remove('jsel'));
+      el.classList.add('jsel');
     };
     ov.addEventListener('mouseover', ev => { const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('.jcell:not(.gap),.jsp'); if (b) show(b); });
     ov.addEventListener('focusin',  ev => { const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('.jcell:not(.gap),.jsp'); if (b) show(b); });

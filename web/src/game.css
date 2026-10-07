@@ -393,7 +393,7 @@ legend{font:400 17px var(--f-disp);padding:0 6px}
 .jcell{position:relative;flex:none;width:32px;height:44px;padding:0;border-radius:6px;border:0;cursor:pointer;
   display:flex;align-items:center;justify-content:center;font:400 21px/1 'Pirata One','Pirata One Fallback',serif;
   box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.18),0 1px 3px rgba(60,40,10,.3);transition:transform .12s,box-shadow .12s}
-.jcell:hover,.jcell:focus-visible,.jcell.sel{transform:translateY(-2px);box-shadow:0 0 0 2px #8a5e0e,0 4px 10px rgba(60,40,10,.4);outline:none;z-index:1}
+.jcell:hover,.jcell:focus-visible,.jcell.jsel{transform:translateY(-2px);box-shadow:0 0 0 2px #8a5e0e,0 4px 10px rgba(60,40,10,.4);outline:none;z-index:1}
 .jcell.gap{visibility:hidden;pointer-events:none;background:transparent;box-shadow:none}
 .jcell .jcsm{position:absolute;top:2px;left:0;right:0;text-align:center;font:900 9px/1 var(--f-body);opacity:.85}
 .jsep{flex:none;width:1px;height:34px;background:rgba(107,84,52,.3);margin:0 6px}
@@ -408,13 +408,11 @@ legend{font:400 17px var(--f-disp);padding:0 6px}
 .jsp{position:relative;flex:none;width:48px;padding:0;border:0;border-radius:5px;cursor:pointer;background:none;transition:transform .12s;display:flex;flex-direction:column;align-items:center;gap:3px}
 .jspw{position:relative;width:48px;height:68px}
 .jsp img{width:48px;height:68px;border-radius:5px;object-fit:cover;display:block;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:box-shadow .12s}
-.jsp:hover,.jsp:focus-visible,.jsp.sel{transform:translateY(-2px);outline:none}
-.jsp:hover img,.jsp:focus-visible img,.jsp.sel img{box-shadow:0 0 0 2px #8a5e0e,0 4px 10px rgba(60,40,10,.4)}
+.jsp:hover,.jsp:focus-visible,.jsp.jsel{transform:translateY(-2px);outline:none}
+.jsp:hover img,.jsp:focus-visible img,.jsp.jsel img{box-shadow:0 0 0 2px #8a5e0e,0 4px 10px rgba(60,40,10,.4)}
 .jsp .jsx{position:absolute;right:-6px;bottom:-6px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;
   border-radius:10px;background:#2b2117;color:#f2e7cd;font:900 12px/20px var(--f-body);text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.4)}
-/* libellé externe sous la vignette : couleur quasi transparente (rgba 45 %), poids regular — le libellé reste lisible
-   si on cherche à l'identifier, mais ne crée plus aucun bloc visuel sous la carte. */
-.jspn{font:400 10.5px/1.1 var(--f-body);color:rgba(43,33,23,.45);text-align:center;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jspn{font:700 11px/1.1 var(--f-body);color:#2b2117;text-align:center;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .jright{flex:none;width:180px;display:flex;flex-direction:column;align-items:center;gap:8px}
 .jprev{position:relative;width:180px;height:257px}
 .jprev img{width:180px;height:257px;border-radius:9px;box-shadow:0 8px 18px rgba(60,40,10,.45);display:block;object-fit:cover}
