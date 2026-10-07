@@ -5,6 +5,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { handle, HttpError, settleFinished, type Store } from '../supabase/functions/_shared/service.ts';
 import * as E from '../supabase/functions/_shared/engine.ts';
+import { levelFor } from '../supabase/functions/_shared/xp.ts';
 
 const db = new PGlite();
 let fails = 0, passes = 0;
@@ -170,7 +171,9 @@ ok('règlement rejoué : XP inchangée', xpAfter.sort().join() === xpBefore.spli
 const winnerUid = res[0].user_id as string;
 const winnerBids = Number((await db.query<any>('select bids_made from game_results where game_id=$1 and user_id=$2', [G, winnerUid])).rows[0].bids_made);
 const wWin = await store.wallet(winnerUid);
-ok('porte-monnaie : 1 coffre au vainqueur humain', wWin.chests === 1, wWin);
+const winnerXp = Number((await db.query<any>('select xp from profiles where id=$1', [winnerUid])).rows[0].xp);
+const winnerLevelUps = Math.max(0, levelFor(winnerXp).level - 1);
+ok('porte-monnaie : coffres au vainqueur (1 victoire + 1 par niveau franchi)', wWin.chests === 1 + winnerLevelUps, { wWin, winnerXp, winnerLevelUps });
 for (const r of res) {
   const w = await store.wallet(r.user_id), gr = (await db.query<any>('select bids_made, rounds from game_results where game_id=$1 and user_id=$2', [G, r.user_id])).rows[0];
   const achs = Number((await db.query<any>('select count(*)::int as n from user_achievements where game_id=$1 and user_id=$2', [G, r.user_id])).rows[0].n);

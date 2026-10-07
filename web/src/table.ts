@@ -79,8 +79,8 @@ const BW = 1040, BH = 520;
 const MW = 366, MH = 330;
 /** Durée affichée du tour (visuelle : le serveur n'impose aucun temps). */
 const TURN_S = 30;
-/** Délai de la fenêtre de fin de manche avant la manche suivante. */
-const READY_S = 8;
+/** Délai de la fenêtre de fin de manche avant la manche suivante (compte à rebours, raccourci dès que tout le monde a cliqué « Prêt »). */
+const READY_S = 5;
 interface Spot { px: number; py: number; sx: number; sy: number; r: number }
 /** Positions des plaques (px, py) et des cartes du pli (sx, sy, inclinaison r), indexées par place relative (0 = vous, en bas). */
 function geometry(n: number): Spot[] {
@@ -1229,7 +1229,17 @@ export class TableView {
   }
   private async showDeck() {
     const deck = this.priv?.pendingData?.deck || [];
-    await modal(`<h2>Cartes non distribuées</h2><p class="sub">${deck.length} carte${deck.length > 1 ? 's' : ''} hors du jeu cette manche.</p><div class="deckview">${deck.map((c: any) => cardHTML(c)).join('')}</div>`, [{ label: 'Compris', value: 1 }]);
+    // chaque carte reçoit un libellé lisible sous l'illustration (chiffre + couleur pour les numérotées, nom court sinon) :
+    // à l'échelle de la main, les chiffres du médaillon restent petits et peuvent se perdre sur l'illustration.
+    const label = (c: any) => {
+      if (c.kind === 'num' && !c.wild) {
+        const n = c.zf ? '0/14' : String(c.rank);
+        return `<figcaption class="dklbl s-${c.suit}"><b>${n}</b> ${SUIT[c.suit].n}</figcaption>`;
+      }
+      return `<figcaption class="dklbl">${esc(cname(c))}</figcaption>`;
+    };
+    const cards = deck.map((c: any) => `<figure class="dkc">${cardHTML(c)}${label(c)}</figure>`).join('');
+    await modal(`<h2>Cartes non distribuées</h2><p class="sub">${deck.length} carte${deck.length > 1 ? 's' : ''} hors du jeu cette manche.</p><div class="deckview">${cards}</div>`, [{ label: 'Compris', value: 1 }]);
     this.send({ t: 'choose', v: 1 });
   }
 
@@ -1298,7 +1308,12 @@ export class TableView {
       // Manche 10 : pas de délai, le joueur clique quand il veut passer au résultat final
       const iv = setInterval(() => { if (!last && Date.now() - t0 >= READY_S * 1000) close(); else update(); }, 250);
       this.roundOpen = { round: r, ready, update, close };
-      btn?.addEventListener('click', () => { ready.add(this.mySeat!); this.backend.ready?.(r); update(); });
+      btn?.addEventListener('click', () => {
+        ready.add(this.mySeat!); this.backend.ready?.(r);
+        // dernière manche : « Voir le résultat » est une action personnelle, on ferme tout de suite sans attendre les autres
+        // (sinon le bouton semble ne rien faire tant qu'un adversaire n'a pas cliqué, d'où la plainte « marche 1 fois sur 2 »)
+        if (last) close(); else update();
+      });
       (ov.querySelector('#rSheet') as HTMLElement).onclick = () => this.scoreSheet();
       update(); btn?.focus();
     });
@@ -1392,10 +1407,10 @@ export class TableView {
         ${((elo.vs || []) as any[]).map(v => `<div class="fvs"><span>${vsLabel(v)}</span><b class="${v.delta >= 0 ? 'pos' : 'neg'}">${signedOne(v.delta)}</b></div>`).join('')}</div>`
         : `<div class="fbox"><span class="ftag">Élo</span><span class="lbl">Partie non classée : ${UNRANKED[s.unranked] ?? UNRANKED.solo}.</span></div>`}
       ${this.rewardsHTML(s, ach)}
-      ${s.chests > 0 && this.backend.openChest ? `<div class="fchest" id="fchest" data-state="closed"><button type="button" id="fchestBtn" class="fchestbtn" aria-label="Ouvrir le coffre de victoire">
+      ${s.chests > 0 && this.backend.openChest ? `<div class="fchest" id="fchest" data-state="closed"><button type="button" id="fchestBtn" class="fchestbtn" aria-label="Ouvrir ${s.chests > 1 ? s.chests + ' coffres' : 'le coffre'}">
         <svg viewBox="0 0 72 64" aria-hidden="true"><rect x="8" y="28" width="56" height="30" rx="3" fill="#6b4226" stroke="#2a170b" stroke-width="2"/><path d="M8 28c0-12 10-18 28-18s28 6 28 18z" fill="#7d4f2c" stroke="#2a170b" stroke-width="2"/><path d="M8 28h56M20 12v46M52 12v46" stroke="#c9a14a" stroke-width="3"/><rect x="31" y="30" width="10" height="12" rx="2" fill="#e3c47a" stroke="#8a6620"/></svg>
-      </button><span class="fchest-txt"><span class="ftag">Coffre de victoire</span><b>Un objet pour votre pirate vous attend.</b><button class="abtn gold" id="fchestOpen">Ouvrir le coffre</button></span></div>` : ''}
-      ${s.coins ? `<div class="fcoins" style="animation-delay:calc(2.6s * var(--spd,1))"><span class="coin"></span><b>+${s.coins}</b> pièces${s.chests > 0 ? ' et 1 coffre' : ''} ajoutées à votre bourse.</div>` : ''}`;
+      </button><span class="fchest-txt"><span class="ftag">${s.chests > 1 ? `${s.chests} coffres gagnés` : 'Coffre de victoire'}</span><b>${s.chests > 1 ? `${s.chests} objets pour votre pirate vous attendent.` : 'Un objet pour votre pirate vous attend.'}</b><button class="abtn gold" id="fchestOpen">${s.chests > 1 ? 'Ouvrir le premier coffre' : 'Ouvrir le coffre'}</button></span></div>` : ''}
+      ${s.coins ? `<div class="fcoins" style="animation-delay:calc(2.6s * var(--spd,1))"><span class="coin"></span><b>+${s.coins}</b> pièces${s.chests > 0 ? ` et ${s.chests} coffre${s.chests > 1 ? 's' : ''}` : ''} ajoutés à votre bourse.</div>` : ''}`;
     // place et Élo de chacun sous le podium
     const res = (this.latest?.pub as any)?.settled || {};
     ov.querySelectorAll<HTMLElement>('[data-elo]').forEach(el => {
