@@ -1,8 +1,10 @@
 // Fenêtre « Cartes non distribuées » du pouvoir de Juanita Jade (A13, docs/juanita/SPEC.md, maquette Juanita.dc.html).
-// Lisible sans défilement : une ligne par couleur en cases alignées par valeur (1 → 14 puis 7−5, 8+5, 0/14), une ligne
-// pour les spéciales rangées par famille, et un aperçu de la carte survolée à droite.
-// Aucune déduction faite à la place du joueur : les cartes manquantes laissent un simple espace vide, pas de « chez les
-// autres », pas de total par couleur, pas de marquage de sa main. La fenêtre ne se rouvre pas une fois fermée.
+// Lisible sans défilement : une ligne par couleur en cases 32×44 alignées par valeur (1→14 puis 7−5, 8+5, 0/14),
+// et les spéciales regroupées par famille en encadrés légers (Skull King · Pirates · Morgane · Sirènes sur une ligne,
+// Monstres · Fuites · Actions sur l'autre). Chaque famille porte le nombre de cartes hors jeu dans son titre
+// (« PIRATES 5 »), vignettes 48×68 avec nom court et pastille « ×n » si plusieurs exemplaires hors jeu.
+// Aucune déduction faite à la place du joueur : cartes manquantes = simple espace vide, pas de « chez les autres »,
+// pas de total par couleur, pas de marquage de sa main. La fenêtre ne se rouvre pas une fois fermée.
 import { PIRATES, SPECIAL, SUIT, type Card } from '@engine';
 import { ART } from './cards';
 import { esc } from './util';
@@ -14,29 +16,47 @@ const SUITS: { k: SuitKey; short: string; c: string; numInk: string }[] = [
   { k: 'purple', short: 'Méduse',    c: '#5b3a7a', numInk: '#2b1838' },
   { k: 'green',  short: 'Perroquet', c: '#2f6b3a', numInk: '#12301a' },
 ];
-/** Ordre logique des spéciales (SPEC § Ligne « Spéciales ») : Skull King, pirates, Morgane, sirènes,
- *  monstres des abysses, fuites, cartes d'action. */
-const SPEC_ORDER: { key: string; name: string; art: string }[] = [
-  { key: 'sk',        name: 'Skull King',          art: 'sk' },
-  { key: 'rosie',     name: PIRATES.rosie.n,       art: 'rosie' },
-  { key: 'bahij',     name: PIRATES.bahij.n,       art: 'bahij' },
-  { key: 'rascal',    name: PIRATES.rascal.n,      art: 'rascal' },
-  { key: 'juanita',   name: PIRATES.juanita.n,     art: 'juanita' },
-  { key: 'harry',     name: PIRATES.harry.n,       art: 'harry' },
-  { key: 'mary',      name: PIRATES.mary.n,        art: 'mary' },
-  { key: 'con',       name: SPECIAL.con,           art: 'con' },
-  { key: 'tigress',   name: SPECIAL.tigress,       art: 'tigress' },
-  { key: 'mermaid0',  name: 'Alyra',               art: 'mermaid0' },
-  { key: 'mermaid1',  name: 'Circé',               art: 'mermaid1' },
-  { key: 'kraken',    name: SPECIAL.kraken,        art: 'kraken' },
-  { key: 'whale',     name: SPECIAL.whale,         art: 'whale' },
-  { key: 'stingray',  name: SPECIAL.stingray,      art: 'stingray' },
-  { key: 'davy',      name: SPECIAL.davy,          art: 'davy' },
-  { key: 'escape',    name: SPECIAL.escape,        art: 'escape' },
-  { key: 'loot',      name: SPECIAL.loot,          art: 'loot' },
-  { key: 'volley',    name: SPECIAL.volley,        art: 'volley' },
-  { key: 'plank',     name: SPECIAL.plank,         art: 'plank' },
-  { key: 'wild',      name: 'Le Grand Quinze',     art: 'wild' },
+
+/** Carte spéciale affichable : clé canonique, nom court sous la vignette, nom complet pour l'aperçu. */
+interface SpecEntry { key: string; short: string; name: string; art: string }
+/** Familles de spéciales (SPEC §3) : chaque famille devient un encadré titré (« PIRATES 5 »). L'ordre interne est
+ *  celui de la liste. Une famille sans aucune carte hors jeu est simplement omise. */
+interface Family { title: string; entries: SpecEntry[] }
+const FAMILIES: Family[] = [
+  { title: 'SKULL KING', entries: [
+    { key: 'sk', short: 'Skull King', name: SPECIAL.sk, art: 'sk' },
+  ]},
+  { title: 'PIRATES', entries: [
+    { key: 'rosie',   short: 'Rosie',   name: PIRATES.rosie.n,   art: 'rosie' },
+    { key: 'bahij',   short: 'Bendt',   name: PIRATES.bahij.n,   art: 'bahij' },
+    { key: 'rascal',  short: 'Rascal',  name: PIRATES.rascal.n,  art: 'rascal' },
+    { key: 'juanita', short: 'Juanita', name: PIRATES.juanita.n, art: 'juanita' },
+    { key: 'harry',   short: 'Harry',   name: PIRATES.harry.n,   art: 'harry' },
+    { key: 'mary',    short: 'Marie',   name: PIRATES.mary.n,    art: 'mary' },
+    { key: 'con',     short: 'Con',     name: SPECIAL.con,       art: 'con' },
+  ]},
+  { title: 'MORGANE', entries: [
+    { key: 'tigress', short: 'Morgane', name: SPECIAL.tigress, art: 'tigress' },
+  ]},
+  { title: 'SIRÈNES', entries: [
+    { key: 'mermaid0', short: 'Alyra', name: 'Alyra', art: 'mermaid0' },
+    { key: 'mermaid1', short: 'Circé', name: 'Circé', art: 'mermaid1' },
+  ]},
+  { title: 'MONSTRES', entries: [
+    { key: 'kraken',   short: 'Kraken',  name: SPECIAL.kraken,   art: 'kraken' },
+    { key: 'whale',    short: 'Baleine', name: SPECIAL.whale,    art: 'whale' },
+    { key: 'stingray', short: 'Raie',    name: SPECIAL.stingray, art: 'stingray' },
+    { key: 'davy',     short: 'Fosse',   name: SPECIAL.davy,     art: 'davy' },
+  ]},
+  { title: 'FUITES', entries: [
+    { key: 'escape', short: 'Drapeau', name: SPECIAL.escape, art: 'escape' },
+    { key: 'loot',   short: 'Butin',   name: SPECIAL.loot,   art: 'loot' },
+  ]},
+  { title: 'ACTIONS', entries: [
+    { key: 'volley', short: 'Bordée',   name: SPECIAL.volley, art: 'volley' },
+    { key: 'plank',  short: 'Planche',  name: SPECIAL.plank,  art: 'plank' },
+    { key: 'wild',   short: 'Grand 15', name: 'Le Grand Quinze', art: 'wild' },
+  ]},
 ];
 const EXT_COLS = [{ key: 'm7', label: '7', sm: '−5' }, { key: 'm8', label: '8', sm: '+5' }, { key: 'zf', label: '0/14', sm: '' }];
 
@@ -48,7 +68,7 @@ function specKey(c: Card): string {
   return c.kind as string;
 }
 
-/** HTML d'une case numérotée (26 × 36) : chiffre en Pirata One, fond à la couleur de la famille, aperçu au survol.
+/** HTML d'une case numérotée (32 × 44) : chiffre en Pirata One, fond à la couleur de la famille.
  *  `name` : libellé complet pour l'aria et l'aperçu (« 12 Pavillon noir »). `sm` : annotation extension (−5, +5…). */
 function cellHTML(suit: typeof SUITS[number], label: string, name: string, sm: string, art: string): string {
   const data = `data-art="${esc(art)}" data-name="${esc(name)}" data-num="${esc(label)}" data-ink="${suit.numInk}"`;
@@ -57,17 +77,30 @@ function cellHTML(suit: typeof SUITS[number], label: string, name: string, sm: s
 }
 function gapHTML(): string { return `<span class="jcell gap" aria-hidden="true"></span>`; }
 
-/** HTML d'une vignette spéciale (31 × 44) : illustration, pastille « ×n » si plusieurs exemplaires hors jeu. */
-function specHTML(s: typeof SPEC_ORDER[number], count: number): string {
-  const data = `data-art="${esc(s.art)}" data-name="${esc(s.name)}" data-num="" data-ink=""`;
-  const aria = s.name + (count > 1 ? ` (${count} exemplaires hors jeu)` : '');
+/** HTML d'une vignette spéciale (48 × 68) : illustration, nom court en dessous, pastille « ×n » si plusieurs
+ *  exemplaires hors jeu (ex. 2 Butin). */
+function vignetteHTML(e: SpecEntry, count: number): string {
+  const data = `data-art="${esc(e.art)}" data-name="${esc(e.name)}" data-num="" data-ink=""`;
+  const aria = e.name + (count > 1 ? ` (${count} exemplaires hors jeu)` : '');
   const badge = count > 1 ? `<span class="jsx">×${count}</span>` : '';
-  return `<button class="jsp" aria-label="${esc(aria)}" ${data}><img src="${esc(ART[s.art] || '')}" alt="">${badge}</button>`;
+  return `<button class="jsp" aria-label="${esc(aria)}" ${data}>
+    <span class="jspw"><img src="${esc(ART[e.art] || '')}" alt="">${badge}</span>
+    <span class="jspn">${esc(e.short)}</span>
+  </button>`;
+}
+
+/** HTML d'un encadré de famille : titre « PIRATES 5 » (le nombre est le total hors jeu de cette famille, sommé par
+ *  carte en comptant les doublons), puis les vignettes des cartes effectivement hors jeu dans l'ordre interne. */
+function familyHTML(f: Family, counts: Record<string, number>): string {
+  const items = f.entries.filter(e => (counts[e.key] || 0) > 0);
+  if (!items.length) return '';
+  const total = items.reduce((n, e) => n + (counts[e.key] || 0), 0);
+  const list = items.map(e => vignetteHTML(e, counts[e.key])).join('');
+  return `<div class="jfam"><div class="jfamh"><span class="jfamt">${esc(f.title)}</span><span class="jfamn">${total}</span></div><div class="jfamc">${list}</div></div>`;
 }
 
 /** Construit la fenêtre entière, prête à être injectée dans un conteneur. */
 export function juanitaHTML(deck: Card[], round: number): string {
-  // index : (suit, clé) -> présent dans la pioche ; (specKey) -> compte
   const outBySuit: Record<SuitKey, Record<string, boolean>> = { black: {}, yellow: {}, purple: {}, green: {} };
   const specCount: Record<string, number> = {};
   for (const c of deck) {
@@ -79,7 +112,6 @@ export function juanitaHTML(deck: Card[], round: number): string {
     }
   }
   const total = deck.length;
-  // libellé long pour l'aperçu d'une numérotée : « 12 Pavillon noir », « 7 (−5) Trésor », « 0/14 Perroquet »
   const numName = (suit: typeof SUITS[number], label: string, sm: string) =>
     (sm ? `${label} (${sm}) ` : `${label} `) + SUIT[suit.k].n;
   const rows = SUITS.map(suit => {
@@ -94,11 +126,8 @@ export function juanitaHTML(deck: Card[], round: number): string {
       : gapHTML()).join('');
     return `<div class="jrow"><span class="jname" title="${esc(SUIT[suit.k].n)}"><i style="background:${suit.c}"></i>${esc(suit.short)}</span>${cells.join('')}<span class="jsep" aria-hidden="true"></span>${ext}</div>`;
   }).join('');
-  const specials = SPEC_ORDER
-    .filter(s => (specCount[s.key] || 0) > 0)
-    .map(s => specHTML(s, specCount[s.key])).join('');
-  const specRow = `<div class="jrow jspec"><span class="jname">Spéciales</span><div class="jspecials">${specials || '<span class="jempty">Aucune.</span>'}</div></div>`;
-  // aperçu : par défaut la 1re carte trouvée (ou le portrait de Juanita si vide), remplacé au survol via JS
+  const families = FAMILIES.map(f => familyHTML(f, specCount)).filter(Boolean).join('');
+  // aperçu initial : la 1re carte trouvée (ou le portrait de Juanita si vide)
   const first = deck[0];
   const firstKey = first
     ? (first.kind === 'num' && !first.wild && first.suit ? 'suit-' + first.suit : specKey(first))
@@ -123,7 +152,10 @@ export function juanitaHTML(deck: Card[], round: number): string {
       <span class="jtotal"><b>${total}</b> hors jeu</span>
     </div>
     <div class="jbody">
-      <div class="jleft">${rows}${specRow}</div>
+      <div class="jleft">
+        <div class="jsuits">${rows}</div>
+        <div class="jfams">${families || '<span class="jempty">Aucune carte spéciale hors jeu.</span>'}</div>
+      </div>
       <div class="jright">
         <div class="jprev" id="jPrev">
           <img id="jPrevImg" src="${esc(ART[firstKey] || '')}" alt="">
@@ -139,8 +171,7 @@ export function juanitaHTML(deck: Card[], round: number): string {
   </div>`;
 }
 
-/** Ouvre la fenêtre en overlay sur document.body. Résout quand elle est fermée. `onClose` peut servir pour envoyer
- *  l'action de clôture au serveur (confirmation que le pouvoir a été consommé). */
+/** Ouvre la fenêtre en overlay sur document.body. Résout quand elle est fermée. */
 export function openJuanita(deck: Card[], round: number): Promise<void> {
   return new Promise(res => {
     const prev = document.querySelector('.juov'); if (prev) prev.remove();
@@ -171,7 +202,6 @@ export function openJuanita(deck: Card[], round: number): Promise<void> {
     (ov.querySelector('#jClose') as HTMLButtonElement).onclick = close;
     const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') { ev.preventDefault(); close(); } };
     document.addEventListener('keydown', onKey);
-    // focus initial sur la première case non vide pour que les flèches / Tab fonctionnent dès l'ouverture
     const first = ov.querySelector<HTMLButtonElement>('.jcell:not(.gap),.jsp'); first?.focus();
   });
 }
