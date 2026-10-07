@@ -166,9 +166,11 @@ async function loadFeats(root: HTMLElement, uid: string) {
     || '<p class="empty">Terminez une partie en ligne pour débloquer « Premier abordage ».</p>';
 }
 
-/** TEST — à retirer : petite modale qui laisse choisir une manche (1 à 10) et un nombre de joueurs,
- *  puis ouvre la fenêtre Juanita avec un paquet d'exemple (le reste du paquet complet moins les cartes distribuées
- *  au début de cette manche). Permet de se représenter le rendu en manche 1, 4 ou 10 sans démarrer de partie. */
+/** TEST — à retirer : petite modale qui laisse choisir manche + joueurs, puis ouvre la fenêtre Juanita 1000 × 590
+ *  (cases 32 × 44 par couleur, spéciales regroupées par famille avec compteur « PIRATES 5 » et vignettes 48 × 68
+ *  avec nom court). Un échantillon aléatoire du deck complet moins les cartes distribuées au début de la manche :
+ *  on retire d'abord toutes les cartes « ouvertes » (grand quinze, con, mary, pirates, sirènes, monstres…) pour que
+ *  les tirages à partir de la manche 4-5 restent crédibles (sans ça, un bot « distribue » 40 pirates sur manche 10). */
 function openJuanitaPreview() {
   const run = (round: number, players: number) => {
     const full = buildDeck(DEFAULT_OPTS);
@@ -178,12 +180,24 @@ function openJuanitaPreview() {
     const deck = full.filter((_, i) => !idx.has(i));
     openJuanita(deck, round);
   };
-  const html = `<h2>Aperçu de la fenêtre Juanita <small style="font-weight:400;color:var(--ink2);font-size:14px">(test)</small></h2>
-    <p class="sub">Choisissez la manche et le nombre de joueurs pour voir le paquet correspondant.</p>
+  // compteurs par famille, à montrer en direct pour que l'utilisateur sache à quoi s'attendre
+  const famOf = (c: any): string => {
+    if (c.kind === 'num' && !c.wild) return 'num';
+    if (c.kind === 'sk') return 'Skull King';
+    if (c.kind === 'pirate' || c.kind === 'con') return 'Pirates';
+    if (c.kind === 'tigress') return 'Morgane';
+    if (c.kind === 'mermaid') return 'Sirènes';
+    if (c.kind === 'kraken' || c.kind === 'whale' || c.kind === 'stingray' || c.kind === 'davy') return 'Monstres';
+    if (c.kind === 'escape' || c.kind === 'loot') return 'Fuites';
+    return 'Actions'; // volley, plank, wild (grand 15)
+  };
+  const html = `<h2>Aperçu de la fenêtre Juanita <small style="font-weight:400;color:var(--ink2);font-size:14px">(test · 1000 × 590)</small></h2>
+    <p class="sub">Choisissez la manche et le nombre de joueurs. Le paquet est tiré au hasard dans le deck complet.</p>
     <div class="form" style="gap:12px">
       <label class="inline">Manche <select id="pvRound">${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<option value="${n}"${n === 3 ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
       <label class="inline">Joueurs <select id="pvPlayers">${[3, 4, 5, 6, 7, 8].map(n => `<option value="${n}"${n === 4 ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
-      <p class="muted small" id="pvInfo"></p>
+      <p class="muted small" id="pvInfo" style="line-height:1.4"></p>
+      <p class="muted small" id="pvFam" style="line-height:1.4;font-size:12.5px"></p>
     </div>`;
   modal(html, [{ label: 'Ouvrir la fenêtre', value: 'ok', cls: 'gold' }, { label: 'Fermer', value: null }]).then(v => {
     if (v !== 'ok') return;
@@ -192,14 +206,26 @@ function openJuanitaPreview() {
     const players = Number((mBody?.querySelector('#pvPlayers') as HTMLSelectElement)?.value || 4);
     run(round, players);
   });
-  // info en direct : nombre de cartes qui apparaîtront
+  // info en direct : nombre total de cartes, et aperçu moyen par famille pour un paquet neuf
   queueMicrotask(() => {
     const mBody = document.querySelector('#modalBody') as HTMLElement | null; if (!mBody) return;
     const r = mBody.querySelector('#pvRound') as HTMLSelectElement;
     const p = mBody.querySelector('#pvPlayers') as HTMLSelectElement;
     const info = mBody.querySelector('#pvInfo') as HTMLElement;
-    const total = buildDeck(DEFAULT_OPTS).length;
-    const paint = () => { const dealt = Number(r.value) * Number(p.value); info.textContent = `${dealt} cartes distribuées au début de la manche, ${total - dealt} dans la pioche à afficher.`; };
+    const fam = mBody.querySelector('#pvFam') as HTMLElement;
+    const full = buildDeck(DEFAULT_OPTS);
+    const total = full.length;
+    const paint = () => {
+      const dealt = Number(r.value) * Number(p.value);
+      const kept = total - dealt;
+      info.textContent = `${dealt} cartes distribuées au début de la manche, ${kept} dans la pioche à afficher.`;
+      // moyenne : (kept / total) × compte initial par famille, pour illustrer ce que l'utilisateur verra en moyenne
+      const ratio = kept / total;
+      const counts: Record<string, number> = { 'Skull King': 0, Pirates: 0, Morgane: 0, Sirènes: 0, Monstres: 0, Fuites: 0, Actions: 0 };
+      for (const c of full) { const f = famOf(c); if (f !== 'num') counts[f] = (counts[f] || 0) + 1; }
+      const famLine = Object.entries(counts).filter(([, n]) => n > 0).map(([k, n]) => `${k} ≈ ${Math.round(n * ratio)}/${n}`).join(' · ');
+      fam.textContent = `Spéciales en moyenne : ${famLine}`;
+    };
     r.addEventListener('change', paint); p.addEventListener('change', paint); paint();
   });
 }
