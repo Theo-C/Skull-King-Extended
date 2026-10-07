@@ -407,9 +407,9 @@ legend{font:400 17px var(--f-disp);padding:0 6px}
 .jfamc{display:flex;flex-wrap:wrap;gap:8px}
 .jsp{position:relative;flex:none;width:48px;padding:0;border:0;border-radius:5px;cursor:pointer;background:none;transition:transform .12s;display:flex;flex-direction:column;align-items:center;gap:3px}
 .jspw{position:relative;width:48px;height:68px}
-.jsp img{width:48px;height:68px;border-radius:5px;object-fit:cover;display:block;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:box-shadow .12s}
-/* survol / focus / .sel : simple contour doré de 2 px, pas d'ombre portée (sinon elle déborde sur le nom
-   de la carte juste en-dessous et donne un halo noir disgracieux). */
+.jsp img{width:48px;height:68px;border-radius:5px;object-fit:cover;display:block;transition:box-shadow .12s}
+/* survol / focus / .sel : simple contour doré de 2 px, aucune ombre portée nulle part (ni au repos, ni au survol :
+   l'ombre débordait sous l'image et cachait le nom court .jspn qui suit). */
 .jsp:hover,.jsp:focus-visible,.jsp.sel{outline:none}
 .jsp:hover img,.jsp:focus-visible img,.jsp.sel img{box-shadow:0 0 0 2px #8a5e0e}
 .jsp .jsx{position:absolute;right:-6px;bottom:-6px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;
