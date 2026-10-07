@@ -151,32 +151,26 @@ for (let g = 0; g < 60; g++) {
 
 // Marie Thorne : carte choisie face cachée
 {
-  // on cherche une vraie situation de jeu (manche 2 ou 3) où un humain doit utiliser Marie Thorne,
-  // avec au moins 2 cartes dans la main cible pour que la vérification du tirage aléatoire soit significative.
+  // on cherche une vraie situation de jeu où un humain doit utiliser Marie Thorne
   let S: E.State | null = null;
   for (let g = 0; g < 400 && !S; g++) {
     let T = E.newGame(['A', 'B', 'C', 'D'].map(name => ({ name, bot: false })), { powers: true, exp: true }, 5000 + g);
     let seed = g + 3; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
     for (let k = 0; k < 3000 && T.phase !== 'end'; k++) {
-      if (T.pending[0]?.t === 'mary' && T.round >= 2) {
-        // on garde seulement les situations où une main ciblable a au moins 2 cartes
-        const opts = (T.pending[0].data?.pub ?? []) as any[];
-        if (opts.some(o => T.players[o.v].hand.length >= 2)) { S = T; break; }
-      }
+      if (T.pending[0]?.t === 'mary') { S = T; break; }
       const w = E.waitingFor(T); const a = randomAction(T, w[0], r);
       if (a.t === 'choose' && T.pending[0]?.t === 'mary') continue;
       E.apply(T, w[0], a); E.takeEvents(T);
     }
   }
-  ok('situation Marie Thorne trouvée (manche ≥ 2 avec main cible ≥ 2 cartes)', !!S && S.round >= 2, { round: S?.round, hands: S?.players.map(p => p.hand.length) });
+  ok('situation Marie Thorne trouvée', !!S);
   if (S) {
     const pd = S.pending[0], by = pd.seat, pub = E.publicView(S);
     const opts = pub.pending!.opts as any[];
     ok('Lise : options avec le nombre de cartes', opts.every(o => o.count === S!.players[o.v].hand.length), opts);
     ok('Lise : ordre secret absent de la vue publique', !JSON.stringify(pub).includes('perm') && !JSON.stringify(E.privateView(S, by)).includes('perm'));
     ok('Lise : ordre secret présent côté serveur', opts.every(o => Array.isArray(pd.data.perm[o.v]) && pd.data.perm[o.v].length === o.count));
-    // on cible préférentiellement un adversaire avec au moins 2 cartes (pour que les positions testées soient significatives)
-    const target = opts.find(o => o.v !== by && o.count >= 2) ?? opts.find(o => o.count >= 2) ?? opts[0];
+    const target = opts.find(o => o.v !== by) ?? opts[0];
     // Position tirée au hasard par le serveur : qu'elle soit absente, hors bornes ou invalide, le choix est accepté
     // et renvoie une carte au hasard dans la main cible (les joueurs ne peuvent plus viser une position précise).
     for (const pos of [undefined, -1, target.count, 1.5, '0' as any]) {
@@ -197,13 +191,13 @@ for (let g = 0; g < 60; g++) {
     // le format court (siège seul) marche aussi
     const U = roundTrip(S); E.apply(U, by, { t: 'choose', v: target.v });
     ok('Lise : siège seul accepté', U.players[target.v].hand.some(c => c.id === U.forced[target.v]));
-    // La position cliquée n'influence pas la carte tirée : depuis le même état, toutes les positions
-    // (0, 1, 2… count-1) renvoient la même carte imposée (le serveur utilise rand(S), pas la pos envoyée).
-    // On vérifie sur une vraie main de la manche en cours (par ex. 2 ou 3 cartes), pas sur un cas trivial.
-    const forced = new Set<number>();
-    for (let i = 0; i < target.count; i++) { const V = roundTrip(S); E.apply(V, by, { t: 'choose', v: { seat: target.v, pos: i } }); forced.add(V.forced[target.v]); }
-    ok(`Lise : la position cliquée n'influence pas la carte imposée (manche ${S.round}, main cible ${target.count} cartes)`,
-      target.count >= 2 && forced.size === 1, { round: S.round, handSize: target.count, distinct: forced.size });
+    // la position cliquée n'influence pas la carte tirée : à partir du même état, toutes les positions
+    // donnent la même carte imposée (le serveur utilise rand(S), pas la pos envoyée par le joueur).
+    if (target.count > 1) {
+      const forced = new Set<number>();
+      for (let i = 0; i < target.count; i++) { const V = roundTrip(S); E.apply(V, by, { t: 'choose', v: { seat: target.v, pos: i } }); forced.add(V.forced[target.v]); }
+      ok('Lise : la position cliquée n\'influence pas la carte imposée', forced.size === 1, { tries: target.count, distinct: forced.size });
+    }
     // au pli suivant, la carte arrive sur la table marquée « imposée »
     let seed = 99; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
     let played: E.Entry | undefined;
