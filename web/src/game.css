@@ -412,7 +412,9 @@ legend{font:400 17px var(--f-disp);padding:0 6px}
    sous l'image et ne cache pas le nom court .jspn qui suit. Aucune ombre portée nulle part. */
 .jsp:hover,.jsp:focus-visible,.jsp.sel{outline:none}
 .jsp:hover img,.jsp:focus-visible img,.jsp.sel img{box-shadow:inset 0 0 0 2px #8a5e0e}
-.jsp .jsx{position:absolute;right:-6px;bottom:-6px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;
+/* pastille « ×n » placée en haut-droite (hors de la zone basse où est le nom court) pour éviter la confusion
+   avec une ombre portée sous la carte. */
+.jsp .jsx{position:absolute;right:-6px;top:-6px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;
   border-radius:10px;background:#2b2117;color:#f2e7cd;font:900 12px/20px var(--f-body);text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .jspn{font:700 11px/1.1 var(--f-body);color:#2b2117;text-align:center;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .jright{flex:none;width:180px;display:flex;flex-direction:column;align-items:center;gap:8px}
@@ -443,7 +445,7 @@ legend{font:400 17px var(--f-disp);padding:0 6px}
   .jsp{width:34px}
   .jspw{width:34px;height:48px}
   .jsp img{width:34px;height:48px}
-  .jsp .jsx{min-width:16px;height:16px;font-size:10px;line-height:16px;right:-4px;bottom:-4px}
+  .jsp .jsx{min-width:16px;height:16px;font-size:10px;line-height:16px;right:-4px;top:-4px}
   .jspn{font-size:9.5px;max-width:38px}
   .jright{flex-direction:row;width:100%;justify-content:center;gap:10px;align-items:center}
   .jprev{width:100px;height:143px} .jprev img{width:100px;height:143px}
