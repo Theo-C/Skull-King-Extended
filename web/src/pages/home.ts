@@ -2,10 +2,9 @@
 // terminées récemment, mini classement entre amis, derniers hauts faits. Maquettes Accueil et AccueilMobile :
 // sous 720 px, variantes « only-mb » / « only-dk » et réordonnancement en CSS (app.css, section Accueil).
 import { sb, callGame } from '../api';
-import { $, esc, modal, toast, relDay, signed, de } from '../util';
+import { $, esc, toast, relDay, signed, de } from '../util';
 import { optionsHTML, readOptions, wireOptions, paintRanked } from '../options';
-import { buildDeck, DEFAULT_OPTS, roundsOf } from '@engine';
-import { openJuanita } from '../juanita';
+import { roundsOf } from '@engine';
 import { go } from '../main';
 import { myProfile } from '../account';
 import { avatarHTML, fromProfile } from '../avatar';
@@ -39,7 +38,6 @@ export async function homePage(root: HTMLElement, uid: string) {
         <form id="fCode" class="codeform2" aria-label="Rejoindre avec un code"><label for="code" class="sr">Code d'invitation</label>
           <input id="code" maxlength="6" placeholder="CODE" autocapitalize="characters" autocomplete="off"><button class="abtn ghost" type="submit">Rejoindre</button></form>
         <a class="abtn ghost" href="#/entrainement"><span>Entraînement<span class="only-dk"> contre des bots</span></span></a>
-        <button type="button" class="abtn ghost" id="bTestJuanita" title="TEST — à retirer : ouvre la fenêtre Juanita avec un paquet d'exemple au choix de la manche">Test · Juanita</button>
       </div>
     </section>
     <div id="create" hidden></div>
@@ -60,8 +58,6 @@ export async function homePage(root: HTMLElement, uid: string) {
     </div>
   </section>`;
   $('#bCreate', root).onclick = () => openCreate(root);
-  // TEST — à retirer : aperçu de la fenêtre Juanita avec un paquet d'exemple selon la manche choisie.
-  $('#bTestJuanita', root).onclick = () => openJuanitaPreview();
   // sur téléphone, le champ du code est replié : « Rejoindre » l'ouvre d'abord
   $('#fCode', root).addEventListener('submit', ev => {
     ev.preventDefault(); const inp = $('#code', root) as HTMLInputElement, c = inp.value.trim().toUpperCase();
@@ -164,70 +160,6 @@ async function loadFeats(root: HTMLElement, uid: string) {
   if (error) { $('#feats', root).innerHTML = '<p class="empty">Hauts faits indisponibles.</p>'; return; }
   $('#feats', root).innerHTML = (data || []).map((a: any) => `<div class="feat"><span class="fbadge">${STAR}</span><span><b>${esc(a.achievements?.name ?? a.code)}</b><span>${esc(a.achievements?.description ?? '')} · ${esc(relDay(a.unlocked_at).toLowerCase())}</span></span></div>`).join('')
     || '<p class="empty">Terminez une partie en ligne pour débloquer « Premier abordage ».</p>';
-}
-
-/** TEST — à retirer : petite modale qui laisse choisir manche + joueurs, puis ouvre la fenêtre Juanita 1000 × 590
- *  (cases 32 × 44 par couleur, spéciales regroupées par famille avec compteur « PIRATES 5 » et vignettes 48 × 68
- *  avec nom court). Un échantillon aléatoire du deck complet moins les cartes distribuées au début de la manche :
- *  on retire d'abord toutes les cartes « ouvertes » (grand quinze, con, mary, pirates, sirènes, monstres…) pour que
- *  les tirages à partir de la manche 4-5 restent crédibles (sans ça, un bot « distribue » 40 pirates sur manche 10). */
-function openJuanitaPreview() {
-  const run = (round: number, players: number) => {
-    const full = buildDeck(DEFAULT_OPTS);
-    const dealt = Math.min(round * players, full.length);
-    const idx = new Set<number>();
-    while (idx.size < dealt) idx.add(Math.floor(Math.random() * full.length));
-    const deck = full.filter((_, i) => !idx.has(i));
-    openJuanita(deck, round);
-  };
-  // compteurs par famille, à montrer en direct pour que l'utilisateur sache à quoi s'attendre
-  const famOf = (c: any): string => {
-    if (c.kind === 'num' && !c.wild) return 'num';
-    if (c.kind === 'sk') return 'Skull King';
-    if (c.kind === 'pirate' || c.kind === 'con') return 'Pirates';
-    if (c.kind === 'tigress') return 'Morgane';
-    if (c.kind === 'mermaid') return 'Sirènes';
-    if (c.kind === 'kraken' || c.kind === 'whale' || c.kind === 'stingray' || c.kind === 'davy') return 'Monstres';
-    if (c.kind === 'escape' || c.kind === 'loot') return 'Fuites';
-    return 'Actions'; // volley, plank, wild (grand 15)
-  };
-  const html = `<h2>Aperçu de la fenêtre Juanita <small style="font-weight:400;color:var(--ink2);font-size:14px">(test · 1000 × 590)</small></h2>
-    <p class="sub">Choisissez la manche et le nombre de joueurs. Le paquet est tiré au hasard dans le deck complet.</p>
-    <div class="form" style="gap:12px">
-      <label class="inline">Manche <select id="pvRound">${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<option value="${n}"${n === 3 ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
-      <label class="inline">Joueurs <select id="pvPlayers">${[3, 4, 5, 6, 7, 8].map(n => `<option value="${n}"${n === 4 ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
-      <p class="muted small" id="pvInfo" style="line-height:1.4"></p>
-      <p class="muted small" id="pvFam" style="line-height:1.4;font-size:12.5px"></p>
-    </div>`;
-  modal(html, [{ label: 'Ouvrir la fenêtre', value: 'ok', cls: 'gold' }, { label: 'Fermer', value: null }]).then(v => {
-    if (v !== 'ok') return;
-    const mBody = document.querySelector('#modalBody') as HTMLElement | null;
-    const round = Number((mBody?.querySelector('#pvRound') as HTMLSelectElement)?.value || 3);
-    const players = Number((mBody?.querySelector('#pvPlayers') as HTMLSelectElement)?.value || 4);
-    run(round, players);
-  });
-  // info en direct : nombre total de cartes, et aperçu moyen par famille pour un paquet neuf
-  queueMicrotask(() => {
-    const mBody = document.querySelector('#modalBody') as HTMLElement | null; if (!mBody) return;
-    const r = mBody.querySelector('#pvRound') as HTMLSelectElement;
-    const p = mBody.querySelector('#pvPlayers') as HTMLSelectElement;
-    const info = mBody.querySelector('#pvInfo') as HTMLElement;
-    const fam = mBody.querySelector('#pvFam') as HTMLElement;
-    const full = buildDeck(DEFAULT_OPTS);
-    const total = full.length;
-    const paint = () => {
-      const dealt = Number(r.value) * Number(p.value);
-      const kept = total - dealt;
-      info.textContent = `${dealt} cartes distribuées au début de la manche, ${kept} dans la pioche à afficher.`;
-      // moyenne : (kept / total) × compte initial par famille, pour illustrer ce que l'utilisateur verra en moyenne
-      const ratio = kept / total;
-      const counts: Record<string, number> = { 'Skull King': 0, Pirates: 0, Morgane: 0, Sirènes: 0, Monstres: 0, Fuites: 0, Actions: 0 };
-      for (const c of full) { const f = famOf(c); if (f !== 'num') counts[f] = (counts[f] || 0) + 1; }
-      const famLine = Object.entries(counts).filter(([, n]) => n > 0).map(([k, n]) => `${k} ≈ ${Math.round(n * ratio)}/${n}`).join(' · ');
-      fam.textContent = `Spéciales en moyenne : ${famLine}`;
-    };
-    r.addEventListener('change', paint); p.addEventListener('change', paint); paint();
-  });
 }
 
 function openCreate(root: HTMLElement) {

@@ -59,7 +59,7 @@ const PCOL = ['#d9b25a', '#c8644b', '#5c9db6', '#7ab874', '#a982c4', '#e0954a', 
 // Pauses entre deux événements rejoués (ms, multipliées par la vitesse choisie) : assez longues pour suivre ce que font les bots.
 /** Durée de la révélation du pouvoir de Marie Thorne (× vitesse). */
 const LISE_MS = 2600;
-const DELAY: Record<string, number> = { play: 1250, trick: 2400, trickEnd: 700, bids: 2000, deal: 700, round: 600, end: 0, lise: LISE_MS };
+const DELAY: Record<string, number> = { play: 750, trick: 2400, trickEnd: 700, bids: 2000, deal: 700, round: 600, end: 0, lise: LISE_MS };
 const ICON = {
   last: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4a6 6 0 1 1-6 6M4 4v4h4"/></svg>',
   scores: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3h12v14H4zM7 7h6M7 10h6M7 13h4"/></svg>',
@@ -314,7 +314,7 @@ export class TableView {
         if (ev.k === 'round') { this.roundGate = this.roundEnd(ev.snap); await this.roundGate; }
         let ms = (DELAY[ev.k] ?? 300) * this.speed * (this.queue.length > 40 ? .2 : 1);
         // dernier événement et c'est à nous : on laisse juste la carte arriver, inutile de faire attendre le joueur
-        if (!this.queue.length && ev.k === 'play' && this.mySeat != null && ev.snap.current === this.mySeat) ms = Math.min(ms, 550);
+        if (!this.queue.length && ev.k === 'play' && this.mySeat != null && ev.snap.current === this.mySeat) ms = Math.min(ms, 350);
         await sleep(ms);
         if (ev.k === 'bids' || ev.k === 'trick') this.banner = null;
       }
@@ -887,19 +887,20 @@ export class TableView {
     el.addEventListener('animationend', ev => { if (ev.target === el) end(); }, { once: true });
     setTimeout(end, ms * this.animMs + 120);
   }
-  /** Carte qui arrive sur le pli : depuis la main en se redressant (550 ms) ou depuis la plaque de l'adversaire (450 ms). */
+  /** Carte qui arrive sur le pli : depuis la main en se redressant (400 ms) ou depuis la plaque de l'adversaire (350 ms).
+   *  Durées raccourcies par rapport à 550/450 pour que la carte apparaisse plus vite après le clic (plus de dynamisme). */
   private flyIn(c: HTMLElement, seat: number, id: number) {
     sfx.card(); if (!this.animMs) return;
     const to = c.getBoundingClientRect(); let from: DOMRect | null = null, mine = false;
     if (this.flyFrom && this.flyFrom.id === id) { from = this.flyFrom.rect; mine = true; this.flyFrom = null; }
     else { const pl = this.anchor(seat); if (pl) from = pl.getBoundingClientRect(); }
     const r0 = c.style.rotate || '0deg';
-    if (!from) { this.animate(c, 'fly', { '--fx': '0px', '--fy': '-20px', '--fs': '.8', '--fr': r0, '--r0': r0, '--fo': '0' }, 450); return; }
+    if (!from) { this.animate(c, 'fly', { '--fx': '0px', '--fy': '-20px', '--fs': '.8', '--fr': r0, '--r0': r0, '--fo': '0' }, 350); return; }
     const [fx, fy] = center(from), [tx, ty] = center(to);
     this.animate(c, mine ? 'fly flyme' : 'fly', {
       '--fx': (fx - tx) / this.k + 'px', '--fy': (fy - ty) / this.k + 'px', '--fs': mine ? (from.width / Math.max(1, to.width)).toFixed(3) : '.45',
       '--fr': mine ? '-16deg' : r0, '--r0': r0, '--fo': '0',
-    }, mine ? 550 : 450);
+    }, mine ? 400 : 350);
   }
   /** Fin du pli : les cartes filent vers la plaque du gagnant en rétrécissant (600 ms), ou coulent vers le centre (Kraken, pli défaussé). */
   private flyOut(w: HTMLElement, seat: number | null, i: number) {

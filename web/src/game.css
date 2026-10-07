@@ -793,8 +793,8 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 
 /* Animations de la table (durées × --spd, le réglage de vitesse) */
 /* Carte jouée : depuis la plaque (450 ms) ou depuis votre main en se redressant (550 ms) */
-.tslot .card.fly{animation:flyin calc(450ms * var(--spd,1)) cubic-bezier(.2,.8,.25,1) both}
-.tslot .card.fly.flyme{animation-duration:calc(550ms * var(--spd,1))}
+.tslot .card.fly{animation:flyin calc(350ms * var(--spd,1)) cubic-bezier(.2,.8,.25,1) both}
+.tslot .card.fly.flyme{animation-duration:calc(400ms * var(--spd,1))}
 @keyframes flyin{0%{translate:var(--fx) var(--fy);scale:var(--fs);rotate:var(--fr);opacity:var(--fo,1)}65%{opacity:1}100%{translate:0 0;scale:1;rotate:var(--r0);opacity:1}}
 /* Pli résolu : halo doré pulsé sur la carte gagnante */
 .tslot .card.win{animation:winGlow calc(1s * var(--spd,1)) ease-in-out infinite;box-shadow:0 0 0 3px #ead08a,0 0 16px rgba(234,208,138,.5);z-index:3}
@@ -819,7 +819,7 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .banner{min-width:300px;text-align:center}
 .banner small{display:block;font:500 13px var(--f-body);color:var(--ink2);margin-top:2px}
 /* Main : distribution depuis le centre, carte piochée, resserrement (transition sur translate) */
-#hand .card{transition:transform .18s cubic-bezier(.25,.8,.3,1),translate calc(.3s * var(--spd,1)) cubic-bezier(.25,.8,.3,1),filter .2s,box-shadow .2s,opacity calc(.35s * var(--spd,1)) ease-out}
+#hand .card{transition:transform .18s cubic-bezier(.25,.8,.3,1),translate calc(.3s * var(--spd,1)) cubic-bezier(.25,.8,.3,1),filter .2s,box-shadow .2s,opacity calc(.18s * var(--spd,1)) ease-out}
 #hand .card.noanim{transition:none}
 #hand .card.deal{animation:deal calc(420ms * var(--spd,1)) cubic-bezier(.2,.75,.3,1) both}
 @keyframes deal{from{translate:var(--dx) var(--dy);scale:.35;rotate:-160deg;opacity:0}to{translate:0 0;scale:1;rotate:0deg;opacity:1}}
