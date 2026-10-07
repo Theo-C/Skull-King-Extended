@@ -167,10 +167,16 @@ async function loadFeats(root: HTMLElement, uid: string) {
     || '<p class="empty">Terminez une partie en ligne pour débloquer « Premier abordage ».</p>';
 }
 
-/** TEST — à retirer : rejoue le rendu de la pioche affichée par le pouvoir de Juanita Jade sur un paquet d'exemple
- *  (toutes les options par défaut, échantillon de 28 cartes triées), pour tester la lisibilité sans démarrer de partie. */
+/** TEST — à retirer : rejoue le rendu de la pioche affichée par le pouvoir de Juanita Jade sur un paquet réaliste.
+ *  On simule une manche 3 à 4 joueurs : 12 cartes distribuées, le reste du paquet (≈ 80 cartes avec extension complète)
+ *  est affiché comme Juanita le verrait vraiment en jeu. Permet de tester lisibilité + survol sans démarrer de partie. */
 function previewJuanitaDeck() {
-  const deck = buildDeck(DEFAULT_OPTS).slice().sort((a, b) => sortKey(a) - sortKey(b)).slice(0, 28);
+  const ROUND = 3, PLAYERS = 4, DEALT = ROUND * PLAYERS;
+  const sorted = buildDeck(DEFAULT_OPTS).slice().sort((a, b) => sortKey(a) - sortKey(b));
+  // on retire DEALT cartes au hasard de la pioche triée pour obtenir la pioche restante, puis on la retrie
+  const dealtIdx = new Set<number>();
+  while (dealtIdx.size < DEALT) dealtIdx.add(Math.floor(Math.random() * sorted.length));
+  const deck = sorted.filter((_, i) => !dealtIdx.has(i));
   const label = (c: any) => {
     if (c.kind === 'num' && !c.wild) {
       const n = c.zf ? '0/14' : String(c.rank);
@@ -179,7 +185,7 @@ function previewJuanitaDeck() {
     return `<figcaption class="dklbl">${esc(cname(c))}</figcaption>`;
   };
   const cards = deck.map(c => `<figure class="dkc">${cardHTML(c)}${label(c)}</figure>`).join('');
-  modal(`<h2>Cartes non distribuées <small style="font-weight:400;color:var(--ink2);font-size:14px">(aperçu test)</small></h2><p class="sub">${deck.length} carte${deck.length > 1 ? 's' : ''} d'exemple pour vérifier la lisibilité.</p><div class="deckview">${cards}</div>`, [{ label: 'Fermer', value: 1 }]);
+  modal(`<h2>Cartes non distribuées <small style="font-weight:400;color:var(--ink2);font-size:14px">(aperçu test — manche ${ROUND}, ${PLAYERS} joueurs)</small></h2><p class="sub">${deck.length} cartes hors du jeu cette manche. Survolez une carte pour l'agrandir.</p><div class="deckview">${cards}</div>`, [{ label: 'Fermer', value: 1 }]);
 }
 
 function openCreate(root: HTMLElement) {
