@@ -1,7 +1,8 @@
 // Vue de la table, partagée par le mode en ligne et l'entraînement hors ligne.
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
 import { cname, leadSuitOf, plannedRounds, resolve, roundKind, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
-import { cardHTML, cardKey, backFace, deckviewHTML, preloadArt } from './cards';
+import { cardHTML, cardKey, backFace, preloadArt } from './cards';
+import { openJuanita } from './juanita';
 import { GifCtl, gifsHidden, setGifsHidden, reactPanelHTML, type GifItem, type GifMsg } from './gif';
 import { impactSound } from './locker';
 import { ANIM, ANIM_MODES, HALO_MS, attachAnim, detachAnim, getAnimMode, onAnimMode, setAnimMode, type AnimMode } from './animatedCards';
@@ -1227,10 +1228,20 @@ export class TableView {
     const cards = lt.entries.map((e: any, i: number) => `<figure class="${lt.res?.winner === i ? 'w' : ''}">${cardHTML(e.card, e, lt.res?.winner === i ? 'win' : (lt.res?.removed?.includes(i) || lt.res?.discarded ? 'gone' : ''))}<figcaption>${esc(pb.players[e.p]?.name ?? '?')}</figcaption></figure>`).join('');
     modal(`<h2>Pli ${lt.trickNo}</h2><p class="sub">${esc(lt.res?.msg ?? '')}</p><div class="lasttrick">${cards}</div>`);
   }
+  /** Pouvoir de Juanita Jade (A13) : fenêtre compacte des cartes non distribuées, ouverte une seule fois.
+   *  Le pending serveur est consommé dès l'ouverture (choose:1), pour que la fenêtre ne se rouvre pas après fermeture :
+   *  si le joueur ferme et la rouvre plus tard, le pending n'existe plus côté serveur, donc l'action « Voir la pioche »
+   *  n'est plus proposée. Le shownJuanita local empêche aussi une double ouverture dans la même manche en cas de
+   *  re-render pendant que l'ouverture est en vol. */
+  private shownJuanita = new Set<number>();
   private async showDeck() {
-    const deck = this.priv?.pendingData?.deck || [];
-    await modal(`<h2>Cartes non distribuées</h2><p class="sub">${deck.length} carte${deck.length > 1 ? 's' : ''} hors du jeu cette manche. Survolez une carte pour l'agrandir.</p>${deckviewHTML(deck)}`, [{ label: 'Compris', value: 1 }]);
+    const round = this.pub?.round ?? 0;
+    if (this.shownJuanita.has(round)) return;
+    this.shownJuanita.add(round);
+    const deck = (this.priv?.pendingData?.deck as Card[] | undefined) || [];
+    // on consomme le pending dès l'ouverture : la partie continue en arrière-plan, la fenêtre reste pure info
     this.send({ t: 'choose', v: 1 });
+    await openJuanita(deck, round);
   }
 
   /* ---------- Récapitulatifs ---------- */

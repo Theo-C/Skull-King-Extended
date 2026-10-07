@@ -34,7 +34,10 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
 - [ ] A6. Zoom au survol long (450 ms) : la carte s'affiche sur 300 px de large, avec à côté une fiche parchemin qui donne le nom et la règle.
 - [ ] A8. Pli en ligne : les cartes du pli s'alignent au centre de gauche à droite, dans l'ordre de pose, avec le rang et le nom de chaque joueur, des places vides pour ceux qui doivent encore jouer et la carte qui mène entourée d'or. Détails dans `docs/table-v2/PLI-EN-LIGNE.md`, maquette `PliOrdre`.
 - [ ] A9. Ambiance pirate de la table (maquette `TableAmbiance`, détails dans `docs/table-v2/AMBIANCE.md`) : cabine en planches, table en bois cloutée de laiton, tapis en carte marine très discrète, lanterne et hublot dans les coins vides, rang du pli en sceau de cire, couleur demandée sur parchemin, manches en nœuds de corde. Option « Ambiance sobre » dans les réglages.
-- [ ] A10. GIF en partie : recherche de GIF (KLIPY, via l'Edge Function) et envoi à la table. Le GIF surgit au centre du tapis et monte en se balançant, semi-transparent, comme une émote Twitch (3,2 s). Débit de 1 GIF toutes les 10 s, option pour masquer. Voir `docs/gif/` et la maquette `GifPartie`.
+- [ ] A10. GIF en partie : recherche de GIF (KLIPY, via l'Edge Function) intégrée au panneau Réactions (un seul champ, bouton GIF dedans, suggestions en tapant, `/gif`), et envoi à la table. Le GIF surgit au centre du tapis et monte en se balançant, semi-transparent, comme une émote Twitch (3,2 s). Débit de 1 GIF toutes les 10 s, option pour masquer. Voir `docs/gif/` et la maquette `GifPartie`.
+- [ ] A11. **À qui de jouer** : plaque du joueur actif qui passe au doré pour toute la table (avec mini-mèche), votre main mise en avant (rail doré, cartes levées, non jouables grisées), cloche au début de votre tour, mèche sur la corde du rail qui brûle jusqu'à un baril (si une limite de temps est réglée, règle à trancher : `turn_limit` null par défaut), titre d'onglet qui clignote. Voir `docs/tour-de-jeu/` et la maquette `TourDeJeu`.
+- [ ] A12. **Son « carte posée »** : 3 variantes jouées au moment où la carte touche le tapis (volume plus bas pour les cartes des autres) et sons propres aux 6 cartes animées Mythiques (`mythique-<clé>`, maquette `SonsMythiques`), via un gestionnaire Web Audio commun `web/src/sfx.ts` qui regroupe aussi les autres sons. Voir `docs/sons/PROMPT-son-carte.md`.
+- [x] A13. **Pouvoir de Juanita Jade** : les cartes non distribuées sur un seul écran, sans défilement (petites cases triées par couleur, spéciales en pastilles, aperçu en grand au survol), **sans aucune déduction faite pour le joueur** (pas de « chez les autres », pas de cases vides), et une seule consultation. Voir `docs/juanita/` et la maquette `Juanita`.
 - [ ] A7. Aperçu d'un joueur au survol (maquette `ApercuJoueur`) :
   - contenu : identité, niveau, titre, Élo et tendance, présence en ligne ; barre manche par manche de la partie en cours ; 3 stats (victoires, mises tenues, parties) ; objets rares portés ; lien vers le profil ;
   - comportement : ouverture après 250 ms de survol ou au toucher, une version courte pour les bots ;
@@ -89,7 +92,7 @@ Ce dossier rassemble tout ce qui a été conçu pour le site. Une partie est peu
 
 ## Ordre conseillé
 
-Commence par l'étape 0. Ensuite : A3 et A2 (corrections rapides), B (cartes), A1 / A4 à A6 / A8 / A9 / A10, C, D, puis A7 en dernier, car il dépend de l'Élo et des objets.
+Commence par l'étape 0. Ensuite : A3 et A2 (corrections rapides), B (cartes), A1 / A4 à A6 / A8 / A9 / A10 / A11 / A12 / A13, C, D, puis A7 en dernier, car il dépend de l'Élo et des objets.
 
 ## Contrôle final
 

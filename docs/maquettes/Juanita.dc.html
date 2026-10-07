@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Pouvoir de Juanita</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800;900&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible{outline:2px solid #8a5e0e;outline-offset:2px}
+.gold{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 20px;border-radius:9px;border:1px solid #8a6420;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 3px 8px rgba(80,50,10,.35)}
+.lbl{font-size:11.5px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;color:#6b5434}
+.cell{position:relative;flex:none;width:26px;height:36px;padding:0;border-radius:5px;border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Pirata One',cursive;font-size:17px;line-height:1;color:#f6ecd4;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.18),0 1px 3px rgba(60,40,10,.3);transition:transform .12s}
+.cell:hover,.cell.sel{transform:translateY(-2px);box-shadow:0 0 0 2px #8a5e0e,0 4px 10px rgba(60,40,10,.35)}
+.cell.gap{visibility:hidden;pointer-events:none}
+.cell .sm{position:absolute;top:2px;left:0;right:0;text-align:center;font-family:'Alegreya Sans',sans-serif;font-size:8px;font-weight:900;opacity:.85}
+.sp{position:relative;flex:none;width:31px;height:44px;padding:0;border:0;border-radius:4px;cursor:pointer;background:none;transition:transform .12s}
+.sp img{width:31px;height:44px;border-radius:4px;object-fit:cover;display:block;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.sp:hover,.sp.sel{transform:translateY(-2px)}
+.sp.sel img,.sp:hover img{box-shadow:0 0 0 2px #8a5e0e,0 4px 10px rgba(60,40,10,.35)}
+.sp .x{position:absolute;right:-5px;bottom:-5px;min-width:16px;height:16px;padding:0 3px;box-sizing:border-box;border-radius:8px;background:#2b2117;color:#f2e7cd;font-size:10px;font-weight:900;line-height:16px;text-align:center}
+@keyframes inmodal{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+.modal{animation:inmodal .22s ease-out both}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; background: #120c08; font-family: 'Alegreya Sans', sans-serif;">
+<div style="position: absolute; left: 0; top: 0; filter: blur(2px);"><dc-import name="TableAmbiance" hint-size="1440px,900px"></dc-import></div>
+<div style="position: absolute; inset: 0; background: rgba(10,6,3,.55);"></div>
+
+<div class="modal" role="dialog" aria-label="Cartes non distribuées" style="position: absolute; left: 315px; top: 245px; width: 810px; box-sizing: border-box; padding: 18px 20px 16px; border-radius: 12px; background: linear-gradient(180deg, #f6ecd6, #efe2c3); border: 1px solid #c9a96a; box-shadow: 0 24px 60px rgba(0,0,0,.65), inset 0 0 0 5px rgba(201,169,106,.16); color: #2b2117;">
+<!-- en-tête -->
+<div style="display: flex; align-items: center; gap: 12px;">
+<img src="/_blob/855036a87e867341013a1eecf6a73c57" alt="Juanita Jade" style="width: 34px; height: 48px; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,.35);">
+<div style="flex: 1; min-width: 0;">
+<div style="font-family: 'IM Fell English SC', serif; font-size: 23px; line-height: 1;">Cartes non distribuées</div>
+<div style="margin-top: 4px; font-size: 13px; color: #5d4c37;">Juanita Jade · manche 3 · <b>visible par vous seul</b></div>
+</div>
+<sc-for list="{{totals}}" as="t" hint-placeholder-count="1"><span style="padding: 5px 12px; border-radius: 999px; background: #2b2117; color: #f2e7cd; font-size: 13px; font-weight: 800;"><span style="font-family: 'Pirata One', cursive; font-size: 18px; color: #ead08a;">{{t.n}}</span> {{t.l}}</span></sc-for>
+</div>
+
+<div style="display: flex; gap: 18px; margin-top: 14px;">
+<!-- gauche : les cartes hors jeu, en petites cases -->
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px;">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 3px;">
+<span title="{{r.name}}" style="flex: none; width: 76px; display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800;"><span style="flex: none; width: 10px; height: 10px; border-radius: 3px; background: {{r.c}};"></span>{{r.short}}</span>
+<sc-for list="{{r.cells}}" as="c" hint-placeholder-count="14"><button class="{{c.cls}}" style="background: {{c.bg}};" aria-label="{{c.aria}}" onMouseEnter="{{c.show}}" onFocus="{{c.show}}" onClick="{{c.show}}">{{c.txt}}</button></sc-for>
+<span style="flex: none; width: 1px; height: 28px; background: rgba(107,84,52,.3); margin: 0 4px;"></span>
+<sc-for list="{{r.ext}}" as="c" hint-placeholder-count="3"><button class="{{c.cls}}" style="background: {{c.bg}};" aria-label="{{c.aria}}" onMouseEnter="{{c.show}}" onFocus="{{c.show}}" onClick="{{c.show}}"><sc-if value="{{c.hasSm}}" hint-placeholder-val="{{true}}"><span class="sm">{{c.sm}}</span></sc-if>{{c.txt}}</button></sc-for>
+</div>
+</sc-for>
+<div style="display: flex; align-items: center; gap: 3px; margin-top: 5px;">
+<span style="flex: none; width: 76px; font-size: 12.5px; font-weight: 800;">Spéciales</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px;">
+<sc-for list="{{specials}}" as="s" hint-placeholder-count="16"><button class="{{s.cls}}" style="margin-left: {{s.ml}}px;" aria-label="{{s.aria}}" onMouseEnter="{{s.show}}" onFocus="{{s.show}}" onClick="{{s.show}}"><img src="{{s.img}}" alt=""><sc-if value="{{s.multi}}" hint-placeholder-val="{{false}}"><span class="x">{{s.count}}</span></sc-if></button></sc-for>
+</div>
+</div>
+</div>
+<!-- droite : la carte survolée en grand -->
+<div style="flex: none; width: 150px; display: flex; flex-direction: column; align-items: center; gap: 6px;">
+<div style="position: relative; width: 150px; height: 214px;">
+<img src="{{pv.img}}" alt="" style="width: 150px; height: 214px; border-radius: 8px; box-shadow: 0 8px 18px rgba(60,40,10,.45);">
+<sc-if value="{{pv.isNum}}" hint-placeholder-val="{{false}}"><span style="position: absolute; right: 8px; top: 7px; width: 39px; height: 39px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Pirata One', cursive; font-size: 24px; color: {{pv.numInk}};">{{pv.txt}}</span></sc-if>
+</div>
+<b style="font-size: 13.5px; text-align: center; line-height: 1.2;">{{pv.name}}</b>
+</div>
+</div>
+
+<!-- pied -->
+<div style="display: flex; align-items: center; gap: 14px; margin-top: 14px; font-size: 12px; color: #5d4c37;">
+<span>Survolez une carte pour l'agrandir. Une fois fermée, cette fenêtre ne se rouvre pas.</span>
+<button class="gold" style="margin-left: auto;">Fermer</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  state = { sel: 'black-14' };
+  renderVals() {
+    var sel = this.state.sel;
+    var B = id => '/_blob/' + id;
+    var SUITS = [
+      { k: 'black', name: 'Pavillon noir', note: 'atout', short: 'Noir', c: '#1f1d22', img: B('0d7918c6be1914af3bff19a3e82c8c56'), numInk: '#e3c47a' },
+      { k: 'yellow', name: 'Doublon', short: 'Doublon', c: '#a8791c', img: B('787435821656f6935316f0083ad64fa0'), numInk: '#5a3a08' },
+      { k: 'purple', name: 'Carte marine', short: 'Marine', c: '#5b3a7a', img: B('dabc207bc1e954b5d668d7e0a31b208b'), numInk: '#3a2050' },
+      { k: 'green', name: 'Perroquet', short: 'Perroquet', c: '#2f6b3a', img: B('e83ef9e91462dc592799a545d02214fd'), numInk: '#1e4a26' }
+    ];
+    // cartes en jeu cette manche : chez les autres, et dans votre main
+    var OPP = ['black-12', 'black-9', 'yellow-14', 'green-10', 'purple-x8', 'sk', 'mermaid0', 'escape', 'rosie'];
+    var MINE = ['green-9', 'yellow-7', 'juanita'];
+    var status = id => OPP.indexOf(id) >= 0 ? 'opp' : MINE.indexOf(id) >= 0 ? 'mine' : 'out';
+    var show = id => () => { if (this.state.sel !== id) this.setState({ sel: id }); };
+    var INFO = {};
+    var EXT = [['x7', '7', '−5'], ['x8', '8', '+5'], ['x14', '0/14', '']];
+    var rows = SUITS.map(s => {
+      var mk = (id, txt, sm, label) => { var st = status(id); INFO[id] = { img: s.img, isNum: true, txt: txt, name: label + ' ' + s.name, numInk: s.numInk };
+        return { cls: st === 'out' ? 'cell out' + (sel === id ? ' sel' : '') : 'cell gap', keep: st === 'out', bg: st === 'out' ? s.c : 'transparent', txt: txt, sm: sm, hasSm: !!sm,
+          hasTag: false, tag: '', aria: st === 'out' ? label + ' ' + s.name : '', show: st === 'out' ? show(id) : () => {} }; };
+      var cells = []; for (var r = 1; r <= 14; r++) cells.push(mk(s.k + '-' + r, String(r), '', String(r)));
+      var ext = EXT.map(e => mk(s.k + '-' + e[0], e[1], e[2], e[1] + (e[2] ? ' (' + e[2] + ')' : '')));
+            return { name: s.name + (s.note ? ' (' + s.note + ')' : ''), short: s.short, c: s.c, cells: cells, ext: ext };
+    });
+    // [id, nom, image, exemplaires]
+    var SP = [['escape', 'Drapeau blanc', '7a4309826dc85c8d327561660b8ad33f', 5], ['sk', 'Skull King', '12fbc7dfb62ffec607263b44ec5e1337', 1], ['tigress', 'Morgane la Louve', 'f18abe01c1d0ee28d47f22163a3e1566', 1],
+              ['mermaid0', 'Alyra', 'b7b4c4319a1fa48867b4959b634173fc', 1], ['mermaid1', 'Circé', 'f3cebbb410c860c0fabbd0f8bc07d7a8', 1],
+              ['rosie', 'Rosie la douce', '38c8f5b2b679f1964614623a49a4b478', 1], ['bahij', 'Bendt le Ripate', 'd240d425f40f84ebfe03207b8b6d355e', 1], ['rascal', 'Rascal le Flambeur', '3dc2d9f54acbe605081eb15b416edfcb', 1],
+              ['juanita', 'Juanita Jade', '855036a87e867341013a1eecf6a73c57', 1], ['harry', 'Harry le géant', '69b18c189c948c59274d244450ac200b', 1], ['mary', 'Marie Thorne', '1667411e1cb5bd5721c1d6bfb01828dc', 1],
+              ['con', 'Con le belliqueux', '4b513eb11cad1fac540b3627fe078570', 1], ['kraken', 'Kraken', '5bcf9301468570616db9f9aa73a58344', 1], ['whale', 'Baleine', '65ad92e8868900a20a6bfab97fa1cdd1', 1],
+              ['loot', 'Butin', 'fd3e9eb4e19f1c8ce1b03364374d5465', 2], ['volley', 'Dernière Bordée', '9e43672fc07efe56b8649c58c4bfcb1c', 1], ['stingray', 'Raie', '894caa93ba0a2e2e6d26e5d001386b83', 1],
+              ['davy', 'Fosse des Noyés', 'e66d070142d2cdb355429858831242eb', 1], ['plank', 'Planche', '558acacb7f27b5a77da58b653e4828c7', 1], ['wild', 'Grand Quinze', 'dd068a3c8552459b6d53f3f2f55cc5c7', 1]];
+    // ordre logique : Skull King, pirates, Morgane, sirènes, monstres des abysses, fuites, puis les cartes d'action
+    var ORDER = [['sk'], ['rosie', 'bahij', 'rascal', 'juanita', 'harry', 'mary', 'con'], ['tigress'], ['mermaid0', 'mermaid1'], ['kraken', 'whale', 'stingray', 'davy'], ['escape', 'loot'], ['volley', 'plank', 'wild']];
+    var rank = {}, grp = {}; ORDER.forEach((g, gi) => g.forEach((id, i) => { rank[id] = gi * 10 + i; grp[id] = gi; }));
+    SP.sort((a, b) => rank[a[0]] - rank[b[0]]);
+    var lastG = -1;
+    var specials = SP.filter(p => p[3] - (status(p[0]) === 'out' ? 0 : 1) > 0).map(p => { var st = status(p[0]), inPlay = st === 'out' ? 0 : 1, out = p[3] - inPlay;
+      INFO[p[0]] = { img: B(p[2]), isNum: false, txt: '', name: p[1] };
+      return { name: p[1], img: B(p[2]), count: '×' + out, multi: out > 1, ml: 0,
+        cls: 'sp' + (sel === p[0] ? ' sel' : ''), hasBadge: false, badge: st === 'opp' ? (p[3] > 1 ? '1 chez adv.' : 'adv.') : 'vous', badgeCls: 'badge ' + st,
+        aria: p[1] + (out > 1 ? ', ' + out + ' exemplaires' : ''), show: show(p[0]) }; });
+    var pv = (status(sel) === 'out' && INFO[sel]) || INFO['black-14'];
+    var total = 4 * 17 + SP.reduce((a, p) => a + p[3], 0), nOpp = OPP.length, nMine = MINE.length;
+    return {
+      rows: rows, specials: specials,
+      totals: [{ n: total - nOpp - nMine, l: 'hors jeu', bg: '#2b2117', ink: '#f2e7cd', ink2: '#d9cdb6', bd: '#2b2117' }],
+      pv: { img: pv.img, isNum: pv.isNum, txt: pv.txt, name: pv.name, numInk: pv.numInk || '#2b2117' }
+    };
+  }
+}
+</script>
+</body>
+</html>

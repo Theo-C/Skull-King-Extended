@@ -209,6 +209,43 @@ for (let g = 0; g < 60; g++) {
   }
 }
 
+// Juanita Jade : la pioche n'est envoyée qu'au seul joueur du pouvoir
+{
+  let S: E.State | null = null;
+  for (let g = 0; g < 400 && !S; g++) {
+    const T = E.newGame(['A', 'B', 'C', 'D'].map(name => ({ name, bot: false })), { powers: true, exp: true }, 7000 + g);
+    let seed = g + 7; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let k = 0; k < 3000 && T.phase !== 'end'; k++) {
+      if (T.pending[0]?.t === 'juanita') { S = T; break; }
+      const w = E.waitingFor(T); const a = randomAction(T, w[0], r);
+      try { E.apply(T, w[0], a); E.takeEvents(T); } catch { break; }
+    }
+  }
+  ok('situation Juanita Jade trouvée', !!S);
+  if (S) {
+    const pd = S.pending[0], by = pd.seat;
+    const pv = E.privateView(S, by);
+    ok('Juanita : la pioche est bien envoyée au joueur concerné', Array.isArray(pv.pendingData?.deck) && (pv.pendingData!.deck as any[]).length > 0, pv.pendingData);
+    const deck = pv.pendingData!.deck as E.Card[];
+    // la pioche ne doit contenir aucune carte qui soit dans une main ni déjà posée dans le pli courant
+    const inPlay = new Set<number>();
+    for (const p of S.players) for (const c of p.hand) inPlay.add(c.id);
+    for (const e of (S.trick?.entries || [])) inPlay.add(e.card.id);
+    const overlap = deck.filter(c => inPlay.has(c.id));
+    ok('Juanita : la pioche ne contient que des cartes non distribuées', overlap.length === 0, { overlap });
+    // les autres joueurs ne reçoivent pas la liste (pendingData null)
+    const otherSeats = S.players.map((_, i) => i).filter(i => i !== by);
+    const leaks = otherSeats.map(i => E.privateView(S, i).pendingData).filter(x => x && (x as any).deck);
+    ok('Juanita : les autres joueurs ne reçoivent pas la pioche', leaks.length === 0, leaks);
+    // la vue publique ne divulgue pas la pioche
+    const pub = E.publicView(S);
+    ok('Juanita : la vue publique ne contient pas la pioche', !JSON.stringify(pub).toLowerCase().includes('"deck"'));
+    // la pioche a bien la taille attendue : full − distribuées en début de manche (hors cartes consommées par Bendt le Ripate)
+    const full = E.buildDeck(S.opts).length;
+    ok('Juanita : la taille de la pioche est cohérente (full − dealt − Bendt)', deck.length <= full - S.cards * S.players.length && deck.length > 0, { deck: deck.length, full, roundCards: S.cards });
+  }
+}
+
 // Journal : une ligne « bonus » / « malus » par bonus gagné
 {
   let found = { bonus: 0, malus: 0, wrong: 0 };

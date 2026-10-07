@@ -2,10 +2,9 @@
 // terminées récemment, mini classement entre amis, derniers hauts faits. Maquettes Accueil et AccueilMobile :
 // sous 720 px, variantes « only-mb » / « only-dk » et réordonnancement en CSS (app.css, section Accueil).
 import { sb, callGame } from '../api';
-import { $, esc, toast, relDay, signed, de, modal } from '../util';
+import { $, esc, toast, relDay, signed, de } from '../util';
 import { optionsHTML, readOptions, wireOptions, paintRanked } from '../options';
-import { buildDeck, DEFAULT_OPTS, roundsOf } from '@engine';
-import { deckviewHTML } from '../cards';
+import { roundsOf } from '@engine';
 import { go } from '../main';
 import { myProfile } from '../account';
 import { avatarHTML, fromProfile } from '../avatar';
@@ -39,7 +38,6 @@ export async function homePage(root: HTMLElement, uid: string) {
         <form id="fCode" class="codeform2" aria-label="Rejoindre avec un code"><label for="code" class="sr">Code d'invitation</label>
           <input id="code" maxlength="6" placeholder="CODE" autocapitalize="characters" autocomplete="off"><button class="abtn ghost" type="submit">Rejoindre</button></form>
         <a class="abtn ghost" href="#/entrainement"><span>Entraînement<span class="only-dk"> contre des bots</span></span></a>
-        <button type="button" class="abtn ghost" id="bTestJuanita" title="TEST — à retirer : ouvre la fenêtre « cartes non distribuées » de Juanita Jade avec un paquet d'exemple">Test · Juanita</button>
       </div>
     </section>
     <div id="create" hidden></div>
@@ -60,9 +58,6 @@ export async function homePage(root: HTMLElement, uid: string) {
     </div>
   </section>`;
   $('#bCreate', root).onclick = () => openCreate(root);
-  // TEST — à retirer : ouvre la fenêtre « cartes non distribuées » de Juanita Jade avec un paquet d'exemple
-  // pour vérifier d'un coup d'œil la lisibilité des chiffres et des libellés sans lancer une partie.
-  $('#bTestJuanita', root).onclick = () => previewJuanitaDeck();
   // sur téléphone, le champ du code est replié : « Rejoindre » l'ouvre d'abord
   $('#fCode', root).addEventListener('submit', ev => {
     ev.preventDefault(); const inp = $('#code', root) as HTMLInputElement, c = inp.value.trim().toUpperCase();
@@ -165,18 +160,6 @@ async function loadFeats(root: HTMLElement, uid: string) {
   if (error) { $('#feats', root).innerHTML = '<p class="empty">Hauts faits indisponibles.</p>'; return; }
   $('#feats', root).innerHTML = (data || []).map((a: any) => `<div class="feat"><span class="fbadge">${STAR}</span><span><b>${esc(a.achievements?.name ?? a.code)}</b><span>${esc(a.achievements?.description ?? '')} · ${esc(relDay(a.unlocked_at).toLowerCase())}</span></span></div>`).join('')
     || '<p class="empty">Terminez une partie en ligne pour débloquer « Premier abordage ».</p>';
-}
-
-/** TEST — à retirer : rejoue le rendu de la pioche affichée par le pouvoir de Juanita Jade sur un paquet réaliste.
- *  On simule une manche 3 à 4 joueurs : 12 cartes distribuées, le reste (≈ 80 cartes avec extension complète) passe
- *  par le même deckviewHTML() que le vrai pouvoir, groupé par couleur et empilé — pour tester sans démarrer de partie. */
-function previewJuanitaDeck() {
-  const ROUND = 3, PLAYERS = 4, DEALT = ROUND * PLAYERS;
-  const full = buildDeck(DEFAULT_OPTS);
-  const dealtIdx = new Set<number>();
-  while (dealtIdx.size < DEALT) dealtIdx.add(Math.floor(Math.random() * full.length));
-  const deck = full.filter((_, i) => !dealtIdx.has(i));
-  modal(`<h2>Cartes non distribuées <small style="font-weight:400;color:var(--ink2);font-size:14px">(aperçu test — manche ${ROUND}, ${PLAYERS} joueurs)</small></h2><p class="sub">${deck.length} cartes hors du jeu cette manche. Survolez une carte pour l'agrandir.</p>${deckviewHTML(deck)}`, [{ label: 'Fermer', value: 1 }]);
 }
 
 function openCreate(root: HTMLElement) {

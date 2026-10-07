@@ -2,7 +2,7 @@
 // pour toutes les cartes ; seul le dos garde la face « Mers Sauvages », qui sert aussi de repli si une image ne se charge pas.
 // Le médaillon du coin haut-droit des cartes numérotées est vide dans l'image : c'est le code qui écrit le chiffre.
 import { ALT2, ALT2B, NUM2 } from './cardsdata';
-import { cname, DESC, PIRATES, sortKey, type Card, type Entry } from '@engine';
+import { cname, DESC, PIRATES, type Card, type Entry } from '@engine';
 import { esc } from './util';
 
 const wrapF = (b: number, h: string) => `<div class="fb${b}">${h}</div>`;
@@ -101,27 +101,6 @@ export function cardHTML(c: Partial<Card>, e?: Partial<Entry> | null, extra = ''
   return `<div class="${cl} ${extra}" data-id="${c.id}" role="img" aria-label="${esc(cname(c as Card, e ?? undefined))}"${dataAttrs} ${attrs}><div class="face">${faceHTML(c)}</div>${tag ? `<span class="tag">${tag}</span>` : ''}</div>`;
 }
 export const backFace = () => `<div class="face">${faceOf('back')}</div>`;
-
-/** Rendu de la pioche affichée par Juanita Jade : les cartes sont groupées par couleur (atout d'abord, puis Jaune / Violet /
- *  Vert) et une rangée pour les spéciales (pirates, sirènes, monstres, extensions). Chaque rangée empile les cartes avec
- *  un fort chevauchement (seule une étroite tranche gauche visible) ; survoler une carte l'agrandit et la met au premier
- *  plan. Évite d'avoir à scroller une pioche de 80 cartes tout en gardant chaque carte accessible à l'œil. */
-const SUIT_LABEL: Record<string, string> = { black: 'Noir (atout)', yellow: 'Jaune', purple: 'Violet', green: 'Vert' };
-const SUIT_ROW: ('black' | 'yellow' | 'purple' | 'green')[] = ['black', 'yellow', 'purple', 'green'];
-export function deckviewHTML(deck: Card[]): string {
-  const groups: Record<string, Card[]> = { black: [], yellow: [], purple: [], green: [], spec: [] };
-  for (const c of deck) {
-    if (c.kind === 'num' && !c.wild && c.suit && groups[c.suit as string]) groups[c.suit as string].push(c);
-    else groups.spec.push(c);
-  }
-  for (const k of Object.keys(groups)) groups[k].sort((a, b) => sortKey(a) - sortKey(b));
-  const row = (label: string, cards: Card[], extra = '') => cards.length
-    ? `<div class="dkrow${extra}" data-label="${esc(label)} (${cards.length})">${cards.map(c => `<div class="dkc" aria-label="${esc(cname(c))}">${cardHTML(c)}</div>`).join('')}</div>`
-    : '';
-  const suits = SUIT_ROW.map(s => row(SUIT_LABEL[s], groups[s], ' s-' + s)).join('');
-  const specs = row('Spéciales', groups.spec, ' dkspec');
-  return `<div class="deckview compact">${suits}${specs}</div>`;
-}
 
 /** Précharge les illustrations au premier affichage de la table pour éviter un clignotement. */
 let preloaded = false;
