@@ -1186,3 +1186,7 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 #modalBody .sndsw::after{background:#7d6b52}
 #modalBody .sndsw.on{background:#8a5e0e;border-color:#6b4708}
 #modalBody .sndsw.on::after{background:#f3e3b8}
+/* Mise en attente d'envoi : 3 s pour annuler ou changer (barre qui se vide, Annuler, Valider) */
+#action .bidundo{display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap;justify-content:center}
+#action .bidundo .bar{flex:1 1 120px;max-width:220px;height:6px;border-radius:3px;background:rgba(43,33,23,.15);overflow:hidden}
+#action .bidundo .bar i{display:block;height:6px;border-radius:3px;background:#8a5e0e;animation:timer linear forwards}

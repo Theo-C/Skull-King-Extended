@@ -80,6 +80,8 @@ const BW = 1040, BH = 520;
 const MW = 366, MH = 330;
 /** Durée affichée du tour (visuelle : le serveur n'impose aucun temps). */
 const TURN_S = 30;
+/** Délai pour annuler ou changer sa mise avant l'envoi automatique. */
+const BID_UNDO_MS = 3000;
 /** Délai de la fenêtre de fin de manche avant la manche suivante (compte à rebours, raccourci dès que tout le monde a cliqué « Prêt »). */
 const READY_S = 5;
 interface Spot { px: number; py: number; sx: number; sy: number; r: number }
@@ -120,6 +122,8 @@ export class TableView {
   pub: PublicView | null = null; priv: PrivateView | null = null;
   private latest: { pub: PublicView; priv: PrivateView | null } | null = null;
   private queue: any[] = []; private running = false; private busy = false;
+  /** Mise choisie mais pas encore envoyée : 3 s pour l'annuler ou en changer, puis envoi automatique. */
+  private bidDraft: { n: number; t0: number; timer: number } | null = null;
   private banner: string | null = null; private bannerShown: string | null = null;
   private logLines: { s: LogSeg[]; cls?: string }[] = [];
   private pick: { k: number; sel: Set<number> } | null = null;
@@ -273,7 +277,7 @@ export class TableView {
   }
   private onResize = () => { cancelAnimationFrame(this.resizeRaf); this.resizeRaf = requestAnimationFrame(() => { this.renderTable(); this.renderHand(); }); };
   private onVis = () => { if (!document.hidden) document.title = this.baseTitle; };
-  destroy() { document.removeEventListener('keydown', this.onReactKey); this.gif?.destroy(); this.offAnim?.(); this.root.querySelectorAll<HTMLElement>('.card.animated').forEach(detachAnim); this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.roundOpen?.close(); this.playerCardCtl?.destroy(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
+  destroy() { this.cancelBid(false); document.removeEventListener('keydown', this.onReactKey); this.gif?.destroy(); this.offAnim?.(); this.root.querySelectorAll<HTMLElement>('.card.animated').forEach(detachAnim); this.closeFin(); setZoomNote(null); this.handObs?.disconnect(); clearInterval(this.ticker); clearTimeout(this.liseTimer); this.roundOpen?.close(); this.playerCardCtl?.destroy(); removeEventListener('resize', this.onResize); document.removeEventListener('visibilitychange', this.onVis); this.queue = []; document.title = this.baseTitle; }
 
   /** État de référence (dernier état du serveur), appliqué quand les animations sont terminées. */
   setLatest(pub: PublicView, priv: PrivateView | null) {
@@ -388,6 +392,8 @@ export class TableView {
     this.root.querySelectorAll<HTMLElement>('[data-reacts]').forEach(el => setHTML(el, html));
   }
   private onReactKey = (ev: KeyboardEvent) => {
+    // Échap annule une mise en attente d'envoi (sauf si une fenêtre est ouverte : elle se ferme d'abord)
+    if (ev.key === 'Escape' && this.bidDraft && !document.querySelector('#modal:not([hidden])')) { ev.preventDefault(); this.cancelBid(); return; }
     if (ev.ctrlKey || ev.metaKey || ev.altKey || !/^[1-4]$/.test(ev.key)) return;
     const t = ev.target as HTMLElement | null; if (t && (t.closest('input, textarea, select, [contenteditable="true"]') || document.querySelector('#modal:not([hidden])'))) return;
     const r = this.myReactions()[Number(ev.key) - 1]; if (r) { ev.preventDefault(); this.sendEmote(r); }
@@ -1159,8 +1165,17 @@ export class TableView {
     if (me == null || !pv) { this.setAction(pb.phase === 'bid' ? 'Les joueurs misent…' : (pb.current != null ? `Au tour ${de(name(pb.current))}` : '…')); return; }
     if (this.busy) { this.setAction('Envoi…'); return; }
     if (pb.phase === 'bid') {
-      const coins = (pick: number | null) => Array.from({ length: pb.cards + 1 }, (_, b) => ({ label: String(b), n: b, cls: 'coin' + (pick === b ? ' sel' : pick != null ? ' off' : ''), disabled: pick != null, on: () => this.send({ t: 'bid', n: b }) }));
-      if (pv.bid == null) this.setAction("Combien de plis allez-vous remporter ?<small>Les autres ne verront votre mise qu'une fois tout le monde décidé</small>", coins(null));
+      const coins = (pick: number | null) => Array.from({ length: pb.cards + 1 }, (_, b) => ({ label: String(b), n: b, cls: 'coin' + (pick === b ? ' sel' : pick != null ? ' off' : ''), disabled: pick != null, on: () => this.draftBid(b) }));
+      const d = this.bidDraft;
+      if (pv.bid == null && d) {
+        // mise en attente : la pièce reste levée, les autres restent cliquables pour changer d'avis
+        this.setAction(`Mise : ${d.n} pli${d.n > 1 ? 's' : ''}<small>Envoi automatique dans 3 s. Cliquez une autre pièce pour changer, ou annulez.</small>`,
+          coins(null).map(c => ({ ...c, cls: 'coin' + (c.n === d.n ? ' sel' : '') })));
+        const left = Math.max(0, BID_UNDO_MS - (Date.now() - d.t0));
+        $('#action', this.root).insertAdjacentHTML('beforeend', `<div class="bidundo"><div class="bar" aria-hidden="true"><i style="animation-duration:${BID_UNDO_MS}ms;animation-delay:-${BID_UNDO_MS - left}ms"></i></div><button class="btn alt" data-bidundo="cancel">Annuler</button><button class="btn gold" data-bidundo="ok">Valider</button></div>`);
+        ($('[data-bidundo="cancel"]', this.root) as HTMLButtonElement).onclick = () => this.cancelBid();
+        ($('[data-bidundo="ok"]', this.root) as HTMLButtonElement).onclick = () => this.confirmBid();
+      } else if (pv.bid == null) this.setAction("Combien de plis allez-vous remporter ?<small>Les autres ne verront votre mise qu'une fois tout le monde décidé</small>", coins(null));
       else {
         const w = pb.players.map((p, i) => p.hasBid ? null : name(i)).filter(Boolean);
         this.setAction(`Mise scellée : ${pv.bid}<small>${w.length ? `En attente ${de(w.join(', '))}…` : 'Révélation des mises…'}</small>`, coins(pv.bid));
@@ -1240,6 +1255,24 @@ export class TableView {
     if (k === 'as') this.setAction('Morgane la Louve : la jouer comme…', [{ label: '☠ Pirate', cls: 'gold big', on: () => done('as', 'pirate') }, { label: '🏳 Fuite', cls: 'big', on: () => done('as', 'escape') }, cancel]);
     if (k === 'val') this.setAction('0/14 : quelle valeur ?', [{ label: '0', on: () => done('val', 0) }, { label: '14', on: () => done('val', 14) }, cancel]);
     if (k === 'ws') this.setAction('Le Grand Quinze : de quelle couleur est-il ?<small>Il fixe la couleur demandée du pli.</small>', [...WILD_SUITS.map(s => ({ label: SUIT[s].n, cls: 'suitbtn s-' + s, on: () => done('ws', s) })), cancel]);
+  }
+  /** Choix d'une mise : envoyée après 3 s sauf annulation ; recliquer la même pièce l'envoie tout de suite. */
+  private draftBid(n: number) {
+    if (this.bidDraft?.n === n) return this.confirmBid();
+    this.cancelBid(false);
+    this.bidDraft = { n, t0: Date.now(), timer: window.setTimeout(() => this.confirmBid(), BID_UNDO_MS) };
+    this.renderAction(); this.renderStakes(n);
+  }
+  private confirmBid() {
+    const d = this.bidDraft; if (!d) return;
+    clearTimeout(d.timer); this.bidDraft = null;
+    // la manche a pu changer entre-temps (mise déjà prise, phase terminée) : on n'envoie que si elle est encore attendue
+    if (this.pub?.phase === 'bid' && this.priv?.bid == null) this.send({ t: 'bid', n: d.n }); else this.renderAction();
+  }
+  private cancelBid(render = true) {
+    if (!this.bidDraft) return;
+    clearTimeout(this.bidDraft.timer); this.bidDraft = null;
+    if (render) { this.renderAction(); this.renderStakes(); }
   }
   private async send(move: Action) {
     if (this.busy) return; this.busy = true;
