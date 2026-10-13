@@ -35,8 +35,8 @@ export const ACHIEVEMENT_COSMETICS: Record<string, string> = {
   abyss:        'pet:poulpe',
 };
 /** Pièces (docs/casier-boutique/SPEC.md) : +10 par partie terminée, +30 par victoire, +15 si toutes ses mises sont tenues,
- *  +50 par haut fait débloqué. Coffre : 1 au vainqueur humain d'une partie en ligne (il s'achète aussi à la Boutique). */
-export const WALLET = { game: 10, win: 30, allBids: 15, achievement: 50, winChest: 1 } as const;
+ *  +50 par haut fait débloqué. Coffres : 1 au vainqueur humain + 1 par niveau franchi (il s'achète aussi à la Boutique). */
+export const WALLET = { game: 10, win: 30, allBids: 15, achievement: 50, winChest: 1, levelChest: 1 } as const;
 
 export interface SettleSeat { seat: number; user_id: string | null; bot: boolean; name: string }
 /** Ce que la base sait d'un joueur avant la partie (fonction SQL settle_inputs). */
@@ -110,8 +110,10 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
       if (id && !owned.has(id)) cos.push({ cosmetic_id: id, source: 'achievement:' + code });
     }
 
-    // Pièces : +10 par partie, +5 par mise tenue ; coffre : 1 au vainqueur humain.
-    const coins = rewards ? WALLET.game + (win ? WALLET.win : 0) + (hist.length && made === hist.length ? WALLET.allBids : 0) + WALLET.achievement * fresh.length : 0, chests = rewards && win ? WALLET.winChest : 0;
+    // Pièces : +10 par partie, +30 victoire, +15 toutes mises tenues, +50 par haut fait.
+    // Coffres : 1 au vainqueur humain + 1 par niveau franchi dans cette partie (jamais rien pour un solo-vs-bots).
+    const coins = rewards ? WALLET.game + (win ? WALLET.win : 0) + (hist.length && made === hist.length ? WALLET.allBids : 0) + WALLET.achievement * fresh.length : 0;
+    const chests = rewards ? (win ? WALLET.winChest : 0) + WALLET.levelChest * Math.max(0, levelAfter - levelBefore) : 0;
 
     const e = elo.find(x => x.id === uid);
     out.results.push({ user_id: uid, place, score: p.score, bids_made: made, rounds: hist.length, players: seats.length,

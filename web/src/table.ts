@@ -2,6 +2,7 @@
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
 import { cname, leadSuitOf, plannedRounds, resolve, roundKind, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
 import { cardHTML, cardKey, backFace, preloadArt } from './cards';
+import { openJuanita } from './juanita';
 import { GifCtl, gifsHidden, setGifsHidden, reactPanelHTML, type GifItem, type GifMsg } from './gif';
 import { impactSound } from './locker';
 import { ANIM, ANIM_MODES, HALO_MS, attachAnim, detachAnim, getAnimMode, onAnimMode, setAnimMode, type AnimMode } from './animatedCards';
@@ -58,7 +59,7 @@ const PCOL = ['#d9b25a', '#c8644b', '#5c9db6', '#7ab874', '#a982c4', '#e0954a', 
 // Pauses entre deux événements rejoués (ms, multipliées par la vitesse choisie) : assez longues pour suivre ce que font les bots.
 /** Durée de la révélation du pouvoir de Marie Thorne (× vitesse). */
 const LISE_MS = 2600;
-const DELAY: Record<string, number> = { play: 1250, trick: 2400, trickEnd: 700, bids: 2000, deal: 700, round: 600, end: 0, lise: LISE_MS };
+const DELAY: Record<string, number> = { play: 750, trick: 2400, trickEnd: 700, bids: 2000, deal: 700, round: 600, end: 0, lise: LISE_MS };
 const ICON = {
   last: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4a6 6 0 1 1-6 6M4 4v4h4"/></svg>',
   scores: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3h12v14H4zM7 7h6M7 10h6M7 13h4"/></svg>',
@@ -79,8 +80,8 @@ const BW = 1040, BH = 520;
 const MW = 366, MH = 330;
 /** Durée affichée du tour (visuelle : le serveur n'impose aucun temps). */
 const TURN_S = 30;
-/** Délai de la fenêtre de fin de manche avant la manche suivante. */
-const READY_S = 8;
+/** Délai de la fenêtre de fin de manche avant la manche suivante (compte à rebours, raccourci dès que tout le monde a cliqué « Prêt »). */
+const READY_S = 5;
 interface Spot { px: number; py: number; sx: number; sy: number; r: number }
 /** Positions des plaques (px, py) et des cartes du pli (sx, sy, inclinaison r), indexées par place relative (0 = vous, en bas). */
 function geometry(n: number): Spot[] {
@@ -320,7 +321,7 @@ export class TableView {
         if (ev.k === 'round') { this.roundGate = this.roundEnd(ev.snap); await this.roundGate; }
         let ms = (DELAY[ev.k] ?? 300) * this.speed * (this.queue.length > 40 ? .2 : 1);
         // dernier événement et c'est à nous : on laisse juste la carte arriver, inutile de faire attendre le joueur
-        if (!this.queue.length && ev.k === 'play' && this.mySeat != null && ev.snap.current === this.mySeat) ms = Math.min(ms, 550);
+        if (!this.queue.length && ev.k === 'play' && this.mySeat != null && ev.snap.current === this.mySeat) ms = Math.min(ms, 350);
         await sleep(ms);
         if (ev.k === 'bids' || ev.k === 'trick') this.banner = null;
       }
@@ -916,19 +917,20 @@ export class TableView {
     el.addEventListener('animationend', ev => { if (ev.target === el) end(); }, { once: true });
     setTimeout(end, ms * this.animMs + 120);
   }
-  /** Carte qui arrive sur le pli : depuis la main en se redressant (550 ms) ou depuis la plaque de l'adversaire (450 ms). */
+  /** Carte qui arrive sur le pli : depuis la main en se redressant (400 ms) ou depuis la plaque de l'adversaire (350 ms).
+   *  Durées raccourcies par rapport à 550/450 pour que la carte apparaisse plus vite après le clic (plus de dynamisme). */
   private flyIn(c: HTMLElement, seat: number, id: number, land?: () => void) {
     if (!this.animMs) { land?.(); return; }
     const to = c.getBoundingClientRect(); let from: DOMRect | null = null, mine = false;
     if (this.flyFrom && this.flyFrom.id === id) { from = this.flyFrom.rect; mine = true; this.flyFrom = null; }
     else { const pl = this.anchor(seat); if (pl) from = pl.getBoundingClientRect(); }
     const r0 = c.style.rotate || '0deg';
-    if (!from) { this.animate(c, 'fly', { '--fx': '0px', '--fy': '-20px', '--fs': '.8', '--fr': r0, '--r0': r0, '--fo': '0' }, 450, land); return; }
+    if (!from) { this.animate(c, 'fly', { '--fx': '0px', '--fy': '-20px', '--fs': '.8', '--fr': r0, '--r0': r0, '--fo': '0' }, 350, land); return; }
     const [fx, fy] = center(from), [tx, ty] = center(to);
     this.animate(c, mine ? 'fly flyme' : 'fly', {
       '--fx': (fx - tx) / this.k + 'px', '--fy': (fy - ty) / this.k + 'px', '--fs': mine ? (from.width / Math.max(1, to.width)).toFixed(3) : '.45',
       '--fr': mine ? '-16deg' : r0, '--r0': r0, '--fo': '0',
-    }, mine ? 550 : 450, land);
+    }, mine ? 400 : 350, land);
   }
   /** Fin du pli : les cartes filent vers la plaque du gagnant en rétrécissant (600 ms), ou coulent vers le centre (Kraken, pli défaussé). */
   private flyOut(w: HTMLElement, seat: number | null, i: number) {
@@ -1257,10 +1259,20 @@ export class TableView {
     const cards = lt.entries.map((e: any, i: number) => `<figure class="${lt.res?.winner === i ? 'w' : ''}">${cardHTML(e.card, e, lt.res?.winner === i ? 'win' : (lt.res?.removed?.includes(i) || lt.res?.discarded ? 'gone' : ''))}<figcaption>${esc(pb.players[e.p]?.name ?? '?')}</figcaption></figure>`).join('');
     modal(`<h2>Pli ${lt.trickNo}</h2><p class="sub">${esc(lt.res?.msg ?? '')}</p><div class="lasttrick">${cards}</div>`);
   }
+  /** Pouvoir de Juanita Jade (A13) : fenêtre compacte des cartes non distribuées, ouverte une seule fois.
+   *  Le pending serveur est consommé dès l'ouverture (choose:1), pour que la fenêtre ne se rouvre pas après fermeture :
+   *  si le joueur ferme et la rouvre plus tard, le pending n'existe plus côté serveur, donc l'action « Voir la pioche »
+   *  n'est plus proposée. Le shownJuanita local empêche aussi une double ouverture dans la même manche en cas de
+   *  re-render pendant que l'ouverture est en vol. */
+  private shownJuanita = new Set<number>();
   private async showDeck() {
-    const deck = this.priv?.pendingData?.deck || [];
-    await modal(`<h2>Cartes non distribuées</h2><p class="sub">${deck.length} carte${deck.length > 1 ? 's' : ''} hors du jeu cette manche.</p><div class="deckview">${deck.map((c: any) => cardHTML(c)).join('')}</div>`, [{ label: 'Compris', value: 1 }]);
+    const round = this.pub?.round ?? 0;
+    if (this.shownJuanita.has(round)) return;
+    this.shownJuanita.add(round);
+    const deck = (this.priv?.pendingData?.deck as Card[] | undefined) || [];
+    // on consomme le pending dès l'ouverture : la partie continue en arrière-plan, la fenêtre reste pure info
     this.send({ t: 'choose', v: 1 });
+    await openJuanita(deck, round);
   }
 
   /* ---------- Récapitulatifs ---------- */
@@ -1328,7 +1340,12 @@ export class TableView {
       // Manche 10 : pas de délai, le joueur clique quand il veut passer au résultat final
       const iv = setInterval(() => { if (!last && Date.now() - t0 >= READY_S * 1000) close(); else update(); }, 250);
       this.roundOpen = { round: r, ready, update, close };
-      btn?.addEventListener('click', () => { ready.add(this.mySeat!); this.backend.ready?.(r); update(); });
+      btn?.addEventListener('click', () => {
+        ready.add(this.mySeat!); this.backend.ready?.(r);
+        // dernière manche : « Voir le résultat » est une action personnelle, on ferme tout de suite sans attendre les autres
+        // (sinon le bouton semble ne rien faire tant qu'un adversaire n'a pas cliqué, d'où la plainte « marche 1 fois sur 2 »)
+        if (last) close(); else update();
+      });
       (ov.querySelector('#rSheet') as HTMLElement).onclick = () => this.scoreSheet();
       update(); btn?.focus();
     });
@@ -1422,10 +1439,10 @@ export class TableView {
         ${((elo.vs || []) as any[]).map(v => `<div class="fvs"><span>${vsLabel(v)}</span><b class="${v.delta >= 0 ? 'pos' : 'neg'}">${signedOne(v.delta)}</b></div>`).join('')}</div>`
         : `<div class="fbox"><span class="ftag">Élo</span><span class="lbl">Partie non classée : ${UNRANKED[s.unranked] ?? UNRANKED.solo}.</span></div>`}
       ${this.rewardsHTML(s, ach)}
-      ${s.chests > 0 && this.backend.openChest ? `<div class="fchest" id="fchest" data-state="closed"><button type="button" id="fchestBtn" class="fchestbtn" aria-label="Ouvrir le coffre de victoire">
+      ${s.chests > 0 && this.backend.openChest ? `<div class="fchest" id="fchest" data-state="closed"><button type="button" id="fchestBtn" class="fchestbtn" aria-label="Ouvrir ${s.chests > 1 ? s.chests + ' coffres' : 'le coffre'}">
         <svg viewBox="0 0 72 64" aria-hidden="true"><rect x="8" y="28" width="56" height="30" rx="3" fill="#6b4226" stroke="#2a170b" stroke-width="2"/><path d="M8 28c0-12 10-18 28-18s28 6 28 18z" fill="#7d4f2c" stroke="#2a170b" stroke-width="2"/><path d="M8 28h56M20 12v46M52 12v46" stroke="#c9a14a" stroke-width="3"/><rect x="31" y="30" width="10" height="12" rx="2" fill="#e3c47a" stroke="#8a6620"/></svg>
-      </button><span class="fchest-txt"><span class="ftag">Coffre de victoire</span><b>Un objet pour votre pirate vous attend.</b><button class="abtn gold" id="fchestOpen">Ouvrir le coffre</button></span></div>` : ''}
-      ${s.coins ? `<div class="fcoins" style="animation-delay:calc(2.6s * var(--spd,1))"><span class="coin"></span><b>+${s.coins}</b> pièces${s.chests > 0 ? ' et 1 coffre' : ''} ajoutées à votre bourse.</div>` : ''}`;
+      </button><span class="fchest-txt"><span class="ftag">${s.chests > 1 ? `${s.chests} coffres gagnés` : 'Coffre de victoire'}</span><b>${s.chests > 1 ? `${s.chests} objets pour votre pirate vous attendent.` : 'Un objet pour votre pirate vous attend.'}</b><button class="abtn gold" id="fchestOpen">${s.chests > 1 ? 'Ouvrir le premier coffre' : 'Ouvrir le coffre'}</button></span></div>` : ''}
+      ${s.coins ? `<div class="fcoins" style="animation-delay:calc(2.6s * var(--spd,1))"><span class="coin"></span><b>+${s.coins}</b> pièces${s.chests > 0 ? ` et ${s.chests} coffre${s.chests > 1 ? 's' : ''}` : ''} ajoutés à votre bourse.</div>` : ''}`;
     // place et Élo de chacun sous le podium
     const res = (this.latest?.pub as any)?.settled || {};
     ov.querySelectorAll<HTMLElement>('[data-elo]').forEach(el => {
