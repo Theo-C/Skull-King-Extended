@@ -57,6 +57,11 @@ const store: Store = {
     if (error) fail(error, 'enregistrement');
     return (data as number | null) ?? null;
   },
+  async deleteGame(gameId, expected) {
+    const { data, error } = await admin.from('games').delete().eq('id', gameId).eq('version', expected).select('id');
+    if (error) fail(error, 'suppression');
+    return (data ?? []).length > 0;
+  },
   async rpc(name, args) {
     const { data, error } = await admin.rpc(name, args);
     if (error) fail(error, name);

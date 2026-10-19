@@ -33,6 +33,8 @@ export interface TableBackend {
   send(move: Action): Promise<void>; emote?(text: string): void; ready?(round: number): void;
   /** Partie en ligne : identifiant, utilisateur courant, utilisateur de chaque siège, et revanche (renvoie l'identifiant du nouveau salon). */
   gameId?: string; uid?: string; seatUids?: (string | null)[]; rematch?(): Promise<string>;
+  /** Supprimer la partie : seulement quand on est le seul humain à la table (sinon absent). */
+  deleteGame?(): Promise<void>;
   /** Règlement de fin de partie relu au serveur (history.get) quand il tarde à arriver par l'état de la partie. */
   settled?(): Promise<any>;
   /** Coffre de victoire : appelle chest.open côté serveur et renvoie le résultat complet pour openChestOverlay (web/src/chest.ts). */
@@ -260,7 +262,7 @@ export class TableView {
       },
     );
     $('#bRules', root).onclick = () => modal(rulesHTML());
-    $('#bExit', root).onclick = () => this.onExit();
+    $('#bExit', root).onclick = () => this.exit();
     $('#layer', root).addEventListener('click', ev => {
       const b = (ev.target as HTMLElement).closest('button[data-lpos]') as HTMLElement | null;
       if (b && this.liseChoosing()) this.send({ t: 'choose', v: { seat: Number(b.dataset.lseat), pos: Number(b.dataset.lpos) } });
@@ -572,12 +574,23 @@ export class TableView {
       { label: `Cartes animées : ${ANIM_MODES.find(([m]) => m === getAnimMode())![1]}`, value: 'anim', cls: 'alt' },
       ...(this.gif ? [{ label: `GIF : ${gifsHidden() ? 'masqués' : 'affichés'}`, value: 'gifs', cls: 'alt' }] : []),
       { label: 'Quitter la table', value: 'exit', cls: 'alt' }, { label: 'Fermer', value: null }]);
-    if (v === 'last') this.lastTrickModal(); else if (v === 'rules') modal(rulesHTML()); else if (v === 'exit') this.onExit();
+    if (v === 'last') this.lastTrickModal(); else if (v === 'rules') modal(rulesHTML()); else if (v === 'exit') this.exit();
     else if (v === 'sound') { modal(`<h2>Son</h2><p class="sub">Sons de la table, sur cet appareil.</p><div class="sndp" id="sndModal">${this.soundPanelHTML()}</div>`); this.wireSoundPanel(document.querySelector('#sndModal') as HTMLElement); }
     else if (v === 'gifs') { setGifsHidden(!gifsHidden()); toast(gifsHidden() ? 'GIF masqués' : 'GIF affichés'); }
     else if (v === 'anim') { const o = ANIM_MODES.map(([m]) => m), nx = o[(o.indexOf(getAnimMode()) + 1) % o.length]; setAnimMode(nx); toast('Cartes animées : ' + ANIM_MODES.find(([m]) => m === nx)![1]); }
     else if (v === 'amb') { const a = $('#amb', this.root) as HTMLSelectElement; a.value = getAmbiance() === 'sobre' ? 'pirate' : 'sobre'; a.dispatchEvent(new Event('change')); toast('Ambiance : ' + a.value); }
     else if (v === 'speed') { const sp = $('#speed', this.root) as HTMLSelectElement; const o = ['1', '0.45', '1.7']; sp.value = o[(o.indexOf(sp.value) + 1) % 3]; sp.dispatchEvent(new Event('change')); toast('Vitesse : ' + sp.selectedOptions[0].text.toLowerCase()); }
+  }
+  /** Quitter la table ; seul face à des bots, on peut aussi supprimer la partie au lieu de la laisser en cours. */
+  private async exit() {
+    if (!this.backend.deleteGame || this.pub?.phase === 'end') { this.onExit(); return; }
+    const v = await modal('<h2>Quitter la table</h2><p class="sub">Vous jouez seul contre des bots : la partie peut rester en cours pour la reprendre depuis l\'accueil, ou être supprimée définitivement.</p>', [
+      { label: 'Supprimer la partie', value: 'del', cls: 'alt' }, { label: 'Quitter, reprendre plus tard', value: 'exit' }, { label: 'Annuler', value: null, cls: 'alt' }]);
+    if (v === 'exit') this.onExit();
+    else if (v === 'del') {
+      try { await this.backend.deleteGame(); toast('Partie supprimée.'); this.onExit(); }
+      catch (e: any) { toast(e.message || 'Suppression impossible.', 'err'); }
+    }
   }
   /** Réglages du son (A12) : interrupteur Son et curseur Volume (0 à 100 %, sur cet appareil). */
   private soundPanelHTML() {
@@ -1007,6 +1020,9 @@ export class TableView {
     // hors de son tour (mise, attente, tour d'un adversaire) : la main passe en mode inspection,
     // chaque carte se soulève au survol pour qu'on puisse la lire sans attendre son tour
     el.classList.toggle('inspect', !playing && !this.pick);
+    // pouvoir de Bendt le Ripate : les cartes piochées et celles choisies pour la défausse sont marquées dans la main
+    const drawn = new Set<number>(this.pick ? pv.pendingData?.drawn ?? [] : []);
+    el.classList.toggle('bendt', !!this.pick);
     const m = (len - 1) / 2; const added: HTMLElement[] = [];
     let prev: HTMLElement | null = null;
     hand.forEach((c, j) => {
@@ -1020,6 +1036,12 @@ export class TableView {
       ce.classList.toggle('dim', playing && !legal.has(c.id) && !pick);
       ce.classList.toggle('sel', (pick && this.pick!.sel.has(c.id)) || this.choice?.id === c.id || (playing && this.previewId === c.id));
       ce.classList.toggle('forced', pv.forced === c.id);
+      const disc = !!this.pick && this.pick.sel.has(c.id), tag = disc ? 'À défausser' : drawn.has(c.id) ? 'Piochée' : '';
+      ce.classList.toggle('discard', disc); ce.classList.toggle('bdrawn', drawn.has(c.id));
+      const bt = ce.querySelector<HTMLElement>('.bdtag');
+      if (!tag) bt?.remove();
+      else if (bt) bt.textContent = tag;
+      else ce.insertAdjacentHTML('beforeend', `<span class="bdtag" aria-hidden="true">${tag}</span>`);
       const lfx = this.liseNow(), hit = !!lfx && lfx.seat === this.mySeat && this.liseCard() === c.id;
       ce.classList.toggle('lisepick', hit); el.classList.toggle('lisereveal', !!lfx && lfx.seat === this.mySeat); ce.classList.toggle('lisedim', !!lfx && lfx.seat === this.mySeat && !hit);
       if (hit && !ce.querySelector('.listag')) ce.insertAdjacentHTML('beforeend', `<span class="listag">Imposée par ${esc(lfx!.by === this.mySeat ? 'vous' : this.pub!.players[lfx!.by].name)}</span>`);
@@ -1033,7 +1055,7 @@ export class TableView {
       ce.tabIndex = 0;
       ce.setAttribute('role', (act || playing) ? 'button' : 'img');
       if (playing && !legal.has(c.id) && !pick) ce.setAttribute('aria-disabled', 'true'); else ce.removeAttribute('aria-disabled');
-      ce.setAttribute('aria-label', (playing && !pick ? (legal.has(c.id) ? 'Jouer ' : 'Bloquée : ') : '') + cname(c));
+      ce.setAttribute('aria-label', (playing && !pick ? (legal.has(c.id) ? 'Jouer ' : 'Bloquée : ') : '') + cname(c) + (tag ? ` (${tag.toLowerCase()})` : ''));
       // éventail plat : 1° par carte, 1 px × d² de décalage vertical.
       // z-index décroissant : la carte 0 est au-dessus, chaque carte suivante passe DERRIÈRE la précédente,
       // donc on voit la gauche (pastille) et le milieu de chaque carte ; le médaillon chiffre en haut à droite
@@ -1203,7 +1225,10 @@ export class TableView {
         case 'conpick': return this.setAction(`${SPECIAL.con} : quel pouvoir volez-vous ?<small>Un seul pouvoir parmi les pirates capturés.</small>`, btns(opts));
         case 'bahij': {
           const k = pv.pendingData?.k ?? 2; if (!this.pick || this.pick.k !== k) { this.pick = { k, sel: new Set() }; this.renderHand(); }
-          return this.setAction(`${PIRATES.bahij.n} : vous avez pioché ${k} carte${k > 1 ? 's' : ''}. Défaussez-en ${k}.<small>${this.pick.sel.size} / ${k} sélectionnée(s)</small>`,
+          // rappel des cartes piochées et de la défausse en cours, par leur nom
+          const names = (ids: Iterable<number>) => [...ids].map(i => pv.hand.find(c => c.id === i)).filter(Boolean).map(c => `<b>${esc(cname(c!))}</b>`).join(', ');
+          const got = names(pv.pendingData?.drawn ?? []), out = names(this.pick.sel);
+          return this.setAction(`${PIRATES.bahij.n} : vous avez pioché ${k} carte${k > 1 ? 's' : ''}. Défaussez-en ${k}.<small class="bdsum">${got ? `<span class="got">Piochées : ${got}</span>` : ''}<span class="out">À défausser (${this.pick.sel.size} / ${k}) : ${out || 'touchez les cartes à retirer'}</span></small>`,
             [{ label: 'Défausser', cls: 'gold', disabled: this.pick.sel.size !== k, on: () => { const v = [...this.pick!.sel]; this.pick = null; this.send({ t: 'choose', v }); } }]);
         }
       }

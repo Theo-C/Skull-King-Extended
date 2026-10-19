@@ -393,7 +393,11 @@ function processPending(S: State) {
       if (!pd.data) { const drawn = S.deck.splice(0, 2); if (!drawn.length) { S.pending.shift(); continue; } p.hand.push(...drawn); sortHand(p.hand); pd.data = { k: drawn.length, drawn: drawn.map(c => c.id), pub: { k: drawn.length } }; }
       return true;
     }
-    if (pd.t === 'rascal') { pd.data = { pub: [0, 10, 20].map(v => ({ v, label: String(v) })) }; return true; }
+    if (pd.t === 'rascal') {
+      // dernier pli (pouvoir volé par Con dans une ancienne partie) : sans effet, comme dans resolveTrick
+      if (S.players.every(q => !q.hand.length)) { S.pending.shift(); continue; }
+      pd.data = { pub: [0, 10, 20].map(v => ({ v, label: String(v) })) }; return true;
+    }
     if (pd.t === 'harry') { pd.data = { pub: [{ v: -1, label: '−1', disabled: p.bid! <= 0 }, { v: 0, label: 'Garder' }, { v: 1, label: '+1', disabled: p.bid! >= S.cards }] }; return true; }
     if (pd.t === 'juanita') { pd.data = { pub: [{ v: 1, label: 'Compris' }] }; return true; }
     // Con le Second avec plus d'un pirate capturé : options déjà fournies à la poussée
@@ -453,7 +457,12 @@ function resolveTrick(S: State) {
         else if (R.winner.card.kind === 'con') list = R.captured.filter(e => e.card.kind === 'pirate').map(e => e.card.pid!);
         // Con le belliqueux vole les pouvoirs de TOUS les pirates capturés, dans l'ordre où ils ont été posés.
         // (L'ancien choix d'un seul pouvoir, « conpick », n'est plus créé ; il reste lisible pour les parties en cours.)
-        for (const pid of list) { S.pending.push({ t: pid, seat: wi }); log(S, [`Pouvoir de ${PIRATES[pid].n} : ${w.name} ${PIRATES[pid].pw}`]); }
+        // Rascal au dernier pli de la manche : le résultat de la mise est déjà connu, le pouvoir est sans effet
+        const lastTrick = S.players.every(q => !q.hand.length);
+        for (const pid of list) {
+          if (pid === 'rascal' && lastTrick) { log(S, [`Pouvoir de ${PIRATES[pid].n} sans effet au dernier pli de la manche`]); continue; }
+          S.pending.push({ t: pid, seat: wi }); log(S, [`Pouvoir de ${PIRATES[pid].n} : ${w.name} ${PIRATES[pid].pw}`]);
+        }
       }
     }
   }

@@ -2,7 +2,7 @@
 // terminées récemment, mini classement entre amis, derniers hauts faits. Maquettes Accueil et AccueilMobile :
 // sous 720 px, variantes « only-mb » / « only-dk » et réordonnancement en CSS (app.css, section Accueil).
 import { sb, callGame } from '../api';
-import { $, esc, toast, relDay, signed, de } from '../util';
+import { $, esc, toast, relDay, signed, de, modal } from '../util';
 import { optionsHTML, readOptions, wireOptions, paintRanked } from '../options';
 import { roundsOf } from '@engine';
 import { go } from '../main';
@@ -37,6 +37,7 @@ export async function homePage(root: HTMLElement, uid: string) {
         <button class="abtn gold" id="bCreate">Créer une partie</button>
         <form id="fCode" class="codeform2" aria-label="Rejoindre avec un code"><label for="code" class="sr">Code d'invitation</label>
           <input id="code" maxlength="6" placeholder="CODE" autocapitalize="characters" autocomplete="off"><button class="abtn ghost" type="submit">Rejoindre</button></form>
+        <a class="abtn ghost" href="#/entrainement?test=bendt" title="TEST — à retirer : partie d'entraînement où votre Bendt le Ripate remporte le premier pli">Test · Bendt</a>
         <a class="abtn ghost" href="#/entrainement"><span>Entraînement<span class="only-dk"> contre des bots</span></span></a>
       </div>
     </section>
@@ -102,15 +103,28 @@ async function loadLive(root: HTMLElement, uid: string) {
         if (!turn) { turn = { g, mine, rank, title }; mbHide = ' only-dk'; }
       } else badge = g.current != null ? esc(`Tour ${de(nameOf(g, g.current))}`) : 'En cours';
     }
+    // seul humain de la partie (bots et places libres) : elle peut être supprimée d'ici
+    const solo = !gs.some(s => s.user_id && s.user_id !== uid);
     let dots = ''; for (let r = 1; r <= Math.max(roundsOf(g.options), g.round ?? 0); r++) dots += `<i class="${g.status === 'lobby' ? '' : r < g.round ? 'd' : r === g.round ? 'n' : ''}"></i>`;
-    return `<a class="gcard${mbHide}" href="#/partie/${g.id}"><span class="stack-av">${who}</span>
+    const card = `<a class="gcard${solo ? '' : mbHide}" href="#/partie/${g.id}"><span class="stack-av">${who}</span>
       <span class="gm"><span class="gt">${esc(title)}</span><span class="gs">${sub}</span><span class="rdots" aria-hidden="true">${dots}</span></span>
       <span class="badge ${cls}">${badge}</span></a>`;
+    return solo ? `<div class="gwrap${mbHide}">${card}<button class="gdel" data-del="${g.id}" aria-label="Supprimer : ${esc(title)}" title="Supprimer la partie">×</button></div>` : card;
   });
   const n = rows.length, nMb = n - (turn ? 1 : 0);
   $('#liveN', root).innerHTML = (n ? `<span class="only-dk">${n} en cours</span>` : '') + (nMb ? `<span class="only-mb">${nMb} en cours</span>` : '');
   $('#live', root).innerHTML = cards.join('') + (turn && !nMb ? '<p class="empty only-mb">Pas d\'autre partie en cours.</p>' : '')
     || '<p class="empty">Aucune partie en cours. Créez-en une ou rejoignez des amis avec un code.</p>';
+  $('#live', root).onclick = async ev => {
+    const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-del]'); if (!b) return;
+    const ok = await modal('<h2>Supprimer la partie</h2><p class="sub">Vous y jouez seul contre des bots : elle sera supprimée définitivement, sans compter dans l’historique.</p>',
+      [{ label: 'Annuler', value: false, cls: 'alt' }, { label: 'Supprimer', value: true }]);
+    if (!ok) return;
+    b.disabled = true;
+    try { await callGame('delete', { id: b.dataset.del }); toast('Partie supprimée.'); loadLive(root, uid); }
+    catch (e: any) { toast(e.message, 'err'); b.disabled = false; }
+  };
+  $('#turn', root).innerHTML = '';
   if (turn) {
     const t = turn.title === 'Votre table' ? 'à votre table' : turn.title.replace(/^Table /, 'à la table ');
     const pts = turn.mine?.score ?? 0, trick = turn.g.trickNo ? ` · pli ${turn.g.trickNo}` : '';

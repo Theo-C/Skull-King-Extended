@@ -40,8 +40,21 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
         if (evs && evs.length) { lastEventId = evs[evs.length - 1].id; table!.push(evs.map(e => e.payload)); }
         const { data: h } = await sb.from('hands').select('data').eq('game_id', id).maybeSingle();
         table!.setLatest(g.state, h?.data ?? null);
+        // un joueur a lancé la revanche (code réservé dans state.rematch) : tout le monde rejoint le salon, sans cliquer
+        if (g.status === 'finished' && g.state?.rematch && seats.some(s => s.user_id === uid)) followRematch();
       } while (again && !stopped);
     } finally { syncing = false; }
+  };
+  let following = false;
+  const followRematch = async () => {
+    if (following) return; following = true;
+    try {
+      // l'action renvoie le salon déjà créé par celui qui a lancé la revanche (nous y sommes déjà assis)
+      const r = await callGame<{ id: string }>('rematch', { id });
+      // un coffre en cours d'ouverture n'est pas interrompu : on part quand il est refermé
+      while (document.querySelector('.chov') && !stopped) await new Promise(res => setTimeout(res, 800));
+      if (!stopped) { toast('Revanche lancée : direction le salon !'); go('#/partie/' + r.id); }
+    } catch { following = false; /* salon pas encore prêt : nouvel essai à la prochaine synchronisation */ }
   };
   const openTable = async (g: any, seats: any[]) => {
     mode = 'table'; document.body.classList.add('at-table');
@@ -56,7 +69,12 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       emote: text => cast('emote', { text }),
       ready: round => cast('ready', { round }),
       gameId: id, uid, seatUids: seats.map(s => s.user_id ?? null),
-      rematch: async () => (await callGame<{ id: string }>('rematch', { id })).id,
+      rematch: async () => {
+        following = true; // c'est nous qui lançons : pas de second départ par followRematch
+        try { return (await callGame<{ id: string }>('rematch', { id })).id; } catch (e) { following = false; throw e; }
+      },
+      // seul humain à la table (les autres sont des bots) : la partie peut être supprimée en la quittant
+      deleteGame: !mine || seats.some(s => s.user_id && s.user_id !== uid) ? undefined :async () => { await callGame('delete', { id }); },
       // règlement de fin de partie relu au serveur (il le refait s'il a été interrompu)
       settled: async () => (await callGame<any>('history.get', { id }))?.state?.settled ?? null,
       // coffre de victoire ouvert depuis la superposition de fin de partie

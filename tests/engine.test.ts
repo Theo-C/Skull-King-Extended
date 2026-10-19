@@ -262,5 +262,26 @@ for (let g = 0; g < 60; g++) {
   ok('journal : format « +30 pour Maëlle : raison »', found.wrong === 0, found);
 }
 
+// Rascal le Flambeur : pas de mise au dernier pli de la manche (le résultat est déjà connu), mais bien avant
+{
+  const seats = ['A', 'B', 'C'].map(name => ({ name, bot: false }));
+  const deal = (S: E.State, rascalSeat: number, n: number) => S.players.forEach((p, i) => {
+    p.hand = Array.from({ length: n }, (_, k) => i === rascalSeat && k === 0 ? { id: 900 + k, kind: 'pirate', pid: 'rascal' } : { id: 910 + i * 10 + k, kind: 'num', suit: 'green' as const, rank: 1 + i + k });
+  });
+  const playTrick = (S: E.State) => { for (const c of S.trick!.order.slice()) E.apply(S, c, { t: 'play', id: S.players[c].hand[0].id }); };
+  // manche à 1 carte : son unique pli est le dernier
+  const S1 = E.newGame(seats, { rounds: 1 }, 77);
+  deal(S1, 0, 1); S1.players.forEach((_, i) => E.apply(S1, i, { t: 'bid', n: i === 0 ? 1 : 0 }));
+  playTrick(S1);
+  ok('Rascal au dernier pli : aucun choix demandé', !S1.pending.length && S1.phase === 'end', S1.pending);
+  ok('Rascal au dernier pli : pas de « Mise de Rascal »', !S1.players[0].hist[0].items.some((x: any) => x[1] === 'Mise de Rascal'), S1.players[0].hist[0]);
+  ok('Rascal au dernier pli : journal « sans effet »', S1.log.some(l => l.s.join('').includes('sans effet au dernier pli')));
+  // manche à 2 cartes : au premier pli, le pouvoir reste disponible
+  const S2 = E.newGame(seats, { rounds: 2, reverse: true }, 78);
+  deal(S2, 0, 2); S2.players.forEach((_, i) => E.apply(S2, i, { t: 'bid', n: i === 0 ? 1 : 0 }));
+  playTrick(S2);
+  ok('Rascal avant le dernier pli : mise demandée', S2.pending[0]?.t === 'rascal' && S2.pending[0].seat === 0, S2.pending);
+}
+
 console.log(`Moteur : ${passes} vérifications réussies, ${fails} échec(s), ${games} parties complètes, max ${maxEv} événements par coup.`);
 if (fails) process.exit(1);

@@ -198,6 +198,10 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 .turnband .tx b{font:400 22px/1.1 var(--f-disp)}.turnband .tx span{font-size:14px;font-weight:700;color:var(--ink2)}
 .turnband .go{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border-radius:9px;background:var(--ink);color:var(--parch);font-weight:800}
 .glist2{display:flex;flex-direction:column;gap:10px}
+/* partie jouée seul contre des bots : bouton de suppression à côté de la carte */
+.gwrap{display:flex;gap:8px;align-items:stretch}.gwrap>.gcard{flex:1;min-width:0}
+.gdel{flex:none;width:44px;border-radius:12px;border:1px solid rgba(234,208,138,.18);background:rgba(0,0,0,.25);color:var(--muted);font-family:inherit;font-size:22px;font-weight:700;line-height:1;cursor:pointer}
+.gdel:hover,.gdel:focus-visible{color:#e07a62;border-color:rgba(224,122,98,.6)}.gdel:disabled{opacity:.5;cursor:default}
 .gcard .gm{min-width:0;display:flex;flex-direction:column;gap:4px}
 .home .col{display:flex;flex-direction:column;gap:24px;min-width:0}
 .frow{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px}

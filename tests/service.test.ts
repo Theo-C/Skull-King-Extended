@@ -52,6 +52,7 @@ const store: Store = {
       return (await db.query<any>('select game_commit($1,$2,$3,$4,$5,$6,$7) as v', [g, v, j(c.patch), j(c.secret), j(c.hands), j(c.events), j(c.seats)])).rows[0].v;
     } finally { await db.exec('reset role'); }
   },
+  async deleteGame(g, v) { return (await db.query<any>('delete from games where id=$1 and version=$2 returning id', [g, v])).rows.length > 0; },
   async rpc(name, args) {
     const keys = Object.keys(args);
     const vals = Object.values(args).map(v => v != null && typeof v === 'object' && !Array.isArray(v) ? JSON.stringify(v) : v);
@@ -417,9 +418,30 @@ await handle(store, U.alice, { action: 'profile.update', look: { card_back: 'mar
 const lk = (await db.query<any>('select look from profiles where id=$1', [U.alice])).rows[0].look;
 ok('look : casier enregistré, apparence existante gardée', lk.card_back === 'marine' && lk.title === 'mousse' && lk.reactions.join() === 'gg,trahison,barbe,dit' && lk.hat === 'bandana' && lk.htc === '#5b3a7a', lk);
 
+await handle(store, U.bob, { action: 'profile.update', look: { reactions: ['roula', 'gg'] } });
+ok('look : réaction de base « Roula libré » acceptée', (await db.query<any>('select look from profiles where id=$1', [U.bob])).rows[0].look?.reactions?.[0] === 'roula');
+
 // profile.wardrobe : résumé pour le Casier et le profil (inventaire + porte-monnaie)
 const wr = await handle(store, winnerUid, { action: 'profile.wardrobe' });
 ok('casier : inventaire + porte-monnaie', Array.isArray(wr.owned) && typeof wr.coins === 'number' && typeof wr.chests === 'number' && typeof wr.jokers === 'number', wr);
 
-console.log(`Serveur : ${passes} vérifications réussies, ${fails} échec(s), ${moves} actions jouées par 4 comptes.`);
+// Supprimer une partie : seulement si l'on est le seul humain (bots et places libres), jamais une partie terminée
+{
+  const solo = await handle(store, U.eve, { action: 'create', seats: [{ bot: false }, { bot: true }, { bot: true }] });
+  await expectErr('supprimer : pas assis → refus', handle(store, U.bob, { action: 'delete', id: solo.id }), 403);
+  await handle(store, U.eve, { action: 'start', id: solo.id });
+  await handle(store, U.eve, { action: 'delete', id: solo.id });
+  ok('supprimer : partie en cours avec des bots supprimée', !(await store.gameById(solo.id)));
+  const left = (await db.query<any>('select (select count(*) from game_players where game_id=$1) + (select count(*) from game_secrets where game_id=$1) + (select count(*) from hands where game_id=$1) + (select count(*) from game_events where game_id=$1) as n', [solo.id])).rows[0].n;
+  ok('supprimer : sièges, mains, état et événements supprimés', Number(left) === 0, left);
+  const lob = await handle(store, U.eve, { action: 'create', seats: [{ bot: false }, { bot: false }, { bot: true }] });
+  await handle(store, U.eve, { action: 'delete', id: lob.id });
+  ok('supprimer : salon avec une place libre supprimé', !(await store.gameById(lob.id)));
+  const duo = await handle(store, U.eve, { action: 'create', seats: [{ bot: false }, { bot: false }, { bot: true }] });
+  await handle(store, U.chloe, { action: 'join', code: duo.code });
+  await expectErr('supprimer : un autre humain à la table → refus', handle(store, U.eve, { action: 'delete', id: duo.id }), 400);
+  await expectErr('supprimer : partie terminée → refus', handle(store, U.alice, { action: 'delete', id: G }), 400);
+}
+
+console.log(`Serveur :${passes} vérifications réussies, ${fails} échec(s), ${moves} actions jouées par 4 comptes.`);
 if (fails) process.exit(1);

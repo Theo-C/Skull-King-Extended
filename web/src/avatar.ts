@@ -123,6 +123,7 @@ export const CATALOG = (() => {
     { id: 'reaction:barbe', slot: 'reaction', value: 'barbe', name: 'Par la barbe !', rarity: 'c', defaultOwned: true, how: null },
     { id: 'reaction:encore', slot: 'reaction', value: 'encore', name: 'Encore un pli !', rarity: 'c', defaultOwned: true, how: null },
     { id: 'reaction:dit', slot: 'reaction', value: 'dit', name: 'Je l’avais dit', rarity: 'c', defaultOwned: true, how: null },
+    { id: 'reaction:roula', slot: 'reaction', value: 'roula', name: 'Roula libré', rarity: 'c', defaultOwned: true, how: null },
     { id: 'reaction:quartier', slot: 'reaction', value: 'quartier', name: 'Pas de quartier', rarity: 'c', defaultOwned: false, how: 'shop', price: 50 },
     { id: 'reaction:voiles', slot: 'reaction', value: 'voiles', name: 'Hissez les voiles', rarity: 'r', defaultOwned: false, how: 'chest' },
     { id: 'reaction:kraken', slot: 'reaction', value: 'kraken', name: 'Le Kraken a faim', rarity: 'e', defaultOwned: false, how: 'chest' },

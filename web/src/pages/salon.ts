@@ -83,6 +83,8 @@ export async function renderSalon(root: HTMLElement, g: any, seats: any[], uid: 
   // partie classée ou non (Élo), selon les places et le nombre de manches : dit clairement avant le lancement
   paintRanked(box, 'lo', mixOf(seats));
   if (host) {
+    // seul humain du salon (bots et places libres) : l'hôte peut le supprimer
+    $('#delete', box).hidden = seats.some(s => s.user_id && s.user_id !== uid);
     ($('#addSeat', box) as HTMLButtonElement).disabled = seats.length >= 9;
     ($('#rmSeat', box) as HTMLButtonElement).disabled = seats.length <= 3;
     $('#freeNote', box).textContent = free ? `${free} place${free > 1 ? 's' : ''} libre${free > 1 ? 's' : ''} : ${free > 1 ? 'elles seront prises' : 'elle sera prise'} par des bots. ` : '';
@@ -94,7 +96,7 @@ function build(root: HTMLElement, g: any, host: boolean, sync: () => Promise<voi
   const link = inviteLink(g.code);
   root.innerHTML = `<section class="apage salon" id="salon" data-id="${esc(g.id)}">
     <div class="hhead"><div><h1 id="stitle">Salon</h1><p>Invitez votre équipage, réglez la partie, puis levez l'ancre.</p></div>
-      ${host ? '' : '<button class="abtn ghost" id="leave">Quitter le salon</button>'}</div>
+      ${host ? '<button class="abtn ghost" id="delete" hidden>Supprimer le salon</button>' : '<button class="abtn ghost" id="leave">Quitter le salon</button>'}</div>
     <section class="invite2">
       <div class="codebox"><span class="lbl b">Code de la partie</span><span class="cv">${esc(g.code)}</span></div>
       <div class="lnk"><span class="lbl b">Lien d'invitation</span>
@@ -125,6 +127,12 @@ function build(root: HTMLElement, g: any, host: boolean, sync: () => Promise<voi
     $('#leave', box).onclick = async () => { try { await callGame('leave', { id: g.id }); go('#/'); } catch (e: any) { toast(e.message, 'err'); } };
     return box;
   }
+  $('#delete', box).onclick = async () => {
+    const ok = await modal('<h2>Supprimer le salon</h2><p class="sub">Le salon et son lien d’invitation disparaissent définitivement.</p>',
+      [{ label: 'Annuler', value: false, cls: 'alt' }, { label: 'Supprimer le salon', value: true }]);
+    if (!ok) return;
+    try { await callGame('delete', { id: g.id }); toast('Salon supprimé.'); go('#/'); } catch (e: any) { toast(e.message, 'err'); }
+  };
   const types = () => cur().seats.map(s => !!s.bot);
   const push = async (t: boolean[]) => { try { await callGame('lobby', { id: g.id, seats: t.map(bot => ({ bot })) }); await sync(); } catch (e: any) { toast(e.message, 'err'); } };
   // places : délégation (les lignes sont remplacées au fil des synchronisations)

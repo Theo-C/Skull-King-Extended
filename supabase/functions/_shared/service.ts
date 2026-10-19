@@ -20,6 +20,8 @@ export interface Store {
   seats(gameId: string): Promise<SeatRow[]>;
   secret(gameId: string): Promise<E.State | null>;
   commit(gameId: string, expectedVersion: number, c: Commit): Promise<number | null>; // null : conflit de version
+  /** Supprime la partie (sièges, mains, événements et état suivent en cascade) ; false : conflit de version. */
+  deleteGame(gameId: string, expectedVersion: number): Promise<boolean>;
   /** Appel d'une fonction SQL réservée au serveur (settle_inputs, game_settle, history_page, history_get, profile_update, unsettled_games, rematch_claim, chest_open, shop_buy). */
   rpc(name: string, args: Record<string, unknown>): Promise<any>;
   /** Catalogue complet (public.cosmetics), chargé une fois. */
@@ -68,6 +70,7 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'preview': return preview(store, uid, body);
     case 'join': return withRetry(() => join(store, uid, body));
     case 'leave': return withRetry(() => leave(store, uid, body));
+    case 'delete': return withRetry(() => remove(store, uid, body));
     case 'lobby': return withRetry(() => lobby(store, uid, body));
     case 'start': return withRetry(() => start(store, uid, body));
     case 'act': return withRetry(() => act(store, uid, body));
@@ -140,6 +143,16 @@ async function leave(store: Store, uid: string, body: any) {
   if (!s) return { ok: true };
   s.user_id = null; s.name = '';
   return (await store.commit(g.id, g.version, { patch: {}, seats })) == null ? 'conflict' : { ok: true };
+}
+/** Supprimer une partie (salon ou en cours) où l'on est le seul humain : les autres sièges sont des bots ou des places libres.
+ *  Le verrou de version écarte un joueur qui rejoindrait le salon au même moment. */
+async function remove(store: Store, uid: string, body: any) {
+  const g = await mustGame(store, body.id);
+  if (g.status === 'finished') throw bad("Une partie terminée reste dans l'historique.");
+  const seats = await store.seats(g.id);
+  if (!seats.some(s => s.user_id === uid)) throw new HttpError(403, 'Vous ne jouez pas dans cette partie.');
+  if (seats.some(s => s.user_id && s.user_id !== uid)) throw bad("D'autres joueurs sont à cette table : seule une partie avec des bots peut être supprimée.");
+  return (await store.deleteGame(g.id, g.version)) ? { ok: true } : 'conflict';
 }
 async function lobby(store: Store, uid: string, body: any) {
   const g = await mustGame(store, body.id);

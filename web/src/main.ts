@@ -50,7 +50,7 @@ async function route() {
       const q = new URLSearchParams(query); shell(null, 'login');
       return verifyPage(view, q.get('token_hash') ?? '', q.get('type') ?? 'email');
     }
-    case 'entrainement': shell(user, 'practice'); return practicePage(view);
+    case 'entrainement': shell(user, 'practice'); return practicePage(view, new URLSearchParams(query));
     case 'regles': shell(user, 'rules'); return rulesPage(view);
     case 'classement': if (!user) return needAuth(); shell(user, 'lb'); return leaderboardPage(view, user.id, new URLSearchParams(query));
     case 'historique': if (!user) return needAuth(); shell(user, 'hist'); return historyPage(view, user.id, new URLSearchParams(query));

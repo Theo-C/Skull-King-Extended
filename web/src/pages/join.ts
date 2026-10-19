@@ -1,6 +1,7 @@
-// Page d'invitation : #/rejoindre/CODE
+// Page d'invitation : #/rejoindre/CODE. S'il reste une place, on la prend tout de suite et l'on arrive dans le salon ;
+// la page (avec « Prendre place ») ne s'affiche que si la partie a commencé, est complète, ou si la prise de place a échoué.
 import { callGame } from '../api';
-import { $, esc, toast } from '../util';
+import { $, esc, toast, de } from '../util';
 import { optionsSummary } from '../options';
 import { go } from '../main';
 
@@ -12,6 +13,11 @@ export async function joinPage(root: HTMLElement, code: string) {
   if (pv.member) { go('#/partie/' + pv.id); return; }
   const free = pv.seats.filter((s: any) => !s.bot && !s.taken).length;
   const canJoin = pv.status === 'lobby' && free > 0;
+  if (canJoin) {
+    root.innerHTML = `<section class="page narrow"><div class="box"><p class="muted">Vous prenez place à la table ${esc(de(pv.host))}…</p></div></section>`;
+    try { const r = await callGame<{ id: string }>('join', { code }); go('#/partie/' + r.id); return; }
+    catch (e: any) { toast(e.message, 'err'); } // repli : la page d'invitation avec son bouton
+  }
   root.innerHTML = `<section class="page narrow"><div class="box">
     <p class="eyebrow">Invitation · ${esc(pv.code)}</p>
     <h1>${esc(pv.host)} vous invite à sa table</h1>

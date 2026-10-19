@@ -26,7 +26,7 @@ export function rulesHTML(): string {
   <h3>Pouvoirs des Pirates (règle avancée)</h3>
   ${ex(['rosie','bahij','rascal','juanita','harry'].map(pid=>({kind:'pirate',pid})))}
   <ul>${Object.values(PIRATES).map((x: any)=>`<li><b>${x.n}</b> : ${x.pw}.</li>`).join('')}</ul>
-  <p>Le pouvoir s'active quand le Pirate remporte le pli.</p>
+  <p>Le pouvoir s'active quand le Pirate remporte le pli. Celui de Rascal le Flambeur est sans effet au dernier pli de la manche, où le sort de la mise est déjà connu.</p>
   <h3>Extension</h3>
   ${ex([{kind:'num',suit:'green',rank:7,mod:-5,exp:1},{kind:'num',suit:'yellow',rank:8,mod:5,exp:1},{kind:'num',suit:'purple',rank:14,zf:1,exp:1},{kind:'num',suit:'wild',rank:15,wild:1,exp:1},{kind:'pirate',pid:'mary',exp:1},{kind:'con',exp:1},{kind:'volley',exp:1},{kind:'stingray',exp:1},{kind:'davy',exp:1},{kind:'plank',exp:1}])}
   <ul>
