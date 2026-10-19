@@ -37,7 +37,6 @@ export async function homePage(root: HTMLElement, uid: string) {
         <button class="abtn gold" id="bCreate">Créer une partie</button>
         <form id="fCode" class="codeform2" aria-label="Rejoindre avec un code"><label for="code" class="sr">Code d'invitation</label>
           <input id="code" maxlength="6" placeholder="CODE" autocapitalize="characters" autocomplete="off"><button class="abtn ghost" type="submit">Rejoindre</button></form>
-        <a class="abtn ghost" href="#/entrainement?test=bendt" title="TEST — à retirer : partie d'entraînement où votre Bendt le Ripate remporte le premier pli">Test · Bendt</a>
         <a class="abtn ghost" href="#/entrainement"><span>Entraînement<span class="only-dk"> contre des bots</span></span></a>
       </div>
     </section>
