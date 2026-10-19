@@ -195,10 +195,12 @@ export class TableView {
       </div>
       <aside class="side" id="side">
         <div class="drawerbar"><button class="tb" id="dSheet">Feuille de scores</button><button class="tb" id="dClose">Fermer</button></div>
+        <div class="stabs" role="tablist" aria-label="Colonne de droite"><button type="button" role="tab" data-stab="game" class="on" aria-selected="true">Partie</button><button type="button" role="tab" data-stab="social" aria-selected="false"><span data-stablbl>Réactions</span><span class="stabn" data-stabn hidden></span></button></div>
         <section class="panel"><h3>Classement <small>plis / mise · total</small></h3><div class="ladder" id="mini"></div></section>
         <section class="panel" id="stakesP" hidden><h3>Ce que vaut votre mise <button type="button" class="more stkbtn" id="stakesMin" aria-controls="stakes"></button></h3><div id="stakes" class="stakes"></div><p class="fine">Les bonus (14, captures, Pacte de Butin) ne comptent que si la mise est exacte.</p></section>
         <section class="panel logp"><h3>Journal <a href="#" id="allLog" class="more">Tout voir</a></h3><div id="log"></div></section>
         ${reactPanelHTML(EMOTE_MAX)}
+        <div class="sslot" id="socialSlot"></div>
       </aside>
     </div>`;
     const sp = $('#speed', root) as HTMLSelectElement; sp.value = String(sel);
@@ -207,6 +209,8 @@ export class TableView {
     // sur téléphone, « Scores » ouvre un tiroir avec le classement et le journal
     $('#bScores', root).onclick = () => { if (this.mob) this.root.classList.toggle('drawer'); else this.scoreSheet(); };
     $('#dClose', root).onclick = () => this.root.classList.remove('drawer');
+    // onglets de la colonne : Partie (classement, mise, journal ; ouvert par défaut) et Réactions (GIF, juke-box en ligne)
+    $('.stabs', root).addEventListener('click', ev => { const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-stab]'); if (b) this.showSideTab(b.dataset.stab as 'game' | 'social'); });
     $('#dSheet', root).onclick = () => this.scoreSheet();
     $('#bMenu', root).onclick = () => this.menu();
     // ambiance pirate (décor seulement) ou sobre, retenue dans localStorage pli.ambiance
@@ -613,6 +617,17 @@ export class TableView {
       + (this.soundExtra ? `<div class="sndx">${this.soundExtra.html()}</div>` : '');
   }
   private soundExtra: SoundExtra | null = null;
+  /** Onglet de la colonne de droite (ordinateur ; au téléphone, la colonne est le tiroir des scores). */
+  showSideTab(t: 'game' | 'social') {
+    const side = $('#side', this.root); side.classList.toggle('tab-social', t === 'social');
+    side.querySelectorAll<HTMLElement>('[data-stab]').forEach(b => { const on = b.dataset.stab === t; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
+  }
+  /** Onglet Réactions : place pour un panneau de plus (juke-box), libellé et pastille de l'onglet. */
+  socialSide(label: string) {
+    const side = $('#side', this.root), n = side.querySelector<HTMLElement>('[data-stabn]')!;
+    side.querySelector<HTMLElement>('[data-stablbl]')!.textContent = label;
+    return { slot: $('#socialSlot', this.root), show: () => this.showSideTab('social'), count: (k: number) => { n.textContent = String(k); n.hidden = !k; } };
+  }
   /** Réglages en plus dans le panneau Son (juke-box : musique pour moi, volume, interrupteur de l'hôte). */
   setSoundExtra(x: SoundExtra | null) { this.soundExtra = x; }
   private wireSoundPanel(el: HTMLElement) {

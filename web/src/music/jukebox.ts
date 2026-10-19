@@ -1,8 +1,8 @@
 // Juke-box partagé (A19, docs/jukebox/SPEC.md, maquette Jukebox) : file commune de liens YouTube / SoundCloud pendant la
 // partie, lue en même temps chez tous les joueurs avec les lecteurs officiels. Le serveur ne connaît que la file, le morceau
 // en cours et son heure de départ : chaque joueur calcule la position attendue (heure du serveur) et se recale au-delà de 1,5 s.
-// Interface : dans la colonne de droite, sous le classement, la mise et le journal (toujours affichés), onglets Réactions
-// (réactions rapides et GIF) / Juke-box (feuille depuis le bas sur téléphone), lecteur compact au-dessus
+// Interface : onglet « Réactions · Juke-box » de la colonne de droite, sous les réactions (l'onglet Partie garde le classement,
+// la mise et le journal) ; feuille depuis le bas sur téléphone, lecteur compact au-dessus
 // de la table, annonce de 3 s à chaque ajout. Musique pour moi, volume (pdp.music.vol, pdp.music.muted, sur cet appareil) et
 // interrupteur de l'hôte : dans les réglages du son de la table (barre du haut, menu du téléphone), voir soundExtra().
 import { MUSIC, expectedPosition, needsResync, clockOffset, fmtDuration, type MusicStateRow, type Provider } from '@shared/music.ts';
@@ -25,6 +25,8 @@ export interface JukeboxBackend {
   serverNow(): Promise<number>;
   /** Nom et couleur d'un joueur. */
   who(uid: string): { name: string; color: string };
+  /** Onglet de la colonne de droite qui accueille le juke-box (TableView.socialSide). */
+  side: { slot: HTMLElement; show(): void; count(n: number): void };
 }
 
 /* ---------- Réglages personnels (cet appareil) ---------- */
@@ -59,12 +61,11 @@ export class Jukebox {
   private vol = savedVol(); private muted = read(K_MUTED) === '1';
   private live = true; private stopped = false;
   private ticker: any = null; private poll: any = null; private ticks = 0;
-  private tab: 'react' | 'music' = 'react';
   private err = '';
   private busy = false;
   /** Dernier déblocage par un geste : le même toucher n'ouvre pas aussi le juke-box. */
   private wokeAt = 0;
-  private els!: { tabs: HTMLElement; panel: HTMLElement; pill: HTMLElement; toast: HTMLElement; sheet: HTMLElement; react: HTMLElement | null };
+  private els!: { panel: HTMLElement; pill: HTMLElement; toast: HTMLElement; sheet: HTMLElement };
   private mq = matchMedia('(max-width:719px)');
   private refreshing = false; private again = false;
 
@@ -83,7 +84,7 @@ export class Jukebox {
     this.mq.removeEventListener('change', this.place); document.removeEventListener('visibilitychange', this.onVis);
     removeEventListener('pointerdown', this.onGesture, true); removeEventListener('keydown', this.onGesture, true);
     Object.values(this.players).forEach(p => p?.destroy()); this.players = {}; this.active = null;
-    this.els.sheet.remove(); this.els.pill.remove(); this.els.toast.remove(); this.els.tabs.remove(); this.els.panel.remove(); if (this.els.react) this.els.react.hidden = false;
+    this.els.sheet.remove(); this.els.pill.remove(); this.els.toast.remove(); this.els.panel.remove(); this.be.side.count(0);
   }
 
   /* ---------- Données ---------- */
@@ -219,12 +220,8 @@ export class Jukebox {
 
   /* ---------- Interface ---------- */
   private mount() {
-    // onglets posés au-dessus du panneau Réactions (GIF compris) ; classement, mise et journal restent toujours affichés
-    const r = this.root, react = r.querySelector<HTMLElement>('.side [data-gifpanel]');
-    const tabs = document.createElement('div'); tabs.className = 'jb-tabs'; tabs.setAttribute('role', 'tablist');
-    tabs.innerHTML = `<button type="button" role="tab" data-jtab="react" class="on" aria-selected="true">Réactions</button>
-      <button type="button" role="tab" data-jtab="music" aria-selected="false">${ICO.note(15, 2.2)}Juke-box<span class="jb-n" data-jn>0</span></button>`;
-    const panel = document.createElement('section'); panel.className = 'jb-panel'; panel.hidden = true; panel.setAttribute('aria-label', 'Juke-box');
+    const r = this.root;
+    const panel = document.createElement('section'); panel.className = 'jb-panel'; panel.setAttribute('aria-label', 'Juke-box');
     panel.innerHTML = `
       <div class="jb-card jb-now" data-now></div>
       <div class="jb-card jb-add"><div class="jb-hr"><span class="jb-h">Ajouter un morceau</span><span class="jb-quota" data-quota></span></div>
@@ -240,18 +237,16 @@ export class Jukebox {
     sheet.innerHTML = `<div class="jb-scrim" data-close></div><div class="jb-sheetbox" role="dialog" aria-modal="true" aria-label="Juke-box"><div class="jb-sheethead"><b>${ICO.note(16, 2)} Juke-box</b><button type="button" class="jb-x" data-close aria-label="Fermer">${ICO.x}</button></div><div data-slot></div></div>`;
     const stage = r.querySelector<HTMLElement>('.tstage') ?? r;
     stage.prepend(pill); stage.append(toast); document.body.append(sheet);
-    if (react) { react.before(tabs); react.after(panel); }
-    this.els = { tabs, panel, pill, toast, sheet, react };
+    this.els = { panel, pill, toast, sheet };
     this.place();
 
-    tabs.onclick = ev => { const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-jtab]'); if (b) this.showTab(b.dataset.jtab as 'react' | 'music'); };
     sheet.addEventListener('click', ev => { if ((ev.target as HTMLElement).closest('[data-close]')) this.openSheet(false); });
     sheet.addEventListener('keydown', ev => { if (ev.key === 'Escape') this.openSheet(false); });
     pill.onclick = ev => {
       if ((ev.target as HTMLElement).closest('[data-pmute]')) { this.setMuted(!this.muted); return; }
       if (this.blocked()) { this.unblock(); return; }
       if (Date.now() - this.wokeAt < 700) return;
-      if (this.mq.matches) this.openSheet(true); else this.showTab('music');
+      if (this.mq.matches) this.openSheet(true); else this.be.side.show();
     };
     const inp = panel.querySelector<HTMLInputElement>('#jbUrl')!;
     inp.addEventListener('input', () => { if (this.err) this.setErr(''); else this.paintAdd(); });
@@ -268,16 +263,10 @@ export class Jukebox {
   }
   /** Ordinateur : panneau dans la colonne de droite ; téléphone : dans la feuille qui monte depuis le bas. */
   private place = () => {
-    const { panel, sheet, react } = this.els;
-    if (this.mq.matches) { sheet.querySelector('[data-slot]')!.append(panel); panel.hidden = false; if (react) react.hidden = false; }
-    else { react?.after(panel); this.openSheet(false); this.showTab(this.tab); }
+    const { panel, sheet } = this.els;
+    if (this.mq.matches) sheet.querySelector('[data-slot]')!.append(panel);
+    else { this.be.side.slot.append(panel); this.openSheet(false); }
   };
-  private showTab(t: 'react' | 'music') {
-    this.tab = t; const { tabs, panel, react } = this.els;
-    tabs.querySelectorAll<HTMLElement>('[data-jtab]').forEach(b => { const on = b.dataset.jtab === t; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
-    if (this.mq.matches) return;
-    panel.hidden = t !== 'music'; if (react) react.hidden = t === 'music';
-  }
   private openSheet(open: boolean) {
     const s = this.els.sheet; if (s.hidden === !open) return;
     s.hidden = !open; if (open) { this.render(); s.querySelector<HTMLElement>('.jb-x')?.focus(); }
@@ -370,5 +359,5 @@ export class Jukebox {
     el.innerHTML = `<button type="button" class="jb-pmain" aria-label="${esc(cls === ' wake' ? 'Cliquez pour écouter la musique de la table' : 'Ouvrir le juke-box')}">${EQ.replace('jb-eq', 'jb-eq' + (playing ? '' : ' off'))}<span class="jb-pt">${esc(title)}</span>${by ? `<span class="jb-pb">${esc(by)}</span>` : ''}</button>
       <button type="button" class="jb-x gold" data-pmute aria-label="${this.muted ? 'Réactiver la musique pour moi' : 'Couper la musique pour moi'}" title="${this.muted ? 'Réactiver la musique pour moi' : 'Couper la musique pour moi'}">${this.muted ? ICO.off : ICO.on}</button>`;
   }
-  private paintCount() { const n = this.waiting().length, b = this.els.tabs.querySelector<HTMLElement>('[data-jn]')!; b.textContent = String(n); b.hidden = !n; }
+  private paintCount() { this.be.side.count(this.waiting().length); }
 }

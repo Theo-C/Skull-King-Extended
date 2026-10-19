@@ -121,6 +121,7 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
           return { queue: (q.data ?? []) as any, state: (st.data ?? null) as any };
         },
         call: (action, p = {}) => callGame(action, { id, ...p }),
+        side: table.socialSide('Réactions · Juke-box'),
         serverNow: async () => (await callGame<{ now: number }>('time')).now,
         who: u => ({ name: seats.find(s => s.user_id === u)?.name ?? 'Un pirate', color: colors.find((c: any) => c.id === u)?.color || '#d9b25a' }),
       });
