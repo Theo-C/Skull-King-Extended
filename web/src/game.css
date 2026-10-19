@@ -1223,7 +1223,7 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 #hand.bendt .card.discard{transform:translateY(calc(var(--y,0px) - var(--lift,24px) * .6)) rotate(var(--r,0deg))}
 
 /* ---------- Juke-box partagé (A19, docs/jukebox/SPEC.md, maquette Jukebox) ---------- */
-/* onglets de la colonne de droite : Partie (classement, mise, journal) / Réactions (· Juke-box en ligne) */
+/* onglets de la colonne de droite : Jeu (classement, mise, journal, réactions) / Juke-box (en ligne seulement) */
 .stabs{flex:none;display:flex;gap:4px;padding:4px;border-radius:11px;background:rgba(0,0,0,.3)}
 .stabs button{flex:1;min-width:0;height:34px;border:0;border-radius:8px;background:transparent;color:#a8987f;font:800 14px var(--f-body);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
 .stabs button.on{background:rgba(234,208,138,.14);color:#ead08a}
@@ -1232,10 +1232,22 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 .sslot{flex:0 1 auto;min-height:0;display:flex;flex-direction:column}
 .sslot:empty{display:none}
 @media (min-width:720px){
-  .side:not(.tab-social)>.reactp,.side:not(.tab-social)>.sslot{display:none!important}
-  .side.tab-social>.panel:not(.reactp){display:none!important}
+  .side:not(.tab-social)>.sslot{display:none!important}
+  .side.tab-social>.panel{display:none!important}
 }
 @media (max-width:719px){.stabs{display:none}}
+.stabs button[hidden]{display:none}
+/* petite flèche : replie toute la colonne (grand écran seulement ; en dessous, la colonne est le tiroir des scores) */
+.sidetop{flex:none;display:flex;gap:6px;align-items:stretch}
+.sidetop .stabs{flex:1;min-width:0}
+.sidefold{display:none;flex:none;width:30px;border:0;border-radius:9px;background:rgba(0,0,0,.3);color:#a8987f;font:800 18px/1 var(--f-body);cursor:pointer}
+.sidefold:hover{color:#ead08a}
+.sidefold:focus-visible{outline:2px solid #ead08a;outline-offset:2px}
+@media (min-width:1101px){
+  .sidefold{display:block;min-height:42px}
+  .tmain.side-min{grid-template-columns:minmax(0,1fr) 30px}
+  .tmain.side-min>.side>:not(.sidetop),.tmain.side-min .stabs{display:none!important}
+}
 .stabs button:focus-visible,.jb-panel button:focus-visible,.jb-panel input:focus-visible,.jb-pill button:focus-visible,.jb-sheet button:focus-visible{outline:2px solid #ead08a;outline-offset:2px}
 /* sous le journal : le juke-box garde la hauteur de son contenu et défile s'il manque de place (le journal garde ses 90 px) */
 .jb-panel{flex:0 1 auto;min-height:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto;scrollbar-width:thin}

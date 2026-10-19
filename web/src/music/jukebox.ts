@@ -1,8 +1,8 @@
 // Juke-box partagé (A19, docs/jukebox/SPEC.md, maquette Jukebox) : file commune de liens YouTube / SoundCloud pendant la
 // partie, lue en même temps chez tous les joueurs avec les lecteurs officiels. Le serveur ne connaît que la file, le morceau
 // en cours et son heure de départ : chaque joueur calcule la position attendue (heure du serveur) et se recale au-delà de 1,5 s.
-// Interface : onglet « Réactions · Juke-box » de la colonne de droite, sous les réactions (l'onglet Partie garde le classement,
-// la mise et le journal) ; feuille depuis le bas sur téléphone, lecteur compact au-dessus
+// Interface : onglet « Juke-box » de la colonne de droite (l'onglet Jeu garde le classement, la mise, le journal et les
+// réactions) ; feuille depuis le bas sur téléphone, lecteur compact au-dessus
 // de la table, annonce de 3 s à chaque ajout. Musique pour moi, volume (pdp.music.vol, pdp.music.muted, sur cet appareil) et
 // interrupteur de l'hôte : dans les réglages du son de la table (barre du haut, menu du téléphone), voir soundExtra().
 import { MUSIC, expectedPosition, needsResync, clockOffset, fmtDuration, type MusicStateRow, type Provider } from '@shared/music.ts';
@@ -26,7 +26,7 @@ export interface JukeboxBackend {
   /** Nom et couleur d'un joueur. */
   who(uid: string): { name: string; color: string };
   /** Onglet de la colonne de droite qui accueille le juke-box (TableView.socialSide). */
-  side: { slot: HTMLElement; show(): void; count(n: number): void };
+  side: { slot: HTMLElement; show(): void; count(n: number): void; close?(): void };
 }
 
 /* ---------- Réglages personnels (cet appareil) ---------- */
@@ -84,7 +84,7 @@ export class Jukebox {
     this.mq.removeEventListener('change', this.place); document.removeEventListener('visibilitychange', this.onVis);
     removeEventListener('pointerdown', this.onGesture, true); removeEventListener('keydown', this.onGesture, true);
     Object.values(this.players).forEach(p => p?.destroy()); this.players = {}; this.active = null;
-    this.els.sheet.remove(); this.els.pill.remove(); this.els.toast.remove(); this.els.panel.remove(); this.be.side.count(0);
+    this.els.sheet.remove(); this.els.pill.remove(); this.els.toast.remove(); this.els.panel.remove(); this.be.side.count(0); this.be.side.close?.();
   }
 
   /* ---------- Données ---------- */

@@ -126,6 +126,9 @@ const SHOWN = new Map<string, number>();
 /** Encadré « Ce que vaut votre mise » replié (localStorage pli.stakes.min). */
 const stakesMin = () => { try { return localStorage.getItem('pli.stakes.min') === '1'; } catch { return false; } };
 const setStakesMin = (v: boolean) => { try { localStorage.setItem('pli.stakes.min', v ? '1' : '0'); } catch { /* stockage indisponible */ } };
+/** Colonne de droite repliée (localStorage pli.side.min). */
+const sideMin = () => { try { return localStorage.getItem('pli.side.min') === '1'; } catch { return false; } };
+const setSideMin = (v: boolean) => { try { localStorage.setItem('pli.side.min', v ? '1' : '0'); } catch { /* stockage indisponible */ } };
 export class TableView {
   pub: PublicView | null = null; priv: PrivateView | null = null;
   private latest: { pub: PublicView; priv: PrivateView | null } | null = null;
@@ -195,7 +198,7 @@ export class TableView {
       </div>
       <aside class="side" id="side">
         <div class="drawerbar"><button class="tb" id="dSheet">Feuille de scores</button><button class="tb" id="dClose">Fermer</button></div>
-        <div class="stabs" role="tablist" aria-label="Colonne de droite"><button type="button" role="tab" data-stab="game" class="on" aria-selected="true">Partie</button><button type="button" role="tab" data-stab="social" aria-selected="false"><span data-stablbl>Réactions</span><span class="stabn" data-stabn hidden></span></button></div>
+        <div class="sidetop"><button type="button" class="sidefold" id="sideFold" aria-controls="side"></button><div class="stabs" role="tablist" aria-label="Colonne de droite"><button type="button" role="tab" data-stab="game" class="on" aria-selected="true">Jeu</button><button type="button" role="tab" data-stab="social" aria-selected="false" hidden><span data-stablbl>Juke-box</span><span class="stabn" data-stabn hidden></span></button></div></div>
         <section class="panel"><h3>Classement <small>plis / mise · total</small></h3><div class="ladder" id="mini"></div></section>
         <section class="panel" id="stakesP" hidden><h3>Ce que vaut votre mise <button type="button" class="more stkbtn" id="stakesMin" aria-controls="stakes"></button></h3><div id="stakes" class="stakes"></div><p class="fine">Les bonus (14, captures, Pacte de Butin) ne comptent que si la mise est exacte.</p></section>
         <section class="panel logp"><h3>Journal <a href="#" id="allLog" class="more">Tout voir</a></h3><div id="log"></div></section>
@@ -209,8 +212,16 @@ export class TableView {
     // sur téléphone, « Scores » ouvre un tiroir avec le classement et le journal
     $('#bScores', root).onclick = () => { if (this.mob) this.root.classList.toggle('drawer'); else this.scoreSheet(); };
     $('#dClose', root).onclick = () => this.root.classList.remove('drawer');
-    // onglets de la colonne : Partie (classement, mise, journal ; ouvert par défaut) et Réactions (GIF, juke-box en ligne)
+    // onglets de la colonne : Jeu (classement, mise, journal, réactions ; ouvert par défaut) et Juke-box (en ligne seulement)
     $('.stabs', root).addEventListener('click', ev => { const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-stab]'); if (b) this.showSideTab(b.dataset.stab as 'game' | 'social'); });
+    // petite flèche : replie toute la colonne de droite (grand écran), choix gardé sur cet appareil
+    const paintFold = () => {
+      const min = sideMin(); $('.tmain', root).classList.toggle('side-min', min);
+      const b = $('#sideFold', root), l = min ? 'Afficher la colonne de droite' : 'Masquer la colonne de droite';
+      b.textContent = min ? '‹' : '›'; b.setAttribute('aria-label', l); b.title = l; b.setAttribute('aria-expanded', String(!min));
+    };
+    paintFold();
+    $('#sideFold', root).onclick = () => { setSideMin(!sideMin()); paintFold(); this.onResize(); };
     $('#dSheet', root).onclick = () => this.scoreSheet();
     $('#bMenu', root).onclick = () => this.menu();
     // ambiance pirate (décor seulement) ou sobre, retenue dans localStorage pli.ambiance
@@ -622,11 +633,14 @@ export class TableView {
     const side = $('#side', this.root); side.classList.toggle('tab-social', t === 'social');
     side.querySelectorAll<HTMLElement>('[data-stab]').forEach(b => { const on = b.dataset.stab === t; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
   }
-  /** Onglet Réactions : place pour un panneau de plus (juke-box), libellé et pastille de l'onglet. */
+  /** Onglet Juke-box : affiché quand le juke-box existe, avec sa place, son libellé et sa pastille ; close le masque de nouveau. */
   socialSide(label: string) {
-    const side = $('#side', this.root), n = side.querySelector<HTMLElement>('[data-stabn]')!;
-    side.querySelector<HTMLElement>('[data-stablbl]')!.textContent = label;
-    return { slot: $('#socialSlot', this.root), show: () => this.showSideTab('social'), count: (k: number) => { n.textContent = String(k); n.hidden = !k; } };
+    const side = $('#side', this.root), n = side.querySelector<HTMLElement>('[data-stabn]')!, tab = side.querySelector<HTMLElement>('[data-stab="social"]')!;
+    side.querySelector<HTMLElement>('[data-stablbl]')!.textContent = label; tab.hidden = false;
+    return {
+      slot: $('#socialSlot', this.root), show: () => this.showSideTab('social'), count: (k: number) => { n.textContent = String(k); n.hidden = !k; },
+      close: () => { tab.hidden = true; n.hidden = true; this.showSideTab('game'); },
+    };
   }
   /** Réglages en plus dans le panneau Son (juke-box : musique pour moi, volume, interrupteur de l'hôte). */
   setSoundExtra(x: SoundExtra | null) { this.soundExtra = x; }
