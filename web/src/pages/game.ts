@@ -4,6 +4,8 @@ import { sb, callGame, inviteLink } from '../api';
 import { $, esc, toast, copyText } from '../util';
 import { optionsHTML, readOptions, wireOptions } from '../options';
 import { TableView } from '../table';
+import { Jukebox } from '../music/jukebox';
+import { skipNeed } from '@shared/music.ts';
 import { fromProfile, withItem, type Look } from '../avatar';
 import { myProfile, forgetProfile, chestBadge } from '../account';
 import { detailPage } from './detail';
@@ -11,10 +13,10 @@ import { renderSalon } from './salon';
 import { go, setCleanup } from '../main';
 
 export async function gamePage(root: HTMLElement, id: string, uid: string) {
-  let channel: RealtimeChannel | null = null, table: TableView | null = null, mode: 'lobby' | 'table' | null = null;
+  let channel: RealtimeChannel | null = null, table: TableView | null = null, mode: 'lobby' | 'table' | null = null, jukebox: Jukebox | null = null;
   let lastEventId = 0, syncing = false, again = false, timer: any = null, stopped = false;
   let myLookCache: { color: string; look: Look | null } | null = null;
-  const stop = () => { stopped = true; if (channel) sb.removeChannel(channel); clearInterval(timer); table?.destroy(); };
+  const stop = () => { stopped = true; if (channel) sb.removeChannel(channel); clearInterval(timer); jukebox?.destroy(); table?.destroy(); };
   setCleanup(stop);
 
   const loadGame = async () => {
@@ -40,6 +42,7 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
         if (evs && evs.length) { lastEventId = evs[evs.length - 1].id; table!.push(evs.map(e => e.payload)); }
         const { data: h } = await sb.from('hands').select('data').eq('game_id', id).maybeSingle();
         table!.setLatest(g.state, h?.data ?? null);
+        jukebox?.setLive(g.status === 'playing');
         // un joueur a lancé la revanche (code réservé dans state.rematch) : tout le monde rejoint le salon, sans cliquer
         if (g.status === 'finished' && g.state?.rematch && seats.some(s => s.user_id === uid)) followRematch();
       } while (again && !stopped);
@@ -94,9 +97,9 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       saveSound: on => { callGame('profile.update', { sounds: on }).then(() => forgetProfile(), () => { /* réglage gardé sur cet appareil */ }); },
     }, () => go('#/'));
     // avatars et couleurs des joueurs (les bots gardent l'initiale sur la couleur par défaut)
-    const ids = seats.filter(s => s.user_id).map(s => s.user_id);
+    const ids = seats.filter(s => s.user_id).map(s => s.user_id); let colors: any[] = [];
     if (ids.length) {
-      const { data: profs } = await sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url, look').in('id', ids);
+      const { data: profs } = await sb.from('profiles').select('id, pseudo, color, avatar_kind, avatar_art, avatar_url, look').in('id', ids); colors = profs ?? [];
       if (profs) {
         table.setAvatars(seats.map(s => { const p = profs.find((x: any) => x.id === s.user_id); return p ? fromProfile(p) : null; }));
         const me = profs.find((x: any) => x.id === uid); if (me) myLookCache = { color: me.color || '#d9b25a', look: me.look || null };
@@ -104,6 +107,23 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       // cartes animées possédées par chaque joueur (posséder suffit : pas d'interrupteur)
       const { data: ca } = await sb.rpc('cartes_animees', { p_users: ids });
       if (ca) table.setAnimCards(seats.map(s => new Set((ca as any[]).filter(r => r.user_id === s.user_id).map(r => r.carte as string))));
+    }
+    // juke-box partagé (A19) : seulement pendant la partie, pour les joueurs assis
+    if (mine && g.status === 'playing') {
+      jukebox = new Jukebox(root.firstElementChild as HTMLElement, {
+        uid, host: g.host === uid, need: skipNeed(new Set(ids).size),
+        fetch: async () => {
+          const [q, st] = await Promise.all([
+            sb.from('music_queue').select('id, added_by, provider, media_id, title, thumb_url, duration_s, position, created_at').eq('game_id', id).order('position').order('created_at'),
+            sb.from('music_state').select('enabled, current_id, started_at, paused_at, skip_votes, reports').eq('game_id', id).maybeSingle(),
+          ]);
+          if (q.error || st.error) throw new Error('juke-box : lecture impossible');
+          return { queue: (q.data ?? []) as any, state: (st.data ?? null) as any };
+        },
+        call: (action, p = {}) => callGame(action, { id, ...p }),
+        serverNow: async () => (await callGame<{ now: number }>('time')).now,
+        who: u => ({ name: seats.find(s => s.user_id === u)?.name ?? 'Un pirate', color: colors.find((c: any) => c.id === u)?.color || '#d9b25a' }),
+      });
     }
   };
 
@@ -126,6 +146,8 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${id}` }, ping)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_events', filter: `game_id=eq.${id}` }, ping)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hands', filter: `game_id=eq.${id}` }, ping)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'music_queue', filter: `game_id=eq.${id}` }, () => jukebox?.refresh())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'music_state', filter: `game_id=eq.${id}` }, () => jukebox?.refresh())
     .subscribe(status => { if (status === 'SUBSCRIBED') channel?.track({ at: Date.now() }).catch(() => { /* présence indisponible */ }); });
   timer = setInterval(sync, 15000); // filet de sécurité si le temps réel décroche
   const onVis = () => { if (!document.hidden) sync(); };

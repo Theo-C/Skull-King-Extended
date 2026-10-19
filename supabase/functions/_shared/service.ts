@@ -2,6 +2,7 @@
 import * as E from './engine.ts';
 import { levelFor } from './xp.ts';
 import { settleGame, type SettleInput } from './settle.ts';
+import * as M from './music.ts';
 
 export interface GameRow { id: string; code: string; host: string; status: 'lobby' | 'playing' | 'finished'; options: any; state: any; version: number; /** dernier coup enregistré */ updated_at?: string }
 export interface SeatRow { seat: number; user_id: string | null; bot: boolean; name: string; final_score?: number | null; rank?: number | null }
@@ -32,6 +33,8 @@ export interface Store {
   wallet(uid: string): Promise<{ coins: number; chests: number; jokers: number }>;
   /** API de GIF (KLIPY), clé côté serveur ; absente si la clé n'est pas configurée. */
   gif?: GifApi;
+  /** Métadonnées des morceaux du juke-box (YouTube Data API, oEmbed SoundCloud) ; absent : juke-box indisponible. */
+  music?: MusicApi;
   /** Message Realtime envoyé par le serveur sur le canal d'une partie (« partie-<id> »). */
   broadcast?(topic: string, event: string, payload: Record<string, unknown>): Promise<void>;
 }
@@ -42,6 +45,12 @@ export interface GifApi {
   search(q: string, cursor: string | null): Promise<{ items: GifItem[]; next: string | null }>;
   /** Un GIF par son identifiant (pour reconstruire l'URL côté serveur à l'envoi). */
   get(id: string): Promise<GifItem | null>;
+}
+/** Morceau du juke-box tel que le serveur l'a vérifié (A19). */
+export interface MediaInfo { provider: M.Provider; media_id: string; title: string; thumb_url: string | null; duration_s: number }
+export interface MusicApi {
+  /** Titre, durée, miniature et adresse du lecteur ; { error } si le morceau ne peut pas être lu dans le jeu (codes de M.MUSIC_ERR). */
+  lookup(link: { provider: 'youtube'; id: string } | { provider: 'soundcloud'; url: string }): Promise<MediaInfo | { error: string }>;
 }
 /** Catégories du sélecteur → recherche (« tendances » = GIF du moment). */
 export const GIF_CATS: Record<string, string> = { tendances: '', bravo: 'bravo', rire: 'rire', rage: 'rage', pirate: 'pirate' };
@@ -87,6 +96,15 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'history.list': return historyList(store, uid, body);
     case 'history.get': return historyGet(store, uid, body);
     case 'rematch': return rematch(store, uid, body);
+    // heure du serveur : le juke-box estime le décalage de l'horloge du site (A19)
+    case 'time': return { now: Date.now() };
+    case 'music.add': return musicAdd(store, uid, body);
+    case 'music.remove': return musicRemove(store, uid, body);
+    case 'music.vote': return musicVote(store, uid, body);
+    case 'music.skip': return musicSkip(store, uid, body);
+    case 'music.next': return musicNext(store, uid, body);
+    case 'music.report': return musicReport(store, uid, body);
+    case 'music.toggle': return musicToggle(store, uid, body);
     default: throw bad('Action inconnue.');
   }
 }
@@ -475,6 +493,71 @@ async function historyGet(store: Store, uid: string, body: any) {
     if (S) { await settleFinished(store, body.id, S, await store.seats(body.id)); d = await store.rpc('history_get', { p_user: uid, p_game: body.id }); }
   }
   return d;
+}
+
+/* ---------- Juke-box partagé (A19, docs/jukebox/SPEC.md) ---------- */
+/** Partie en cours dont on est joueur ; hôte, et votes nécessaires (moitié des humains assis, les bots ne votent pas). */
+async function musicCtx(store: Store, uid: string, body: any) {
+  const g = await mustGame(store, body.id);
+  if (g.status !== 'playing') throw bad("Le juke-box n'est ouvert que pendant la partie.");
+  const seats = await store.seats(g.id);
+  if (!seats.some(s => s.user_id === uid)) throw new HttpError(403, 'Vous ne jouez pas dans cette partie.');
+  const humans = new Set(seats.filter(s => s.user_id && !s.bot).map(s => s.user_id)).size;
+  return { g, host: g.host === uid, need: M.skipNeed(humans) };
+}
+const itemId = (x: any) => { if (typeof x !== 'string' || !UUID.test(x)) throw bad('Morceau inconnu.'); return x; };
+const musicErr = (code: string) => bad(M.MUSIC_ERR[code] ?? M.MUSIC_ERR.unavailable);
+async function musicAdd(store: Store, uid: string, body: any) {
+  const link = M.parseLink(body.url);
+  if ('error' in link) throw musicErr(link.error);
+  const { g } = await musicCtx(store, uid, body);
+  if (!store.music) throw new HttpError(503, M.MUSIC_ERR.unavailable);
+  const info = await store.music.lookup(link).catch(e => { console.error('juke-box : métadonnées', e); return { error: 'unavailable' }; });
+  if ('error' in info) { if (info.error === 'unavailable') throw new HttpError(502, M.MUSIC_ERR.unavailable); throw musicErr(info.error); }
+  if (info.duration_s > M.MUSIC.maxSeconds) throw bad(`Ce morceau dure ${M.fmtDuration(info.duration_s)}. ${M.MUSIC_ERR.long}`);
+  const r = await store.rpc('music_add', { p_game: g.id, p_user: uid, p_provider: info.provider, p_media: info.media_id, p_title: info.title,
+    p_thumb: info.thumb_url, p_duration: info.duration_s, p_per_user: M.MUSIC.perUser, p_max: M.MUSIC.maxQueue });
+  if (r?.error) throw musicErr(r.error);
+  return { ok: true, id: r.id, started: !!r.started, title: info.title };
+}
+/** Retirer un morceau en attente : le sien, ou n'importe lequel pour l'hôte. */
+async function musicRemove(store: Store, uid: string, body: any) {
+  const { g, host } = await musicCtx(store, uid, body);
+  const r = await store.rpc('music_remove', { p_game: g.id, p_user: uid, p_item: itemId(body.item), p_host: host });
+  if (r === 'forbidden') throw new HttpError(403, "Seul l'hôte peut retirer le morceau d'un autre joueur.");
+  if (r === 'current') throw bad("Ce morceau est en cours : votez pour le passer.");
+  return { ok: true };
+}
+/** Vote pour passer (un second clic retire le vote) : on passe à la moitié des joueurs. */
+async function musicVote(store: Store, uid: string, body: any) {
+  const { g, need } = await musicCtx(store, uid, body);
+  const r = await store.rpc('music_vote', { p_game: g.id, p_user: uid, p_item: itemId(body.item), p_need: need });
+  if (r?.error) throw bad('Ce morceau est déjà terminé.');
+  return { ok: true, votes: r.votes, need, skipped: !!r.skipped };
+}
+/** « Passer (hôte) ». */
+async function musicSkip(store: Store, uid: string, body: any) {
+  const { g, host } = await musicCtx(store, uid, body);
+  if (!host) throw new HttpError(403, "Seul l'hôte peut passer le morceau sans vote.");
+  return { ok: true, result: await store.rpc('music_advance', { p_game: g.id, p_item: itemId(body.item) }) };
+}
+/** Fin du morceau constatée par un joueur : le serveur vérifie l'heure et ne passe qu'une fois. */
+async function musicNext(store: Store, uid: string, body: any) {
+  const { g } = await musicCtx(store, uid, body);
+  return { ok: true, result: await store.rpc('music_next', { p_game: g.id, p_item: itemId(body.item) }) };
+}
+/** Lecteur incapable de lire le morceau (erreurs 101 / 150 de YouTube). */
+async function musicReport(store: Store, uid: string, body: any) {
+  const { g, need } = await musicCtx(store, uid, body);
+  const r = await store.rpc('music_report', { p_game: g.id, p_user: uid, p_item: itemId(body.item), p_host: g.host, p_need: need });
+  return { ok: true, skipped: !!r?.skipped };
+}
+/** Interrupteur « Juke-box du salon », réservé à l'hôte. */
+async function musicToggle(store: Store, uid: string, body: any) {
+  const { g, host } = await musicCtx(store, uid, body);
+  if (!host) throw new HttpError(403, "Seul l'hôte peut couper le juke-box.");
+  await store.rpc('music_toggle', { p_game: g.id, p_on: !!body.on });
+  return { ok: true, on: !!body.on };
 }
 
 /* ---------- Revanche : même réglages, mêmes joueurs (déjà assis), mêmes bots ---------- */

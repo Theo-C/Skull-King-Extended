@@ -3,6 +3,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { handle, HttpError, type Store, type GameRow, type SeatRow, type CosmeticRow } from '../_shared/service.ts';
 import { klipy } from './klipy.ts';
+import { media } from './media.ts';
 
 const URL_ = Deno.env.get('SUPABASE_URL')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -87,6 +88,8 @@ const store: Store = {
   },
   // GIF en partie : API KLIPY si la clé est configurée (npx supabase secrets set KLIPY_API_KEY=…)
   gif: Deno.env.get('KLIPY_API_KEY') ? klipy(Deno.env.get('KLIPY_API_KEY')!) : undefined,
+  // juke-box : métadonnées YouTube (npx supabase secrets set YOUTUBE_API_KEY=…) et SoundCloud (sans clé)
+  music: media(Deno.env.get('YOUTUBE_API_KEY')),
   // diffusion Realtime par l'API REST (pas besoin d'ouvrir de connexion) : tous les clients du canal la reçoivent
   async broadcast(topic, event, payload) {
     const res = await fetch(`${URL_}/realtime/v1/api/broadcast`, {
@@ -103,9 +106,11 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json(405, { error: 'Méthode non autorisée.' });
   try {
+    const body = await req.json().catch(() => ({}));
+    // heure du serveur pour le juke-box : renvoyée avant la vérification du compte, pour un aller-retour le plus court possible
+    if (body?.action === 'time') return json(200, { now: Date.now() });
     const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     const { data: u } = token ? await admin.auth.getUser(token) : { data: { user: null } };
-    const body = await req.json().catch(() => ({}));
     const out = await handle(store, u.user?.id ?? null, body);
     return json(200, out);
   } catch (e) {

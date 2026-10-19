@@ -90,6 +90,11 @@ npx tsx tests/sql.test.ts
 - `sql.test.ts` : migration appliquée sur un Postgres embarqué, contrôles RLS (main privée, secrets, écriture interdite).
 - `service.test.ts` : 4 comptes créent, invitent, rejoignent et jouent une partie entière en ne lisant que ce que la RLS leur montre ;
   refus des coups hors tour et des cartes interdites, classement alimenté, conflit d'écriture détecté.
+- `music.test.ts` : juke-box partagé (liens, quotas, retraits, vote à la moitié, `music.next` idempotent, coupure de l'hôte,
+  métadonnées YouTube / SoundCloud simulées).
+
+Juke-box : la clé de l'API YouTube Data v3 reste côté serveur, dans les secrets Supabase :
+`npx supabase secrets set YOUTUBE_API_KEY=<votre clé>`. Sans elle, seuls les liens SoundCloud sont acceptés.
 
 ## Pistes suivantes
 
