@@ -124,6 +124,8 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
         serverNow: async () => (await callGame<{ now: number }>('time')).now,
         who: u => ({ name: seats.find(s => s.user_id === u)?.name ?? 'Un pirate', color: colors.find((c: any) => c.id === u)?.color || '#d9b25a' }),
       });
+      // musique pour moi, volume et interrupteur de l'hôte : dans les réglages du son de la table
+      table.setSoundExtra(jukebox.soundExtra());
     }
   };
 

@@ -29,6 +29,9 @@ const TOUCH = () => matchMedia('(hover: none)').matches;
 const du = (s: string) => /^Méduse/.test(s) ? 'de la ' + s : 'du ' + s;
 const de = (s: string) => s === 'vous' ? 'à vous' : /^[aeiouyhéèêàâîôûAEIOUYHÉÈÊÀÂÎÔÛ]/.test(s) ? "d'" + s : 'de ' + s;
 
+/** Section ajoutée au panneau Son (barre du haut, menu du téléphone) : réglages du juke-box (A19). */
+export interface SoundExtra { html(): string; wire(el: HTMLElement): void }
+
 export interface TableBackend {
   send(move: Action): Promise<void>; emote?(text: string): void; ready?(round: number): void;
   /** Partie en ligne : identifiant, utilisateur courant, utilisateur de chaque siège, et revanche (renvoie l'identifiant du nouveau salon). */
@@ -120,6 +123,9 @@ const PENDING_LABEL: Record<string, string> = {
 /** Fin de manche déjà affichée, par partie en ligne (clé : identifiant de la partie). */
 const SHOWN = new Map<string, number>();
 
+/** Encadré « Ce que vaut votre mise » replié (localStorage pli.stakes.min). */
+const stakesMin = () => { try { return localStorage.getItem('pli.stakes.min') === '1'; } catch { return false; } };
+const setStakesMin = (v: boolean) => { try { localStorage.setItem('pli.stakes.min', v ? '1' : '0'); } catch { /* stockage indisponible */ } };
 export class TableView {
   pub: PublicView | null = null; priv: PrivateView | null = null;
   private latest: { pub: PublicView; priv: PrivateView | null } | null = null;
@@ -190,7 +196,7 @@ export class TableView {
       <aside class="side" id="side">
         <div class="drawerbar"><button class="tb" id="dSheet">Feuille de scores</button><button class="tb" id="dClose">Fermer</button></div>
         <section class="panel"><h3>Classement <small>plis / mise · total</small></h3><div class="ladder" id="mini"></div></section>
-        <section class="panel" id="stakesP" hidden><h3>Ce que vaut votre mise</h3><div id="stakes" class="stakes"></div><p class="fine">Les bonus (14, captures, Pacte de Butin) ne comptent que si la mise est exacte.</p></section>
+        <section class="panel" id="stakesP" hidden><h3>Ce que vaut votre mise <button type="button" class="more stkbtn" id="stakesMin" aria-controls="stakes"></button></h3><div id="stakes" class="stakes"></div><p class="fine">Les bonus (14, captures, Pacte de Butin) ne comptent que si la mise est exacte.</p></section>
         <section class="panel logp"><h3>Journal <a href="#" id="allLog" class="more">Tout voir</a></h3><div id="log"></div></section>
         ${reactPanelHTML(EMOTE_MAX)}
       </aside>
@@ -212,6 +218,13 @@ export class TableView {
     $('#action', root).addEventListener('mouseover', ev => { const n = coinN(ev); if (n != null) this.renderStakes(n); });
     $('#action', root).addEventListener('focusin', ev => { const n = coinN(ev); if (n != null) this.renderStakes(n); });
     $('#allLog', root).onclick = ev => { ev.preventDefault(); this.fullLog(); };
+    // « Ce que vaut votre mise » se replie (joueurs expérimentés) ; le choix est gardé sur cet appareil
+    const paintStakesMin = () => {
+      const min = stakesMin(); $('#stakesP', root).classList.toggle('min', min);
+      const b = $('#stakesMin', root); b.textContent = min ? 'Afficher' : 'Masquer'; b.setAttribute('aria-expanded', String(!min));
+    };
+    paintStakesMin();
+    $('#stakesMin', root).onclick = () => { setStakesMin(!stakesMin()); paintStakesMin(); };
     root.addEventListener('click', ev => { const b = (ev.target as HTMLElement).closest('[data-emo]') as HTMLElement | null; if (b) this.sendEmote(b.dataset.emo!); });
     // touches 1 à 4 : les réactions de la barre (pas pendant la saisie d'un texte)
     document.addEventListener('keydown', this.onReactKey);
@@ -596,8 +609,12 @@ export class TableView {
   private soundPanelHTML() {
     const v = Math.round(soundVolume() * 100);
     return `<div class="sndrow"><b>Son</b><button type="button" class="sndsw" role="switch" data-snd="on" aria-label="Son de la table"></button></div>
-      <div class="volrow"><input type="range" data-snd="vol" min="0" max="100" step="5" value="${v}" aria-label="Volume des sons"><output data-snd="out">${v} %</output></div>`;
+      <div class="volrow"><input type="range" data-snd="vol" min="0" max="100" step="5" value="${v}" aria-label="Volume des sons"><output data-snd="out">${v} %</output></div>`
+      + (this.soundExtra ? `<div class="sndx">${this.soundExtra.html()}</div>` : '');
   }
+  private soundExtra: SoundExtra | null = null;
+  /** Réglages en plus dans le panneau Son (juke-box : musique pour moi, volume, interrupteur de l'hôte). */
+  setSoundExtra(x: SoundExtra | null) { this.soundExtra = x; }
   private wireSoundPanel(el: HTMLElement) {
     const sw = el.querySelector('[data-snd="on"]') as HTMLButtonElement, r = el.querySelector('[data-snd="vol"]') as HTMLInputElement, o = el.querySelector('[data-snd="out"]') as HTMLElement;
     const paint = () => { sw.classList.toggle('on', soundOn()); sw.setAttribute('aria-checked', String(soundOn())); el.classList.toggle('muted', !soundOn()); r.value = String(Math.round(soundVolume() * 100)); o.textContent = r.value + ' %'; };
@@ -606,6 +623,7 @@ export class TableView {
     // le son de pièce sert d'aperçu quand on relâche le curseur
     r.oninput = () => { setVolume(Number(r.value) / 100); o.textContent = r.value + ' %'; };
     r.onchange = () => { if (soundOn()) sfx.coin(); };
+    const x = el.querySelector<HTMLElement>('.sndx'); if (x && this.soundExtra) this.soundExtra.wire(x);
   }
   private paintSound() {
     const bs = $('#bSound', this.root); bs.innerHTML = soundOn() ? ICON.soundOn : ICON.soundOff;

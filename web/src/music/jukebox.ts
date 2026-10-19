@@ -3,10 +3,12 @@
 // en cours et son heure de départ : chaque joueur calcule la position attendue (heure du serveur) et se recale au-delà de 1,5 s.
 // Interface : dans la colonne de droite, sous le classement, la mise et le journal (toujours affichés), onglets Réactions
 // (réactions rapides et GIF) / Juke-box (feuille depuis le bas sur téléphone), lecteur compact au-dessus
-// de la table, annonce de 3 s à chaque ajout. Volume et sourdine personnels sur cet appareil (pdp.music.vol, pdp.music.muted).
+// de la table, annonce de 3 s à chaque ajout. Musique pour moi, volume (pdp.music.vol, pdp.music.muted, sur cet appareil) et
+// interrupteur de l'hôte : dans les réglages du son de la table (barre du haut, menu du téléphone), voir soundExtra().
 import { MUSIC, expectedPosition, needsResync, clockOffset, fmtDuration, type MusicStateRow, type Provider } from '@shared/music.ts';
 import { youtubePlayer, soundcloudPlayer, type MusicPlayer } from './players';
 import { esc } from '../util';
+import type { SoundExtra } from '../table';
 
 export interface QueueItem { id: string; added_by: string; provider: Provider; media_id: string; title: string; thumb_url: string | null; duration_s: number; position: number; created_at?: string }
 export interface JukeboxBackend {
@@ -209,7 +211,7 @@ export class Jukebox {
   }
   private setErr(m: string) { this.err = m; this.paintAdd(); }
   private setMuted(m: boolean) { this.muted = m; write(K_MUTED, m ? '1' : '0'); this.active?.mute(m); this.render(); }
-  private setVol(v: number) { this.vol = v; write(K_VOL, String(v)); this.active?.setVolume(v); if (v > 0 && this.muted) this.setMuted(false); else if (v === 0 && !this.muted) this.setMuted(true); else this.paintMine(); }
+  private setVol(v: number) { this.vol = v; write(K_VOL, String(v)); this.active?.setVolume(v); if (v > 0 && this.muted) this.setMuted(false); else if (v === 0 && !this.muted) this.setMuted(true); else this.paintSound(); }
   private say(t: string) {
     const el = this.els.toast; el.textContent = t; el.hidden = false; el.classList.remove('jb-in'); void el.offsetWidth; el.classList.add('jb-in');
     clearTimeout((el as any)._t); (el as any)._t = setTimeout(() => { el.hidden = true; }, 3200);
@@ -231,7 +233,7 @@ export class Jukebox {
           <button type="button" class="jb-btn gold" data-add>Ajouter</button></div>
         <div class="jb-msg" data-msg aria-live="polite"></div></div>
       <div class="jb-card jb-queue"><div class="jb-hr"><span class="jb-h">À suivre</span><span class="jb-sub" data-wait></span></div><div class="jb-list" data-list></div></div>
-      <div class="jb-card jb-mine" data-mine></div>`;
+      <p class="jb-hint">Musique pour vous, volume et interrupteur du juke-box : réglages du son, en haut de la table.</p>`;
     const pill = document.createElement('div'); pill.className = 'jb-pill';
     const toast = document.createElement('div'); toast.className = 'jb-toast'; toast.hidden = true; toast.setAttribute('role', 'status');
     const sheet = document.createElement('div'); sheet.className = 'jb-sheet'; sheet.hidden = true;
@@ -261,10 +263,7 @@ export class Jukebox {
       else if (b.hasAttribute('data-vote') && cur) this.act('music.vote', { item: cur.id });
       else if (b.hasAttribute('data-hskip') && cur) this.act('music.skip', { item: cur.id });
       else if (b.dataset.rm) { b.setAttribute('disabled', ''); this.act('music.remove', { item: b.dataset.rm }); }
-      else if (b.hasAttribute('data-mute')) this.setMuted(!this.muted);
-      else if (b.hasAttribute('data-toggle')) this.act('music.toggle', { on: !this.state?.enabled });
     });
-    panel.addEventListener('input', ev => { const t = ev.target as HTMLInputElement; if (t.matches('[data-vol]')) { t.style.setProperty('--v', t.value + '%'); this.setVol(Number(t.value)); } });
     this.render();
   }
   /** Ordinateur : panneau dans la colonne de droite ; téléphone : dans la feuille qui monte depuis le bas. */
@@ -284,7 +283,7 @@ export class Jukebox {
     s.hidden = !open; if (open) { this.render(); s.querySelector<HTMLElement>('.jb-x')?.focus(); }
   }
 
-  private render() { this.paintNow(); this.paintAdd(); this.paintQueue(); this.paintMine(); this.paintPill(); this.paintCount(); }
+  private render() { this.paintNow(); this.paintAdd(); this.paintQueue(); this.paintSound(); this.paintPill(); this.paintCount(); }
   private avatar(uid: string, size = 18) { const w = this.be.who(uid); return `<span class="jb-av" style="background:${esc(w.color)};width:${size}px;height:${size}px">${esc((w.name || '?').slice(0, 1).toUpperCase())}</span>`; }
   private byName(uid: string) { return uid === this.be.uid ? 'vous' : this.be.who(uid).name; }
   private thumb(it: QueueItem, size: number) {
@@ -331,17 +330,32 @@ export class Jukebox {
         ${can ? `<button type="button" class="jb-x" data-rm="${esc(it.id)}" aria-label="Retirer ${esc(it.title)}" title="${own ? 'Retirer mon morceau' : 'Retirer (hôte)'}">${ICO.x}</button>` : ''}</div>`;
     }).join('') || `<p class="jb-empty">${cur ? 'La file est vide. Le juke-box s’arrêtera après ce morceau.' : 'La file est vide.'}</p>`;
   }
-  private paintMine() {
-    const el = this.els.panel.querySelector<HTMLElement>('[data-mine]')!, on = !!this.state?.enabled;
-    const label = this.muted ? 'Réactiver la musique pour moi' : 'Couper la musique pour moi';
-    const html = `<div class="jb-volrow"><span class="jb-me">Pour moi</span><button type="button" class="jb-x gold" data-mute aria-label="${label}" title="${label}">${this.muted ? ICO.off : ICO.on}</button>
-        <input class="jb-vol" type="range" min="0" max="100" step="5" value="${this.vol}" data-vol aria-label="Volume de la musique, pour moi" style="--v:${this.vol}%"><span class="jb-voltxt">${this.muted ? 'coupé' : this.vol + ' %'}</span></div>
-      <div class="jb-fine">Volume et sourdine pour vous seul : les autres joueurs n’entendent pas la différence.</div>
-      ${this.be.host ? `<div class="jb-hostrow"><span><b>Juke-box de la partie</b> · hôte</span><button type="button" class="jb-sw${on ? ' on' : ''}" data-toggle role="switch" aria-checked="${on}" aria-label="Juke-box de la partie"></button></div>` : ''}`;
-    // le curseur en cours de glissement n'est pas reconstruit (il perdrait la main)
-    const vol = el.querySelector<HTMLInputElement>('[data-vol]');
-    if (vol && document.activeElement === vol) { el.querySelector('.jb-voltxt')!.textContent = this.muted ? 'coupé' : this.vol + ' %'; el.querySelector('[data-mute]')!.innerHTML = this.muted ? ICO.off : ICO.on; return; }
-    el.innerHTML = html;
+  /** Section « Juke-box » du panneau Son de la table : musique pour moi, volume, et interrupteur de la partie pour l'hôte. */
+  soundExtra(): SoundExtra {
+    return {
+      html: () => `<div class="sndh">${ICO.note(14, 2.2)}Juke-box</div>
+        <div class="sndrow"><b>Musique</b><button type="button" class="sndsw" role="switch" data-jbs="music" aria-label="Musique du juke-box, pour moi"></button></div>
+        <div class="volrow"><input type="range" data-jbs="vol" min="0" max="100" step="5" value="${this.vol}" aria-label="Volume de la musique, pour moi"><output data-jbs="out"></output></div>
+        <p class="sndfine">Pour vous seul : les autres joueurs ne sont pas concernés.</p>
+        ${this.be.host ? `<div class="sndrow"><b>Juke-box de la partie</b><button type="button" class="sndsw" role="switch" data-jbs="room" aria-label="Juke-box de la partie (hôte)"></button></div>
+        <p class="sndfine">Hôte : coupé, la file est gardée et rien ne joue pour personne.</p>` : ''}`,
+      wire: el => {
+        this.soundEl = el; this.paintSound();
+        el.querySelector<HTMLButtonElement>('[data-jbs="music"]')!.onclick = () => this.setMuted(!this.muted);
+        el.querySelector<HTMLInputElement>('[data-jbs="vol"]')!.oninput = ev => this.setVol(Number((ev.target as HTMLInputElement).value));
+        const room = el.querySelector<HTMLButtonElement>('[data-jbs="room"]');
+        if (room) room.onclick = () => { room.disabled = true; this.act('music.toggle', { on: !this.state?.enabled }).finally(() => { room.disabled = false; this.paintSound(); }); };
+      },
+    };
+  }
+  private soundEl: HTMLElement | null = null;
+  private paintSound() {
+    const el = this.soundEl; if (!el?.isConnected) return;
+    const sw = (k: string, on: boolean) => { const b = el.querySelector<HTMLElement>(`[data-jbs="${k}"]`); if (b) { b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); } };
+    sw('music', !this.muted); sw('room', !!this.state?.enabled);
+    const r = el.querySelector<HTMLInputElement>('[data-jbs="vol"]')!; if (document.activeElement !== r) r.value = String(this.vol);
+    el.querySelector<HTMLElement>('[data-jbs="out"]')!.textContent = this.muted ? 'coupé' : this.vol + ' %';
+    el.classList.toggle('mmuted', this.muted);
   }
   private paintPill() {
     const el = this.els.pill, cur = this.current(), playing = !!cur && this.on() && !!this.active?.playing() && !this.muted;
