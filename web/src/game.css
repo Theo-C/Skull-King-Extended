@@ -1200,3 +1200,7 @@ select.tb{background:var(--panel);appearance:auto;padding:0 8px}
 #hand .card.discard .bdtag{background:#e07a62;color:#2b0f08}
 #action .bdsum span{display:inline-block;margin-inline-end:14px}
 #action .bdsum .got b{color:#2e7a52}#action .bdsum .out b{color:#b0452c}
+/* pendant le choix de Bendt, aucune carte ne passe devant ses voisines (ni la carte choisie, ni la carte survolée ou touchée) :
+   ordre de l'éventail conservé, la carte à défausser est seulement un peu soulevée */
+#hand.bendt .card.playable{z-index:var(--z)!important}
+#hand.bendt .card.discard{transform:translateY(calc(var(--y,0px) - var(--lift,24px) * .6)) rotate(var(--r,0deg))}

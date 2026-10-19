@@ -1034,7 +1034,8 @@ export class TableView {
       const pick = !!this.pick, ok = playing && legal.has(c.id), act = pick || ok;
       ce.classList.toggle('playable', act);
       ce.classList.toggle('dim', playing && !legal.has(c.id) && !pick);
-      ce.classList.toggle('sel', (pick && this.pick!.sel.has(c.id)) || this.choice?.id === c.id || (playing && this.previewId === c.id));
+      // défausse de Bendt : pas de .sel (elle passerait devant les cartes voisines), la carte est marquée par .discard
+      ce.classList.toggle('sel', !pick && (this.choice?.id === c.id || (playing && this.previewId === c.id)));
       ce.classList.toggle('forced', pv.forced === c.id);
       const disc = !!this.pick && this.pick.sel.has(c.id), tag = disc ? 'À défausser' : drawn.has(c.id) ? 'Piochée' : '';
       ce.classList.toggle('discard', disc); ce.classList.toggle('bdrawn', drawn.has(c.id));
@@ -1060,7 +1061,7 @@ export class TableView {
       // z-index décroissant : la carte 0 est au-dessus, chaque carte suivante passe DERRIÈRE la précédente,
       // donc on voit la gauche (pastille) et le milieu de chaque carte ; le médaillon chiffre en haut à droite
       // reste visible pour toutes les cartes sauf la dernière, puisqu'il n'est pas recouvert.
-      const d = j - m; ce.style.setProperty('--r', d.toFixed(2) + 'deg'); ce.style.setProperty('--y', (d * d).toFixed(1) + 'px'); ce.style.zIndex = String(len - j);
+      const d = j - m; ce.style.setProperty('--r', d.toFixed(2) + 'deg'); ce.style.setProperty('--y', (d * d).toFixed(1) + 'px'); ce.style.zIndex = String(len - j); ce.style.setProperty('--z', String(len - j));
     });
     if (!this.animMs) return;
     // nouvelle donne : les cartes partent du centre de la table, une à une.
