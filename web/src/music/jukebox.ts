@@ -1,7 +1,8 @@
 // Juke-box partagé (A19, docs/jukebox/SPEC.md, maquette Jukebox) : file commune de liens YouTube / SoundCloud pendant la
 // partie, lue en même temps chez tous les joueurs avec les lecteurs officiels. Le serveur ne connaît que la file, le morceau
 // en cours et son heure de départ : chaque joueur calcule la position attendue (heure du serveur) et se recale au-delà de 1,5 s.
-// Interface : onglets Journal / Juke-box dans la colonne de droite (feuille depuis le bas sur téléphone), lecteur compact au-dessus
+// Interface : dans la colonne de droite, sous le classement, la mise et le journal (toujours affichés), onglets Réactions
+// (réactions rapides et GIF) / Juke-box (feuille depuis le bas sur téléphone), lecteur compact au-dessus
 // de la table, annonce de 3 s à chaque ajout. Volume et sourdine personnels sur cet appareil (pdp.music.vol, pdp.music.muted).
 import { MUSIC, expectedPosition, needsResync, clockOffset, fmtDuration, type MusicStateRow, type Provider } from '@shared/music.ts';
 import { youtubePlayer, soundcloudPlayer, type MusicPlayer } from './players';
@@ -56,12 +57,12 @@ export class Jukebox {
   private vol = savedVol(); private muted = read(K_MUTED) === '1';
   private live = true; private stopped = false;
   private ticker: any = null; private poll: any = null; private ticks = 0;
-  private tab: 'log' | 'music' = 'log';
+  private tab: 'react' | 'music' = 'react';
   private err = '';
   private busy = false;
   /** Dernier déblocage par un geste : le même toucher n'ouvre pas aussi le juke-box. */
   private wokeAt = 0;
-  private els!: { tabs: HTMLElement; panel: HTMLElement; pill: HTMLElement; toast: HTMLElement; sheet: HTMLElement; log: HTMLElement | null; side: HTMLElement | null };
+  private els!: { tabs: HTMLElement; panel: HTMLElement; pill: HTMLElement; toast: HTMLElement; sheet: HTMLElement; react: HTMLElement | null };
   private mq = matchMedia('(max-width:719px)');
   private refreshing = false; private again = false;
 
@@ -80,7 +81,7 @@ export class Jukebox {
     this.mq.removeEventListener('change', this.place); document.removeEventListener('visibilitychange', this.onVis);
     removeEventListener('pointerdown', this.onGesture, true); removeEventListener('keydown', this.onGesture, true);
     Object.values(this.players).forEach(p => p?.destroy()); this.players = {}; this.active = null;
-    this.els.sheet.remove(); this.els.pill.remove(); this.els.toast.remove(); this.els.side?.classList.remove('jb-music');
+    this.els.sheet.remove(); this.els.pill.remove(); this.els.toast.remove(); this.els.tabs.remove(); this.els.panel.remove(); if (this.els.react) this.els.react.hidden = false;
   }
 
   /* ---------- Données ---------- */
@@ -216,9 +217,10 @@ export class Jukebox {
 
   /* ---------- Interface ---------- */
   private mount() {
-    const r = this.root, side = r.querySelector<HTMLElement>('.side'), log = side?.querySelector<HTMLElement>('.logp') ?? null;
+    // onglets posés au-dessus du panneau Réactions (GIF compris) ; classement, mise et journal restent toujours affichés
+    const r = this.root, react = r.querySelector<HTMLElement>('.side [data-gifpanel]');
     const tabs = document.createElement('div'); tabs.className = 'jb-tabs'; tabs.setAttribute('role', 'tablist');
-    tabs.innerHTML = `<button type="button" role="tab" data-jtab="log" class="on" aria-selected="true">Journal</button>
+    tabs.innerHTML = `<button type="button" role="tab" data-jtab="react" class="on" aria-selected="true">Réactions</button>
       <button type="button" role="tab" data-jtab="music" aria-selected="false">${ICO.note(15, 2.2)}Juke-box<span class="jb-n" data-jn>0</span></button>`;
     const panel = document.createElement('section'); panel.className = 'jb-panel'; panel.hidden = true; panel.setAttribute('aria-label', 'Juke-box');
     panel.innerHTML = `
@@ -236,11 +238,11 @@ export class Jukebox {
     sheet.innerHTML = `<div class="jb-scrim" data-close></div><div class="jb-sheetbox" role="dialog" aria-modal="true" aria-label="Juke-box"><div class="jb-sheethead"><b>${ICO.note(16, 2)} Juke-box</b><button type="button" class="jb-x" data-close aria-label="Fermer">${ICO.x}</button></div><div data-slot></div></div>`;
     const stage = r.querySelector<HTMLElement>('.tstage') ?? r;
     stage.prepend(pill); stage.append(toast); document.body.append(sheet);
-    if (log && side) { log.before(tabs); log.after(panel); }
-    this.els = { tabs, panel, pill, toast, sheet, log, side };
+    if (react) { react.before(tabs); react.after(panel); }
+    this.els = { tabs, panel, pill, toast, sheet, react };
     this.place();
 
-    tabs.onclick = ev => { const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-jtab]'); if (b) this.showTab(b.dataset.jtab as 'log' | 'music'); };
+    tabs.onclick = ev => { const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-jtab]'); if (b) this.showTab(b.dataset.jtab as 'react' | 'music'); };
     sheet.addEventListener('click', ev => { if ((ev.target as HTMLElement).closest('[data-close]')) this.openSheet(false); });
     sheet.addEventListener('keydown', ev => { if (ev.key === 'Escape') this.openSheet(false); });
     pill.onclick = ev => {
@@ -267,16 +269,15 @@ export class Jukebox {
   }
   /** Ordinateur : panneau dans la colonne de droite ; téléphone : dans la feuille qui monte depuis le bas. */
   private place = () => {
-    const { panel, sheet, log } = this.els;
-    if (this.mq.matches) { sheet.querySelector('[data-slot]')!.append(panel); panel.hidden = false; if (log) log.hidden = false; this.els.side?.classList.remove('jb-music'); }
-    else { log?.after(panel); this.openSheet(false); this.showTab(this.tab); }
+    const { panel, sheet, react } = this.els;
+    if (this.mq.matches) { sheet.querySelector('[data-slot]')!.append(panel); panel.hidden = false; if (react) react.hidden = false; }
+    else { react?.after(panel); this.openSheet(false); this.showTab(this.tab); }
   };
-  private showTab(t: 'log' | 'music') {
-    this.tab = t; const { tabs, panel, log } = this.els;
+  private showTab(t: 'react' | 'music') {
+    this.tab = t; const { tabs, panel, react } = this.els;
     tabs.querySelectorAll<HTMLElement>('[data-jtab]').forEach(b => { const on = b.dataset.jtab === t; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
     if (this.mq.matches) return;
-    // onglet Juke-box : il prend toute la colonne (maquette) ; Journal ramène le classement, la mise et les réactions
-    panel.hidden = t !== 'music'; if (log) log.hidden = t === 'music'; this.els.side?.classList.toggle('jb-music', t === 'music');
+    panel.hidden = t !== 'music'; if (react) react.hidden = t === 'music';
   }
   private openSheet(open: boolean) {
     const s = this.els.sheet; if (s.hidden === !open) return;
