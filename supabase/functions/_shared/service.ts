@@ -37,6 +37,8 @@ export interface Store {
   music?: MusicApi;
   /** Message Realtime envoyé par le serveur sur le canal d'une partie (« partie-<id> »). */
   broadcast?(topic: string, event: string, payload: Record<string, unknown>): Promise<void>;
+  /** Tâche terminée après la réponse (EdgeRuntime.waitUntil) ; absent : attendue avant de répondre. */
+  background?(p: Promise<unknown>): void;
 }
 /** Un GIF tel que le site le reçoit : aperçu léger pour la grille, média complet pour la table (mp4 ou webp de préférence). */
 export interface GifItem { id: string; preview: string; full: string; w: number; h: number }
@@ -224,11 +226,13 @@ async function start(store: Store, uid: string, body: any) {
   return v == null ? 'conflict' : { ok: true };
 }
 async function act(store: Store, uid: string, body: any) {
-  const g = await mustGame(store, body.id);
+  // partie, sièges et état secret lus en même temps (un seul aller-retour avec la base au lieu de trois)
+  const ok = typeof body.id === 'string' && UUID.test(body.id);
+  const [g, seats0, S] = await Promise.all([mustGame(store, body.id), ok ? store.seats(body.id) : [], ok ? store.secret(body.id) : null]);
   if (g.status !== 'playing') throw bad("La partie n'est pas en cours.");
-  const seats = (await store.seats(g.id)).sort((a, b) => a.seat - b.seat);
+  const seats = seats0.sort((a, b) => a.seat - b.seat);
   const me = seats.find(s => s.user_id === uid); if (!me) throw new HttpError(403, 'Vous ne jouez pas dans cette partie.');
-  const S = await store.secret(g.id); if (!S) throw new HttpError(500, 'État de partie manquant.');
+  if (!S) throw new HttpError(500, 'État de partie manquant.');
   // temps de réflexion pour une carte : depuis le coup précédent (début du tour), mesuré par le serveur
   const thinkMs = body.move?.t === 'play' && g.updated_at ? Date.now() - Date.parse(g.updated_at) : null;
   // Joker : pendant la dernière manche, le serveur note qui en possède un (porte-monnaie), pour la question posée
@@ -257,7 +261,9 @@ async function act(store: Store, uid: string, body: any) {
   const v = await store.commit(g.id, g.version, { patch, secret: S, events, seats: outSeats, ...snapshotsFor(S, seats) });
   if (v == null) { await refund(); return 'conflict'; }
   if (thinkMs != null && thinkMs >= 0) {
-    try { await store.rpc('play_time_add', { p_user: uid, p_ms: Math.min(Math.round(thinkMs), 120000) }); } catch (e) { console.error('temps de jeu', e); }
+    // temps de jeu : enregistré après la réponse, le joueur n'attend pas cet aller-retour
+    const t = store.rpc('play_time_add', { p_user: uid, p_ms: Math.min(Math.round(thinkMs), 120000) }).catch(e => console.error('temps de jeu', e));
+    if (store.background) store.background(t); else await t;
   }
   if (S.phase === 'end') {
     // fin de partie : XP, hauts faits, statistiques et Élo (une erreur ici ne doit pas annuler le dernier coup : history.get réessaiera)
@@ -498,9 +504,8 @@ async function historyGet(store: Store, uid: string, body: any) {
 /* ---------- Juke-box partagé (A19, docs/jukebox/SPEC.md) ---------- */
 /** Partie en cours dont on est joueur ; hôte, et votes nécessaires (moitié des humains assis, les bots ne votent pas). */
 async function musicCtx(store: Store, uid: string, body: any) {
-  const g = await mustGame(store, body.id);
+  const [g, seats] = await Promise.all([mustGame(store, body.id), typeof body.id === 'string' && UUID.test(body.id) ? store.seats(body.id) : []]);
   if (g.status !== 'playing') throw bad("Le juke-box n'est ouvert que pendant la partie.");
-  const seats = await store.seats(g.id);
   if (!seats.some(s => s.user_id === uid)) throw new HttpError(403, 'Vous ne jouez pas dans cette partie.');
   const humans = new Set(seats.filter(s => s.user_id && !s.bot).map(s => s.user_id)).size;
   return { g, host: g.host === uid, need: M.skipNeed(humans) };

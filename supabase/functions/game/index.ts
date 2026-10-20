@@ -90,6 +90,8 @@ const store: Store = {
   gif: Deno.env.get('KLIPY_API_KEY') ? klipy(Deno.env.get('KLIPY_API_KEY')!) : undefined,
   // juke-box : métadonnées YouTube (npx supabase secrets set YOUTUBE_API_KEY=…) et SoundCloud (sans clé)
   music: media(Deno.env.get('YOUTUBE_API_KEY')),
+  // après la réponse : le worker reste en vie jusqu'à la fin de la tâche
+  background(p) { (globalThis as any).EdgeRuntime?.waitUntil?.(p); },
   // diffusion Realtime par l'API REST (pas besoin d'ouvrir de connexion) : tous les clients du canal la reçoivent
   async broadcast(topic, event, payload) {
     const res = await fetch(`${URL_}/realtime/v1/api/broadcast`, {

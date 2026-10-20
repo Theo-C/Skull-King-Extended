@@ -20,8 +20,10 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
   setCleanup(stop);
 
   const loadGame = async () => {
-    const { data: g } = await sb.from('games').select('id, code, host, status, options, state, version').eq('id', id).maybeSingle();
-    const { data: seats } = await sb.from('game_players').select('seat, user_id, bot, name').eq('game_id', id).order('seat');
+    const [{ data: g }, { data: seats }] = await Promise.all([
+      sb.from('games').select('id, code, host, status, options, state, version').eq('id', id).maybeSingle(),
+      sb.from('game_players').select('seat, user_id, bot, name').eq('game_id', id).order('seat'),
+    ]);
     return { g, seats: seats || [] };
   };
   const first = await loadGame();
@@ -35,12 +37,19 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
     try {
       do {
         again = false;
-        const { g, seats } = await loadGame(); if (!g) return;
+        // partie, sièges, événements et main lus en même temps (un aller-retour au lieu de quatre) ; en arrivant à la table,
+        // openTable fixe d'abord le point de départ des événements, ils sont donc relus ensuite
+        const since = lastEventId;
+        const [{ g, seats }, ev, hd] = await Promise.all([
+          loadGame(),
+          mode === 'table' ? sb.from('game_events').select('id, payload').eq('game_id', id).gt('id', since).order('id').limit(400) : null,
+          mode === 'table' ? sb.from('hands').select('data').eq('game_id', id).maybeSingle() : null,
+        ]);
+        if (!g) return;
         if (g.status === 'lobby') { await renderLobby(g, seats); continue; }
-        if (mode !== 'table') await openTable(g, seats);
-        const { data: evs } = await sb.from('game_events').select('id, payload').eq('game_id', id).gt('id', lastEventId).order('id').limit(400);
-        if (evs && evs.length) { lastEventId = evs[evs.length - 1].id; table!.push(evs.map(e => e.payload)); }
-        const { data: h } = await sb.from('hands').select('data').eq('game_id', id).maybeSingle();
+        if (mode !== 'table') { await openTable(g, seats); again = true; continue; }
+        const evs = ev?.data, h = hd?.data;
+        if (evs && evs.length && since === lastEventId) { lastEventId = evs[evs.length - 1].id; table!.push(evs.map(e => e.payload)); }
         table!.setLatest(g.state, h?.data ?? null);
         jukebox?.setLive(g.status === 'playing');
         // un joueur a lancé la revanche (code réservé dans state.rematch) : tout le monde rejoint le salon, sans cliquer
@@ -111,7 +120,7 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
     // juke-box partagé (A19) : seulement pendant la partie, pour les joueurs assis
     if (mine && g.status === 'playing') {
       jukebox = new Jukebox(root.firstElementChild as HTMLElement, {
-        uid, host: g.host === uid, need: skipNeed(new Set(ids).size),
+        uid, game: id, host: g.host === uid, need: skipNeed(new Set(ids).size),
         fetch: async () => {
           const [q, st] = await Promise.all([
             sb.from('music_queue').select('id, added_by, provider, media_id, title, thumb_url, duration_s, position, created_at').eq('game_id', id).order('position').order('created_at'),
@@ -145,10 +154,9 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
     .on('broadcast', { event: 'emote' }, ({ payload }) => { if (seatOk(payload?.seat) && typeof payload.text === 'string') table?.showEmote(payload.seat, payload.text); })
     .on('broadcast', { event: 'gif' }, ({ payload }) => { table?.receiveGif(payload as any); })
     .on('broadcast', { event: 'ready' }, ({ payload }) => { if (seatOk(payload?.seat) && Number.isInteger(payload?.round)) table?.markReady(payload.seat, payload.round); })
+    // chaque écriture (coup, siège, main, événements) passe par game_commit, qui met toujours à jour la ligne de la partie :
+    // ce seul signal suffit (s'abonner aussi aux événements et aux mains multipliait le travail du temps réel à chaque coup)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${id}` }, ping)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${id}` }, ping)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_events', filter: `game_id=eq.${id}` }, ping)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'hands', filter: `game_id=eq.${id}` }, ping)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'music_queue', filter: `game_id=eq.${id}` }, () => jukebox?.refresh())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'music_state', filter: `game_id=eq.${id}` }, () => jukebox?.refresh())
     .subscribe(status => { if (status === 'SUBSCRIBED') channel?.track({ at: Date.now() }).catch(() => { /* présence indisponible */ }); });

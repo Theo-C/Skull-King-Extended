@@ -3,7 +3,7 @@
 // en cours et son heure de départ : chaque joueur calcule la position attendue (heure du serveur) et se recale au-delà de 1,5 s.
 // Interface : onglet « Juke-box » de la colonne de droite (l'onglet Jeu garde le classement, la mise, le journal et les
 // réactions) ; feuille depuis le bas sur téléphone, lecteur compact au-dessus
-// de la table, annonce de 3 s à chaque ajout. Musique pour moi, volume (pdp.music.vol, pdp.music.muted, sur cet appareil) et
+// de la table, annonce de 3 s à chaque ajout. Musique pour moi (pdp.music.muted : partie où on l'a coupée), volume (pdp.music.vol) et
 // interrupteur de l'hôte : dans les réglages du son de la table (barre du haut, menu du téléphone), voir soundExtra().
 import { MUSIC, expectedPosition, needsResync, clockOffset, fmtDuration, type MusicStateRow, type Provider } from '@shared/music.ts';
 import { youtubePlayer, soundcloudPlayer, type MusicPlayer } from './players';
@@ -13,6 +13,8 @@ import type { SoundExtra } from '../table';
 export interface QueueItem { id: string; added_by: string; provider: Provider; media_id: string; title: string; thumb_url: string | null; duration_s: number; position: number; created_at?: string }
 export interface JukeboxBackend {
   uid: string;
+  /** Partie en cours : « musique pour moi » coupée ne vaut que pour elle (à la partie suivante, la musique revient). */
+  game: string;
   /** Hôte de la partie : passer sans vote, retirer tous les morceaux, couper le juke-box. */
   host: boolean;
   /** Votes nécessaires pour passer : moitié des joueurs humains assis (même calcul que le serveur). */
@@ -58,7 +60,7 @@ export class Jukebox {
   private loaded: string | null = null; private loadedAt = 0;
   private asked = new Set<string>(); private reported = new Set<string>();
   private failedHere: string | null = null;
-  private vol = savedVol(); private muted = read(K_MUTED) === '1';
+  private vol = savedVol(); private muted = false;
   private live = true; private stopped = false;
   private ticker: any = null; private poll: any = null; private ticks = 0;
   private err = '';
@@ -68,8 +70,11 @@ export class Jukebox {
   private els!: { panel: HTMLElement; pill: HTMLElement; toast: HTMLElement; sheet: HTMLElement };
   private mq = matchMedia('(max-width:719px)');
   private refreshing = false; private again = false;
+  /** Vote ou passage en cours d'envoi : l'état affiché est anticipé, les relectures attendent la réponse du serveur. */
+  private pending = 0;
 
   constructor(private root: HTMLElement, private be: JukeboxBackend) {
+    this.muted = read(K_MUTED) === be.game;
     this.mount();
     this.mq.addEventListener('change', this.place);
     document.addEventListener('visibilitychange', this.onVis);
@@ -104,22 +109,25 @@ export class Jukebox {
   private now = () => Date.now() + this.offset;
   /** Relit la file et l'état (signal du temps réel, action d'un joueur). */
   async refresh() {
-    if (this.stopped) return; if (this.refreshing) { this.again = true; return; } this.refreshing = true;
+    if (this.stopped) return; if (this.refreshing || this.pending) { this.again = true; return; } this.refreshing = true;
     try {
       do {
         this.again = false;
         let d: { state: MusicStateRow | null; queue: QueueItem[] };
         try { d = await this.be.fetch(); } catch { return; }
+        if (this.pending) return; // lu avant le vote en cours : la relecture qui suit sa réponse fait foi
         this.announce(this.state, this.queue, d.state, d.queue);
         this.state = d.state; this.queue = d.queue; this.loadedOnce = true;
         this.apply(); this.render();
-      } while (this.again && !this.stopped);
+      } while (this.again && !this.pending && !this.stopped);
     } finally { this.refreshing = false; }
   }
   private current(): QueueItem | null { const id = this.state?.current_id; return id ? this.queue.find(q => q.id === id) ?? null : null; }
   private waiting() { const id = this.state?.current_id; return this.queue.filter(q => q.id !== id); }
   private position(it: QueueItem) { return this.state ? expectedPosition(this.state, this.now(), it.duration_s) : 0; }
-  private on() { return this.live && !!this.state?.enabled; }
+  /** Allumé par défaut : la ligne d'état n'existe qu'après la première action de la partie (colonne enabled, défaut true). */
+  private enabled() { return this.state?.enabled ?? true; }
+  private on() { return this.live && this.enabled(); }
 
   /** Annonces : ajout (3 s), morceau passé avant la fin, juke-box coupé ou rallumé. */
   private announce(ps: MusicStateRow | null, pq: QueueItem[], ns: MusicStateRow | null, nq: QueueItem[]) {
@@ -201,6 +209,26 @@ export class Jukebox {
     try { await this.be.call(action, payload); await this.refresh(); return true; }
     catch (e: any) { if (onErr) onErr(e?.message || 'Action impossible.'); else this.say(e?.message || 'Action impossible.'); return false; }
   }
+  /** Vote pour passer, ou passage par l'hôte : affiché tout de suite (vote compté, morceau suivant lancé si le seuil est
+   *  atteint), sans attendre l'aller-retour du serveur ; sa réponse, puis la relecture, corrigent si besoin. */
+  private async skip(cur: QueueItem, host: boolean) {
+    const st = this.state; if (!st || st.current_id !== cur.id) return;
+    const votes = st.skip_votes ?? [], mine = votes.includes(this.be.uid);
+    const nv = host ? votes : mine ? votes.filter(v => v !== this.be.uid) : [...votes, this.be.uid];
+    if (host || (!mine && nv.length >= this.be.need)) {
+      const next = this.waiting()[0] ?? null;
+      this.state = { ...st, current_id: next?.id ?? null, started_at: next ? new Date(this.now()).toISOString() : null,
+        paused_at: next && !st.enabled ? new Date(this.now()).toISOString() : null, skip_votes: [], reports: [] };
+      this.queue = this.queue.filter(q => q.id !== cur.id);
+      this.asked.add(cur.id);
+    } else this.state = { ...st, skip_votes: nv };
+    this.apply(); this.render();
+    this.pending++;
+    try { await this.be.call(host ? 'music.skip' : 'music.vote', { item: cur.id }); }
+    catch (e: any) { this.say(e?.message || 'Action impossible.'); }
+    finally { this.pending--; }
+    this.refresh();
+  }
   private async add() {
     const inp = this.els.panel.querySelector<HTMLInputElement>('#jbUrl')!, url = inp.value.trim();
     if (!url || this.busy) return;
@@ -211,7 +239,7 @@ export class Jukebox {
     if (done) { inp.value = ''; this.setErr(''); } else this.paintAdd();
   }
   private setErr(m: string) { this.err = m; this.paintAdd(); }
-  private setMuted(m: boolean) { this.muted = m; write(K_MUTED, m ? '1' : '0'); this.active?.mute(m); this.render(); }
+  private setMuted(m: boolean) { this.muted = m; write(K_MUTED, m ? this.be.game : ''); this.active?.mute(m); this.render(); }
   private setVol(v: number) { this.vol = v; write(K_VOL, String(v)); this.active?.setVolume(v); if (v > 0 && this.muted) this.setMuted(false); else if (v === 0 && !this.muted) this.setMuted(true); else this.paintSound(); }
   private say(t: string) {
     const el = this.els.toast; el.textContent = t; el.hidden = false; el.classList.remove('jb-in'); void el.offsetWidth; el.classList.add('jb-in');
@@ -255,8 +283,8 @@ export class Jukebox {
       const b = (ev.target as HTMLElement).closest<HTMLElement>('button'); if (!b) return;
       const cur = this.current();
       if (b.hasAttribute('data-add')) this.add();
-      else if (b.hasAttribute('data-vote') && cur) this.act('music.vote', { item: cur.id });
-      else if (b.hasAttribute('data-hskip') && cur) this.act('music.skip', { item: cur.id });
+      else if (b.hasAttribute('data-vote') && cur) this.skip(cur, false);
+      else if (b.hasAttribute('data-hskip') && cur) this.skip(cur, true);
       else if (b.dataset.rm) { b.setAttribute('disabled', ''); this.act('music.remove', { item: b.dataset.rm }); }
     });
     this.render();
@@ -333,7 +361,7 @@ export class Jukebox {
         el.querySelector<HTMLButtonElement>('[data-jbs="music"]')!.onclick = () => this.setMuted(!this.muted);
         el.querySelector<HTMLInputElement>('[data-jbs="vol"]')!.oninput = ev => this.setVol(Number((ev.target as HTMLInputElement).value));
         const room = el.querySelector<HTMLButtonElement>('[data-jbs="room"]');
-        if (room) room.onclick = () => { room.disabled = true; this.act('music.toggle', { on: !this.state?.enabled }).finally(() => { room.disabled = false; this.paintSound(); }); };
+        if (room) room.onclick = () => { room.disabled = true; this.act('music.toggle', { on: !this.enabled() }).finally(() => { room.disabled = false; this.paintSound(); }); };
       },
     };
   }
@@ -341,7 +369,7 @@ export class Jukebox {
   private paintSound() {
     const el = this.soundEl; if (!el?.isConnected) return;
     const sw = (k: string, on: boolean) => { const b = el.querySelector<HTMLElement>(`[data-jbs="${k}"]`); if (b) { b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); } };
-    sw('music', !this.muted); sw('room', !!this.state?.enabled);
+    sw('music', !this.muted); sw('room', this.enabled());
     const r = el.querySelector<HTMLInputElement>('[data-jbs="vol"]')!; if (document.activeElement !== r) r.value = String(this.vol);
     el.querySelector<HTMLElement>('[data-jbs="out"]')!.textContent = this.muted ? 'coupé' : this.vol + ' %';
     el.classList.toggle('mmuted', this.muted);
