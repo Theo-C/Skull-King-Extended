@@ -319,6 +319,8 @@ export class TableView {
     this.latest = { pub, priv };
     if (this.finEl) this.fillSettled();
     if (!this.running && !this.queue.length) this.applyLatest();
+    // file restée en attente (interrompue par une erreur) : on la relance, l'état suivra à la fin
+    else if (!this.running) this.run();
     // révélation de Marie Thorne en cours : la main qui porte la carte imposée vient d'arriver, on la montre sans attendre la fin de la file
     else if (this.running && this.evk === 'lise' && this.liseNow()) { this.renderHand(); this.renderAction(); }
   }
@@ -339,28 +341,33 @@ export class TableView {
       while (this.queue.length) {
         if (this.roundGate) await this.roundGate;
         const ev = this.queue.shift();
-        this.pub = ev.snap; this.evk = ev.k; this.evLive = ev.k === 'play' && !this.replayed.has(ev) && this.queue.length <= 40; const last = ev.snap.log?.at(-1);
-        if (ev.k === 'lise') this.startLise(ev.by, ev.seat, ev.pos);
-        if (ev.k === 'joker' && this.pub) {
-          const who = ev.seat === this.mySeat ? 'Vous avez posé' : esc(this.pub.players[ev.seat]?.name ?? '?') + ' a posé';
-          const R = roundsOf(this.pub.opts);
-          sfx.coin();
-          await modal(`<h2>Joker !</h2><p class="sub">${who} un Joker : la partie continue avec une manche bonus, la manche ${R + 1}, à ${R + 1} cartes chacun. Les résultats viendront après.</p>`, [{ label: 'À l\'abordage !', value: 1 }]);
-        }
-        if (last && JSON.stringify(this.logLines.at(-1)) !== JSON.stringify(last)) this.logLines.push(last);
-        if (ev.k === 'trick') this.banner = ev.msg; else if (ev.k !== 'play') this.banner = null;
-        this.render();
-        if (ev.k === 'trick') { sfx.win(); this.trickFx(ev.snap.trick?.res?.mode ?? null); } else if (ev.k === 'bids') sfx.coin();
-        // fin de manche : la suite attend que la fenêtre soit fermée (tout le monde prêt, ou délai écoulé)
-        if (ev.k === 'round') { this.roundGate = this.roundEnd(ev.snap); await this.roundGate; }
-        let ms = (DELAY[ev.k] ?? 300) * this.speed * (this.queue.length > 40 ? .2 : 1);
-        // dernier événement et c'est à nous : on laisse juste la carte arriver, inutile de faire attendre le joueur
-        if (!this.queue.length && ev.k === 'play' && this.mySeat != null && ev.snap.current === this.mySeat) ms = Math.min(ms, 350);
-        await sleep(ms);
-        if (ev.k === 'bids' || ev.k === 'trick') this.banner = null;
+        try { await this.playEvent(ev); }
+        catch (e) { console.error('animation', ev?.k, e); this.banner = null; } // événement suivant ; l'état final rattrape
       }
     } finally { this.running = false; }
     this.applyLatest();
+  }
+  /** Un événement de la file : état intermédiaire, sons, fenêtre de fin de manche, puis pause pour l'animation. */
+  private async playEvent(ev: any) {
+    this.pub = ev.snap; this.evk = ev.k; this.evLive = ev.k === 'play' && !this.replayed.has(ev) && this.queue.length <= 40; const last = ev.snap.log?.at(-1);
+    if (ev.k === 'lise') this.startLise(ev.by, ev.seat, ev.pos);
+    if (ev.k === 'joker' && this.pub) {
+      const who = ev.seat === this.mySeat ? 'Vous avez posé' : esc(this.pub.players[ev.seat]?.name ?? '?') + ' a posé';
+      const R = roundsOf(this.pub.opts);
+      sfx.coin();
+      await modal(`<h2>Joker !</h2><p class="sub">${who} un Joker : la partie continue avec une manche bonus, la manche ${R + 1}, à ${R + 1} cartes chacun. Les résultats viendront après.</p>`, [{ label: 'À l\'abordage !', value: 1 }]);
+    }
+    if (last && JSON.stringify(this.logLines.at(-1)) !== JSON.stringify(last)) this.logLines.push(last);
+    if (ev.k === 'trick') this.banner = ev.msg; else if (ev.k !== 'play') this.banner = null;
+    this.render();
+    if (ev.k === 'trick') { sfx.win(); this.trickFx(ev.snap.trick?.res?.mode ?? null); } else if (ev.k === 'bids') sfx.coin();
+    // fin de manche : la suite attend que la fenêtre soit fermée (tout le monde prêt, ou délai écoulé)
+    if (ev.k === 'round') { this.roundGate = this.roundEnd(ev.snap); await this.roundGate; }
+    let ms = (DELAY[ev.k] ?? 300) * this.speed * (this.queue.length > 40 ? .2 : 1);
+    // dernier événement et c'est à nous : on laisse juste la carte arriver, inutile de faire attendre le joueur
+    if (!this.queue.length && ev.k === 'play' && this.mySeat != null && ev.snap.current === this.mySeat) ms = Math.min(ms, 350);
+    await sleep(ms);
+    if (ev.k === 'bids' || ev.k === 'trick') this.banner = null;
   }
   private get live() { return !this.running && !this.queue.length && !!this.latest && this.pub === this.latest.pub; }
 

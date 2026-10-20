@@ -28,7 +28,7 @@ if (isNative) {
 }
 
 export async function callGame<T = any>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
-  const { data, error } = await sb.functions.invoke('game', { body: { action, ...payload } });
+  const { data, error } = await sb.functions.invoke('game', { body: { action, ...payload }, timeout: 20000 }); // jamais d'attente sans fin
   if (error) {
     let msg = 'Le serveur ne répond pas. Vérifiez votre connexion.';
     try { const ctx: any = (error as any).context; if (ctx?.json) { const j = await ctx.json(); if (j?.error) msg = j.error; } } catch { /* garde le message par défaut */ }

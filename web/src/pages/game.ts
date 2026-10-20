@@ -15,15 +15,21 @@ import { go, setCleanup } from '../main';
 export async function gamePage(root: HTMLElement, id: string, uid: string) {
   let channel: RealtimeChannel | null = null, table: TableView | null = null, mode: 'lobby' | 'table' | null = null, jukebox: Jukebox | null = null;
   let lastEventId = 0, syncing = false, again = false, timer: any = null, stopped = false;
+  /** Version de la partie déjà affichée : un état plus ancien (lecture croisée avec un coup) est ignoré. */
+  let shownVersion = -1, knownVersion = -1;
   let myLookCache: { color: string; look: Look | null } | null = null;
   const stop = () => { stopped = true; if (channel) sb.removeChannel(channel); clearInterval(timer); jukebox?.destroy(); table?.destroy(); };
   setCleanup(stop);
 
+  // Chaque lecture a un délai de garde : une requête qui ne répond jamais (connexion morte après une mise en veille, un
+  // changement de réseau) bloquait la synchronisation pour de bon, jusqu'au F5.
+  const ttl = () => AbortSignal.timeout(8000);
   const loadGame = async () => {
-    const [{ data: g }, { data: seats }] = await Promise.all([
-      sb.from('games').select('id, code, host, status, options, state, version').eq('id', id).maybeSingle(),
-      sb.from('game_players').select('seat, user_id, bot, name').eq('game_id', id).order('seat'),
+    const [{ data: g, error }, { data: seats }] = await Promise.all([
+      sb.from('games').select('id, code, host, status, options, state, version').eq('id', id).abortSignal(ttl()).maybeSingle(),
+      sb.from('game_players').select('seat, user_id, bot, name').eq('game_id', id).order('seat').abortSignal(ttl()),
     ]);
+    if (error) throw error;
     return { g, seats: seats || [] };
   };
   const first = await loadGame();
@@ -32,30 +38,47 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
   if (first.g.status === 'finished') return detailPage(root, id, uid);
 
   // Synchronisation : le temps réel sert de signal, puis on relit événements, état et main.
-  const sync = async () => {
+  // Une synchronisation ne peut pas rester bloquée : au-delà de 15 s, la suivante repart sans l'attendre.
+  let syncGen = 0;
+  const sync = async (): Promise<void> => {
     if (stopped) return; if (syncing) { again = true; return; } syncing = true;
+    const gen = ++syncGen;
+    const guard = setTimeout(() => { if (syncGen === gen && syncing) { syncing = false; syncGen++; sync(); } }, 15000);
+    let tries = 0;
     try {
       do {
+        if (syncGen !== gen) return; // remplacée par une synchronisation plus récente (celle-ci était bloquée)
         again = false;
         // partie, sièges, événements et main lus en même temps (un aller-retour au lieu de quatre) ; en arrivant à la table,
         // openTable fixe d'abord le point de départ des événements, ils sont donc relus ensuite
         const since = lastEventId;
         const [{ g, seats }, ev, hd] = await Promise.all([
           loadGame(),
-          mode === 'table' ? sb.from('game_events').select('id, payload').eq('game_id', id).gt('id', since).order('id').limit(400) : null,
-          mode === 'table' ? sb.from('hands').select('data').eq('game_id', id).maybeSingle() : null,
+          mode === 'table' ? sb.from('game_events').select('id, payload').eq('game_id', id).gt('id', since).order('id').limit(400).abortSignal(ttl()) : null,
+          mode === 'table' ? sb.from('hands').select('data, version').eq('game_id', id).abortSignal(ttl()).maybeSingle() : null,
         ]);
-        if (!g) return;
+        if (syncGen !== gen || !g) return;
+        knownVersion = Math.max(knownVersion, g.version);
         if (g.status === 'lobby') { await renderLobby(g, seats); continue; }
         if (mode !== 'table') { await openTable(g, seats); again = true; continue; }
+        if (ev?.error || hd?.error) throw ev?.error || hd?.error;
         const evs = ev?.data, h = hd?.data;
+        // lectures faites en parallèle : un coup enregistré entre deux d'entre elles donne une main d'une autre version que
+        // l'état (main du coup d'avant, cartes jouables fausses) ; on relit, la base finit toujours par être cohérente
+        if (h && h.version !== g.version && ++tries < 4) { again = true; continue; }
         if (evs && evs.length && since === lastEventId) { lastEventId = evs[evs.length - 1].id; table!.push(evs.map(e => e.payload)); }
+        if (g.version < shownVersion) continue; // état plus ancien que celui déjà affiché
+        shownVersion = g.version;
         table!.setLatest(g.state, h?.data ?? null);
         jukebox?.setLive(g.status === 'playing');
         // un joueur a lancé la revanche (code réservé dans state.rematch) : tout le monde rejoint le salon, sans cliquer
         if (g.status === 'finished' && g.state?.rematch && seats.some(s => s.user_id === uid)) followRematch();
       } while (again && !stopped);
-    } finally { syncing = false; }
+    } catch (e) {
+      // réseau coupé, délai dépassé : nouvel essai bientôt (le filet ci-dessous relance aussi)
+      console.warn('synchronisation', e);
+      if (syncGen === gen) setTimeout(() => sync(), 2000);
+    } finally { clearTimeout(guard); if (syncGen === gen) syncing = false; }
   };
   let following = false;
   const followRematch = async () => {
@@ -123,8 +146,8 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
         uid, game: id, host: g.host === uid, need: skipNeed(new Set(ids).size),
         fetch: async () => {
           const [q, st] = await Promise.all([
-            sb.from('music_queue').select('id, added_by, provider, media_id, title, thumb_url, duration_s, position, created_at').eq('game_id', id).order('position').order('created_at'),
-            sb.from('music_state').select('enabled, current_id, started_at, paused_at, skip_votes, reports').eq('game_id', id).maybeSingle(),
+            sb.from('music_queue').select('id, added_by, provider, media_id, title, thumb_url, duration_s, position, created_at').eq('game_id', id).order('position').order('created_at').abortSignal(ttl()),
+            sb.from('music_state').select('enabled, current_id, started_at, paused_at, skip_votes, reports').eq('game_id', id).abortSignal(ttl()).maybeSingle(),
           ]);
           if (q.error || st.error) throw new Error('juke-box : lecture impossible');
           return { queue: (q.data ?? []) as any, state: (st.data ?? null) as any };
@@ -146,10 +169,12 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
 
   let debounce: any = null; const ping = () => { clearTimeout(debounce); debounce = setTimeout(sync, 120); };
   const seatOk = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 9;
+  let rejoin: any = null;
+  const subscribe = () => {
   // un canal resté ouvert pour cette partie (page reconstruite) serait réutilisé déjà abonné : on le ferme d'abord
   sb.getChannels().filter(c => c.topic === 'realtime:partie-' + id).forEach(c => sb.removeChannel(c));
   // présence : qui a la partie ouverte (aperçu « en ligne » / « hors ligne » au survol d'un joueur)
-  channel = sb.channel('partie-' + id, { config: { broadcast: { self: false }, presence: { key: uid } } })
+  const ch: RealtimeChannel = channel = sb.channel('partie-' + id, { config: { broadcast: { self: false }, presence: { key: uid } } })
     .on('presence', { event: 'sync' }, () => { if (channel) table?.setOnline(new Set(Object.keys(channel.presenceState()))); })
     .on('broadcast', { event: 'emote' }, ({ payload }) => { if (seatOk(payload?.seat) && typeof payload.text === 'string') table?.showEmote(payload.seat, payload.text); })
     .on('broadcast', { event: 'gif' }, ({ payload }) => { table?.receiveGif(payload as any); })
@@ -159,11 +184,27 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${id}` }, ping)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'music_queue', filter: `game_id=eq.${id}` }, () => jukebox?.refresh())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'music_state', filter: `game_id=eq.${id}` }, () => jukebox?.refresh())
-    .subscribe(status => { if (status === 'SUBSCRIBED') channel?.track({ at: Date.now() }).catch(() => { /* présence indisponible */ }); });
-  timer = setInterval(sync, 15000); // filet de sécurité si le temps réel décroche
+    .subscribe(status => {
+      if (stopped || channel !== ch) return;
+      // (ré)abonné : les changements arrivés pendant la coupure n'ont pas été reçus, on relit tout
+      if (status === 'SUBSCRIBED') { channel.track({ at: Date.now() }).catch(() => { /* présence indisponible */ }); sync(); jukebox?.refresh(); }
+      // canal tombé (jeton expiré, serveur redémarré, réseau) : il ne revient pas toujours seul, on le recrée
+      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') { clearTimeout(rejoin); rejoin = setTimeout(() => { if (!stopped && channel === ch) subscribe(); }, 3000); }
+    });
+  };
+  subscribe();
+  // filet de sécurité si le temps réel décroche sans le dire : toutes les 4 s, une lecture minuscule de la version de la
+  // partie ; elle a changé → synchronisation complète (le retard maximal passe de 15 s à 4 s, pour presque rien)
+  timer = setInterval(async () => {
+    if (stopped || document.hidden || syncing) return;
+    const { data } = await sb.from('games').select('version').eq('id', id).abortSignal(AbortSignal.timeout(4000)).maybeSingle();
+    if (data && data.version !== knownVersion) sync();
+  }, 4000);
   const onVis = () => { if (!document.hidden) sync(); };
+  const onOnline = () => { sync(); jukebox?.refresh(); };
   document.addEventListener('visibilitychange', onVis);
-  setCleanup(() => { stop(); document.removeEventListener('visibilitychange', onVis); document.body.classList.remove('at-table'); });
+  addEventListener('online', onOnline);
+  setCleanup(() => { stop(); clearTimeout(rejoin); document.removeEventListener('visibilitychange', onVis); removeEventListener('online', onOnline); document.body.classList.remove('at-table'); });
   if (first.g.status === 'lobby') renderLobby(first.g, first.seats); else { await openTable(first.g, first.seats); }
   await sync();
 }
