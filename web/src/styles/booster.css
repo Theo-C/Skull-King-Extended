@@ -52,8 +52,13 @@
 /* bande à couper */
 .cutzone{position:absolute;left:-30px;right:-30px;top:-22px;height:80px;cursor:crosshair;touch-action:none;z-index:4;outline:none}
 .dots{position:absolute;left:10px;right:10px;top:33px;border-top:2px dashed rgba(255,244,214,.85);filter:drop-shadow(0 0 3px rgba(0,0,0,.8))}
-.cutline{position:absolute;left:0;top:31px;height:5px;border-radius:3px;background:linear-gradient(90deg,rgba(255,255,255,.2),#fff);box-shadow:0 0 12px 3px #fff6c9,0 0 30px 6px #ffd36e}
-.tip{position:absolute;top:22px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle,#fff,rgba(255,240,190,.7) 40%,transparent 70%);animation:boTw .25s linear infinite alternate}
+/* outils de coupe, posés sur le sachet du centre pendant le focus ; --cut (0 à 1) mis à jour une fois par image */
+.cutui{position:absolute;inset:0;z-index:4}
+/* la ligne de lumière ne change pas de largeur : scaleX(var(--cut)) (ANIMATIONS.md, règle 1) ; retour à 0 en .3 s au lâcher */
+.cutline{position:absolute;left:0;top:31px;width:220px;height:5px;border-radius:3px;background:linear-gradient(90deg,rgba(255,255,255,.2),#fff);box-shadow:0 0 12px 3px #fff6c9,0 0 30px 6px #ffd36e;transform-origin:0 50%;transform:scaleX(var(--cut,0))}
+.cutui.back .cutline{transition:transform .3s}
+/* étincelle à la pointe : translate (propriété séparée) pour ne pas écraser le scale de boTw */
+.tip{position:absolute;left:0;top:22px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle,#fff,rgba(255,240,190,.7) 40%,transparent 70%);translate:calc(var(--cut,0) * 220px) 0;animation:boTw .25s linear infinite alternate}
 @keyframes boTw{to{transform:scale(1.4)}}
 .runner{position:absolute;top:24px;left:10px;width:46px;height:18px;margin-left:-23px;border-radius:50%;background:radial-gradient(ellipse,#fff 0,rgba(255,236,170,.9) 25%,rgba(255,210,110,.35) 55%,transparent 72%);mix-blend-mode:screen;pointer-events:none;animation:boRun 2s cubic-bezier(.5,0,.5,1) infinite}
 @keyframes boRun{0%{left:10px;opacity:0}12%{opacity:1}80%{left:210px;opacity:1}100%{left:210px;opacity:0}}
@@ -142,6 +147,8 @@
 @keyframes boSpB{0%{opacity:1;transform:translate(0,0)}100%{opacity:0;transform:translate(var(--x),var(--y))}}
 /* moment Signée / Numérotée */
 .bo-dim{position:absolute;left:-600px;top:-300px;width:1880px;height:1600px;background:rgba(2,3,4,.82);z-index:8;animation:boFi .5s both;pointer-events:none}
+/* le voile est posé dans la pile (premier enfant) : il passe sous les cartes, la bannière et les infos */
+.stk .bo-dim{z-index:auto;left:-1400px;top:-900px;width:3200px;height:2600px}
 .grays{position:absolute;left:50%;top:50%;width:900px;height:900px;margin:-450px 0 0 -450px;border-radius:50%;background:repeating-conic-gradient(rgba(255,215,120,.32) 0 6deg,transparent 6deg 18deg);animation:boSpin 14s linear infinite,boFi .6s both;-webkit-mask:radial-gradient(circle,#000 12%,transparent 60%);mask:radial-gradient(circle,#000 12%,transparent 60%);pointer-events:none}
 .grays.m{background:repeating-conic-gradient(rgba(231,198,255,.38) 0 6deg,rgba(155,231,255,.22) 6deg 11deg,transparent 11deg 20deg)}
 @keyframes boSpin{to{transform:rotate(360deg)}}
@@ -209,4 +216,8 @@
 
 @media (max-width:1100px){.bo-cols{grid-template-columns:minmax(0,680px)}.bo-left{order:2}}
 @media (max-width:720px){.bo{padding:10px 16px 90px}.bo-wallet{margin-left:0;gap:10px;flex-wrap:wrap}}
-@media (prefers-reduced-motion: reduce){.pfloat,.pfoil,.bo-caus,.grays,.hid .flip,.hid .fside.back,.runner,.chev,.bo-dos .gsh,.rise,.opening,.opening .lid,.burst,.spark,.stk .ring{animation:none!important}.opening{opacity:0;transition:opacity .4s}.flip{transition:none}}
+/* calme (booster.ts : mouvement réduit du système ou « Animations des autres » coupées) : ni flottement, ni rayons, ni flash ;
+   ouverture en fondu de 300 ms ; le geste de coupe reste (ANIMATIONS.md, règle 7) */
+.calm :is(.pfloat,.pfoil,.bo-caus,.grays,.hid .flip,.hid .fside.back,.runner,.chev,.bo-dos .gsh,.rise,.opening,.opening .lid,.lrays,.leak,.gsp,.burst,.spark,.stk .ring,.bo-flash){animation:none!important}
+.calm .opening{opacity:0;transition:opacity .3s}.calm .flip{transition:none}
+@media (prefers-reduced-motion: reduce){.pfloat,.pfoil,.bo-caus,.grays,.hid .flip,.hid .fside.back,.runner,.chev,.bo-dos .gsh,.rise,.opening,.opening .lid,.burst,.spark,.stk .ring{animation:none!important}.opening{opacity:0;transition:opacity .3s}.flip{transition:none}}

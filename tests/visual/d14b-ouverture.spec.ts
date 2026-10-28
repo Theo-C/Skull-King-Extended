@@ -26,7 +26,7 @@ test('ouverture complète : coupe au doigt, pile, carte de chance, Numérotée, 
   for (let i = 0; i <= 5; i++) { await page.mouse.move(z.x + 40 + i * 25, y); await page.waitForTimeout(25); }
   await shot(page, '2-couper');
   await page.mouse.up(); await page.waitForTimeout(400);
-  expect(await page.$eval('#cutL', e => (e as HTMLElement).style.width), 'lâcher avant la fin : retour à 0').toBe('0px');
+  expect(await page.$eval('.cutui', e => (e as HTMLElement).style.getPropertyValue('--cut')), 'lâcher avant la fin : retour à 0').toBe('0');
   // coupe complète
   await page.mouse.move(z.x + 40, y); await page.mouse.down();
   for (let i = 0; i <= 14; i++) { await page.mouse.move(z.x + 40 + i * (z.width - 70) / 14, y); await page.waitForTimeout(25); }
