@@ -1,7 +1,10 @@
 // Vue de la table, partagée par le mode en ligne et l'entraînement hors ligne.
 // Elle affiche des instantanés publics (rejoués avec un délai pour animer) et la main privée du joueur.
 import { cname, leadSuitOf, plannedRounds, resolve, roundKind, roundsOf, wildRule, SUIT, SPECIAL, WILD_SUITS, PIRATES, type Action, type Card, type Entry, type PublicView, type PrivateView, type LogSeg } from '@engine';
-import { cardHTML, cardKey, backFace, preloadArt } from './cards';
+import { cardHTML, cardKey, backFace, faceHTML, preloadArt, type CardLook } from './cards';
+import { collId, type Variant } from '@shared/collection.ts';
+import { packArt } from './booster';
+import { othersStandard, setOthersStandard } from './variantFx';
 import { openJuanita } from './juanita';
 import { GifCtl, gifsHidden, setGifsHidden, reactPanelHTML, type GifItem, type GifMsg } from './gif';
 import { impactSound } from './locker';
@@ -129,6 +132,9 @@ const setStakesMin = (v: boolean) => { try { localStorage.setItem('pli.stakes.mi
 /** Colonne de droite repliée (localStorage pli.side.min). */
 const sideMin = () => { try { return localStorage.getItem('pli.side.min') === '1'; } catch { return false; } };
 const setSideMin = (v: boolean) => { try { localStorage.setItem('pli.side.min', v ? '1' : '0'); } catch { /* stockage indisponible */ } };
+/** Lignes de card_choices d'un joueur → variante jouée par carte de la collection. */
+export const variantMap = (rows: { card_id: string; variant: Variant; serial?: number | null }[]) =>
+  new Map(rows.map(r => [r.card_id, { variant: r.variant, serial: r.serial ?? null }]));
 export class TableView {
   pub: PublicView | null = null; priv: PrivateView | null = null;
   private latest: { pub: PublicView; priv: PrivateView | null } | null = null;
@@ -180,6 +186,7 @@ export class TableView {
       <div class="gtools">
         <select id="speed" class="tb" aria-label="Vitesse des animations"><option value="1.7">Lente</option><option value="1">Normale</option><option value="0.45">Rapide</option></select>
         <select id="anim" class="tb" aria-label="Cartes animées">${ANIM_MODES.map(([v, l]) => `<option value="${v}">Cartes animées : ${l}</option>`).join('')}</select>
+        <select id="others" class="tb" aria-label="Cartes des autres joueurs"><option value="var">Cartes des autres : variantes</option><option value="std">Cartes des autres : Standard</option></select>
         <select id="amb" class="tb" aria-label="Ambiance de la table"><option value="pirate">Ambiance : pirate</option><option value="sobre">Ambiance : sobre</option></select>
         <button class="tb" id="bLast" aria-label="Dernier pli">${ICON.last}<span class="lbl">Dernier pli</span></button>
         <button class="tb" id="bScores" aria-label="Scores">${ICON.scores}<span class="lbl">Scores</span></button>
@@ -276,6 +283,9 @@ export class TableView {
     const an = $('#anim', root) as HTMLSelectElement; an.value = getAnimMode();
     an.onchange = () => setAnimMode(an.value as AnimMode);
     this.offAnim = onAnimMode(() => { an.value = getAnimMode(); this.applyAnimMode(); });
+    // variantes des cartes des autres : affichées ou toutes en Standard (accessibilité, sur cet appareil)
+    const ot = $('#others', root) as HTMLSelectElement; ot.value = othersStandard() ? 'std' : 'var';
+    ot.onchange = () => { setOthersStandard(ot.value === 'std'); this.refreshVariants(); };
     installCardZoom(); setZoomNote(card => this.zoomNote(card)); preloadArt();
     // Aperçu joueur au survol d'un pod : cache per-partie, évite la main et le centre du plateau à l'affichage
     if (this.backend.playerCard) this.playerCardCtl = new PlayerCardCtl(
@@ -453,6 +463,34 @@ export class TableView {
     return Math.abs(ax) > Math.abs(ay) * 1.4 ? { dx: Math.sign(ax) * 90, dy: 0 } : { dx: 0, dy: Math.sign(ay) * 40 };
   }
   setAnimCards(list: Set<string>[]) { this.animOwned = list; if (this.pub) this.render(); }
+  /** Variantes jouées par siège (card_choices) : clé de collection → variante et numéro. */
+  private variants: Map<string, { variant: Variant; serial: number | null }>[] = [];
+  setVariants(list: Map<string, { variant: Variant; serial: number | null }>[]) { this.variants = list; this.refreshVariants(); }
+  /** Redessine les cartes déjà affichées avec leur variante : la main est recréée, les cartes du pli gardent leur
+   *  place (pas d'animation ni de son rejoués), seule leur face change. */
+  private refreshVariants() {
+    for (const c of this.handEls.values()) { detachAnim(c); c.remove(); }
+    this.handEls.clear();
+    this.root.querySelectorAll<HTMLElement>('.tslot .card[data-seat]').forEach(el => {
+      const art = el.querySelector<HTMLElement>('.art'), face = el.querySelector('.face'); if (!art || !face || el.dataset.anim) return;
+      const c = { id: Number(el.dataset.id), ...JSON.parse(art.dataset.c || '{}') } as Card, seat = Number(el.dataset.seat), look = this.lookOf(seat, c);
+      face.innerHTML = faceHTML(c, look);
+      if (look?.variant) el.dataset.variant = look.variant; else delete el.dataset.variant;
+    });
+    if (this.pub) this.render();
+  }
+  /** Variante d'une carte tenue ou posée par ce siège : celle de son propriétaire, sauf « cartes des autres en
+   *  Standard » ; immobile chez les autres si « Animations des autres » est coupé. Le jeu ne la connaît pas. */
+  private lookOf(seat: number, c: Card, still = false): CardLook | undefined {
+    const id = collId(c), v = id ? this.variants[seat]?.get(id) : undefined;
+    if (!v || (seat !== this.mySeat && othersStandard())) return undefined;
+    return { variant: v.variant, serial: v.serial, still: still || (seat !== this.mySeat && getAnimMode() !== 'toutes') };
+  }
+  /** Survol d'une carte posée : la variante et le joueur (« Holographique · Théo »). */
+  private ownerAttr(seat: number) {
+    const p = this.pub?.players[seat];
+    return `data-seat="${seat}"${p ? ` data-owner="${esc(seat === this.mySeat ? 'Vous' : p.name)}"` : ''}`;
+  }
   /** Le réglage et l'appareil permettent d'animer les cartes de ce siège. */
   private animOn(seat: number) {
     const mode = getAnimMode();
@@ -607,11 +645,13 @@ export class TableView {
       { label: `Vitesse : ${this.speed === 1 ? 'normale' : this.speed > 1 ? 'lente' : 'rapide'}`, value: 'speed', cls: 'alt' },
       { label: `Ambiance : ${getAmbiance()}`, value: 'amb', cls: 'alt' },
       { label: `Cartes animées : ${ANIM_MODES.find(([m]) => m === getAnimMode())![1]}`, value: 'anim', cls: 'alt' },
+      { label: `Cartes des autres : ${othersStandard() ? 'Standard' : 'variantes'}`, value: 'others', cls: 'alt' },
       ...(this.gif ? [{ label: `GIF : ${gifsHidden() ? 'masqués' : 'affichés'}`, value: 'gifs', cls: 'alt' }] : []),
       { label: 'Quitter la table', value: 'exit', cls: 'alt' }, { label: 'Fermer', value: null }]);
     if (v === 'last') this.lastTrickModal(); else if (v === 'rules') modal(rulesHTML()); else if (v === 'exit') this.exit();
     else if (v === 'sound') { modal(`<h2>Son</h2><p class="sub">Sons de la table, sur cet appareil.</p><div class="sndp" id="sndModal">${this.soundPanelHTML()}</div>`); this.wireSoundPanel(document.querySelector('#sndModal') as HTMLElement); }
     else if (v === 'gifs') { setGifsHidden(!gifsHidden()); toast(gifsHidden() ? 'GIF masqués' : 'GIF affichés'); }
+    else if (v === 'others') { setOthersStandard(!othersStandard()); ($('#others', this.root) as HTMLSelectElement).value = othersStandard() ? 'std' : 'var'; this.refreshVariants(); toast('Cartes des autres : ' + (othersStandard() ? 'Standard' : 'variantes')); }
     else if (v === 'anim') { const o = ANIM_MODES.map(([m]) => m), nx = o[(o.indexOf(getAnimMode()) + 1) % o.length]; setAnimMode(nx); toast('Cartes animées : ' + ANIM_MODES.find(([m]) => m === nx)![1]); }
     else if (v === 'amb') { const a = $('#amb', this.root) as HTMLSelectElement; a.value = getAmbiance() === 'sobre' ? 'pirate' : 'sobre'; a.dispatchEvent(new Event('change')); toast('Ambiance : ' + a.value); }
     else if (v === 'speed') { const sp = $('#speed', this.root) as HTMLSelectElement; const o = ['1', '0.45', '1.7']; sp.value = o[(o.indexOf(sp.value) + 1) % 3]; sp.dispatchEvent(new Event('change')); toast('Vitesse : ' + sp.selectedOptions[0].text.toLowerCase()); }
@@ -779,7 +819,7 @@ export class TableView {
       if (e.p === this.mySeat) this.playedMine.add(e.card.id);
       let w = this.tcards.get(key); const fresh = !w;
       if (!w) {
-        w = elFrom(`<div class="tslot">${this.slotHead(e.p, rank, name, false)}<div class="tcw">${cardHTML(e.card, e)}${e.imposed ? '<span class="imptag">Imposée</span>' : ''}<span class="topen" hidden>ouvre</span></div><div class="tft"></div></div>`);
+        w = elFrom(`<div class="tslot">${this.slotHead(e.p, rank, name, false)}<div class="tcw">${cardHTML(e.card, e, '', this.ownerAttr(e.p), this.lookOf(e.p, e.card))}${e.imposed ? '<span class="imptag">Imposée</span>' : ''}<span class="topen" hidden>ouvre</span></div><div class="tft"></div></div>`);
         layer.append(w); this.tcards.set(key, w);
       }
       w.style.left = x + 'px'; w.style.top = cy + 'px'; w.style.zIndex = String(10 + s.idx);
@@ -1081,7 +1121,7 @@ export class TableView {
     let prev: HTMLElement | null = null;
     hand.forEach((c, j) => {
       let ce = this.handEls.get(c.id);
-      if (!ce) { ce = elFrom(cardHTML(c)); this.handEls.set(c.id, ce); added.push(ce); }
+      if (!ce) { ce = elFrom(cardHTML(c, null, '', '', this.lookOf(this.mySeat ?? -1, c))); this.handEls.set(c.id, ce); added.push(ce); }
       const spot: Element | null = prev ? prev.nextElementSibling : el.firstElementChild;
       if (spot !== ce) el.insertBefore(ce, spot);
       prev = ce;
@@ -1369,7 +1409,7 @@ export class TableView {
   private lastTrickModal() {
     const lt = this.latest?.pub.lastTrick, pb = this.latest?.pub;
     if (!lt || !pb) { modal('<h2>Dernier pli</h2><p class="sub">Aucun pli n’a encore été joué dans cette manche.</p>'); return; }
-    const cards = lt.entries.map((e: any, i: number) => `<figure class="${lt.res?.winner === i ? 'w' : ''}">${cardHTML(e.card, e, lt.res?.winner === i ? 'win' : (lt.res?.removed?.includes(i) || lt.res?.discarded ? 'gone' : ''))}<figcaption>${esc(pb.players[e.p]?.name ?? '?')}</figcaption></figure>`).join('');
+    const cards = lt.entries.map((e: any, i: number) => `<figure class="${lt.res?.winner === i ? 'w' : ''}">${cardHTML(e.card, e, lt.res?.winner === i ? 'win' : (lt.res?.removed?.includes(i) || lt.res?.discarded ? 'gone' : ''), this.ownerAttr(e.p), this.lookOf(e.p, e.card, true))}<figcaption>${esc(pb.players[e.p]?.name ?? '?')}</figcaption></figure>`).join('');
     modal(`<h2>Pli ${lt.trickNo}</h2><p class="sub">${esc(lt.res?.msg ?? '')}</p><div class="lasttrick">${cards}</div>`);
   }
   /** Pouvoir de Juanita Jade (A13) : fenêtre compacte des cartes non distribuées, ouverte une seule fois.
@@ -1555,6 +1595,7 @@ export class TableView {
       ${s.chests > 0 && this.backend.openChest ? `<div class="fchest" id="fchest" data-state="closed"><button type="button" id="fchestBtn" class="fchestbtn" aria-label="Ouvrir ${s.chests > 1 ? s.chests + ' coffres' : 'le coffre'}">
         <svg viewBox="0 0 72 64" aria-hidden="true"><rect x="8" y="28" width="56" height="30" rx="3" fill="#6b4226" stroke="#2a170b" stroke-width="2"/><path d="M8 28c0-12 10-18 28-18s28 6 28 18z" fill="#7d4f2c" stroke="#2a170b" stroke-width="2"/><path d="M8 28h56M20 12v46M52 12v46" stroke="#c9a14a" stroke-width="3"/><rect x="31" y="30" width="10" height="12" rx="2" fill="#e3c47a" stroke="#8a6620"/></svg>
       </button><span class="fchest-txt"><span class="ftag">${s.chests > 1 ? `${s.chests} coffres gagnés` : 'Coffre de victoire'}</span><b>${s.chests > 1 ? `${s.chests} objets pour votre pirate vous attendent.` : 'Un objet pour votre pirate vous attend.'}</b><button class="abtn gold" id="fchestOpen">${s.chests > 1 ? 'Ouvrir le premier coffre' : 'Ouvrir le coffre'}</button></span></div>` : ''}
+      ${s.boosters > 0 ? `<div class="fbooster" style="animation-delay:calc(2.4s * var(--spd,1))"><img src="${packArt('couronne')}" alt=""><span class="fchest-txt"><span class="ftag">Booster de victoire</span><b>5 cartes du jeu dans une variante vous attendent.</b><a class="abtn gold" href="#/boosters">Ouvrir le booster</a></span></div>` : ''}
       ${s.coins ? `<div class="fcoins" style="animation-delay:calc(2.6s * var(--spd,1))"><span class="coin"></span><b>+${s.coins}</b> pièces${s.chests > 0 ? ` et ${s.chests} coffre${s.chests > 1 ? 's' : ''}` : ''} ajoutés à votre bourse.</div>` : ''}`;
     // place et Élo de chacun sous le podium
     const res = (this.latest?.pub as any)?.settled || {};

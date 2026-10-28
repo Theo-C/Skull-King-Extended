@@ -1,6 +1,7 @@
 // Boutique (D12, docs/casier-boutique/SPEC.md, maquette Boutique) : on y achète, le Casier sert à s'équiper.
 // Coffres et bonus toujours disponibles, échoppe de la semaine (6 objets, renouvelée le lundi 00:00 heure de Paris),
-// achat confirmé puis écran de réussite avec l'action suivante. Les coffres s'ouvrent ici.
+// achat confirmé puis écran de réussite avec l'action suivante. Les coffres s'ouvrent ici. Depuis D14, le booster de cartes
+// (50 pièces, payé à l'ouverture sur #/boosters) est l'article principal ; les coffres ne servent plus qu'au profil.
 import '../styles/boutique.css';
 import { callGame } from '../api';
 import { esc, toast } from '../util';
@@ -10,21 +11,23 @@ import { objectSVG } from '../objects';
 import { openChestOverlay, type ChestResult } from '../chest';
 import { RC, RAR_NAME } from '../locker';
 import { go, setCleanup } from '../main';
+import { PACKS, CARD_BY_ID, BOOSTER_PRICE } from '@shared/collection.ts';
+import { packArt } from '../booster';
 
 const SLOT_KIND: Record<string, string> = { hat: 'Chapeau', face: 'Yeux et visage', neck: 'Cou', pet: 'Compagnon', bg: 'Décor', frame: 'Cadre', card_back: 'Dos de cartes', title: 'Titre', reaction: 'Réaction rapide', card_anim: 'Carte animée' };
 const CAT_OF = (slot: string) => ['card_back', 'card_anim'].includes(slot) ? 'cards' : ['title', 'reaction'].includes(slot) ? 'social' : 'look';
 const CHEST_SVG = (w: number, tr = '') => `<svg viewBox="0 0 140 110" width="${w}" height="110" aria-hidden="true"><g transform="${tr}"><rect x="20" y="48" width="100" height="52" rx="6" fill="#7a4a24" stroke="#3a220f" stroke-width="3"/><path d="M20 52 Q70 8 120 52 Z" fill="#8c5a2c" stroke="#3a220f" stroke-width="3"/><rect x="20" y="58" width="100" height="8" fill="#c9a14a"/><rect x="62" y="56" width="16" height="22" rx="3" fill="#e2bd62" stroke="#6b4c14" stroke-width="2"/><rect x="30" y="48" width="8" height="52" fill="#c9a14a"/><rect x="102" y="48" width="8" height="52" fill="#c9a14a"/></g></svg>`;
 const JOKER_SVG = '<svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true"><rect x="28" y="10" width="64" height="96" rx="8" fill="#f3ead7" stroke="#c9a14a" stroke-width="4" transform="rotate(-8 60 58)"/><text x="60" y="72" text-anchor="middle" font-family="Pirata One" font-size="44" fill="#7a1f1a" transform="rotate(-8 60 58)">11</text><text x="60" y="96" text-anchor="middle" font-family="Alegreya Sans" font-weight="800" font-size="11" fill="#7a1f1a" transform="rotate(-8 60 58)">BONUS</text></svg>';
 
-interface ShopData { coins: number; chests: number; jokers: number; prices: { chest: number; chest3: number; joker: number }; owned: string[]; week: { start: string | null; ends_at: string | null; items: { id: string; price: number | null }[] } }
+interface ShopData { coins: number; chests: number; jokers: number; prices: { chest: number; chest3: number; joker: number; booster: number }; owned: string[]; week: { start: string | null; ends_at: string | null; items: { id: string; price: number | null }[] } }
 type Buyable = { id: string; name: string; price: number; desc: string; kind: 'chest' | 'joker' | 'item'; item?: CosmeticItem };
 
 export async function boutiquePage(root: HTMLElement, uid: string) {
   root.innerHTML = '<section class="bq"><p class="lbl">Ouverture de la boutique…</p></section>';
-  let d: ShopData; let look: Look = {}; let color = '#d9b25a';
+  let d: ShopData; let look: Look = {}; let color = '#d9b25a'; let bst = { boosters: 0, free_today: false, free_daily: true };
   const load = async () => {
-    const [s, p] = await Promise.all([callGame<ShopData>('shop.list', {}), myProfile(uid)]);
-    d = s; look = p?.look ?? {}; color = p?.color ?? color; chestBadge(d.chests);
+    const [s, p, c] = await Promise.all([callGame<ShopData>('shop.list', {}), myProfile(uid), callGame<any>('collection.list', {}).catch(() => null)]);
+    d = s; look = p?.look ?? {}; color = p?.color ?? color; chestBadge(d.chests); if (c) bst = c;
   };
   try { await load(); } catch (e: any) { root.innerHTML = `<section class="bq"><h1>Boutique</h1><p class="lbl">${esc(e.message)}</p></section>`; return; }
   let cat = 'all', modal: { b: Buyable; done: boolean } | null = null, timer: any = null;
@@ -41,7 +44,7 @@ export async function boutiquePage(root: HTMLElement, uid: string) {
     return objectSVG(it.slot, it.value, 96, '#2f5f8a', color);
   };
   const ess = (): Buyable[] => [
-    { id: 'chest', name: 'Coffre', price: d.prices.chest, kind: 'chest', desc: 'Un objet au hasard : Commun 61 %, Rare 26 %, Épique 9 %, Légendaire 3 %, Mythique 1 %. Doublon converti en pièces.' },
+    { id: 'chest', name: 'Coffre', price: d.prices.chest, kind: 'chest', desc: 'Un objet pour votre pirate : Commun 62 %, Rare 26 %, Épique 9 %, Légendaire 3 %. Doublon converti en pièces.' },
     { id: 'chest3', name: '3 coffres', price: d.prices.chest3, kind: 'chest', desc: 'Trois coffres d’un coup, ouverts à la suite. Même tirage qu’un coffre seul.' },
     { id: 'joker', name: 'Joker', price: d.prices.joker, kind: 'joker', desc: 'À la fin de la dernière manche, posez-le pour jouer une manche bonus de 11 cartes avant les résultats.' },
   ];
@@ -52,12 +55,15 @@ export async function boutiquePage(root: HTMLElement, uid: string) {
     const has = owned();
     root.innerHTML = `<section class="bq">
       <header class="bq-head"><h1>Boutique</h1>
-        <div class="bq-cats">${([['all', 'À la une'], ['bonus', 'Coffres et bonus'], ['look', 'Apparence'], ['cards', 'Cartes'], ['social', 'Titres et réactions']] as const).map(([k, l]) => `<button type="button" class="chip${cat === k ? ' on' : ''}" data-cat="${k}">${l}</button>`).join('')}</div>
+        <div class="bq-cats">${([['all', 'À la une'], ['bonus', 'Boosters et bonus'], ['look', 'Apparence'], ['cards', 'Cartes'], ['social', 'Titres et réactions']] as const).map(([k, l]) => `<button type="button" class="chip${cat === k ? ' on' : ''}" data-cat="${k}">${l}</button>`).join('')}</div>
         <div class="bq-wallet"><span class="pill"><span class="coin"></span><b>${d.coins}</b> pièces</span>
           <span class="pill"><b>${d.chests}</b> coffre${d.chests > 1 ? 's' : ''}${d.chests ? ' <button type="button" class="bq-open" id="bqOpen">Ouvrir</button>' : ''}</span>
-          <span class="pill"><b>${d.jokers}</b> joker${d.jokers > 1 ? 's' : ''}</span><a class="bq-ghost" href="#/casier">Casier</a></div></header>
+          <span class="pill"><b>${d.jokers}</b> joker${d.jokers > 1 ? 's' : ''}</span><a class="bq-ghost" href="#/collection">Collection</a><a class="bq-ghost" href="#/casier">Casier</a></div></header>
       <div class="bq-cols"><div class="bq-main">
-        ${showEss ? `<section><div class="bq-h"><h2>Coffres et bonus</h2><span class="lbl">Toujours disponibles</span></div>
+        ${showEss ? `<section><div class="bq-h"><h2>Boosters de cartes</h2><span class="lbl">5 cartes du jeu dans une variante · ${bst.boosters ? `${bst.boosters} booster${bst.boosters > 1 ? 's' : ''} offert${bst.boosters > 1 ? 's' : ''} à ouvrir` : bst.free_daily && !bst.free_today ? 'un booster offert après votre première partie du jour' : `${BOOSTER_PRICE} pièces`}</span></div>
+          <div class="bq-packs">${PACKS.map(p => `<a class="bq-pack" href="#/boosters?pack=${p.id}"><img src="${packArt(p.id)}" alt="" loading="lazy"><b>${esc(p.name)}</b><span class="lbl">Vedettes ×3 : ${p.featured.map(id => esc(CARD_BY_ID[id].name)).join(', ')}</span>
+            <span class="bq-price"><span class="coin"></span>${bst.boosters ? 'Offert' : BOOSTER_PRICE}</span></a>`).join('')}</div></section>
+          <section><div class="bq-h"><h2>Coffres et bonus</h2><span class="lbl">Les coffres habillent votre pirate · toujours disponibles</span></div>
           <div class="bq-ess">${ess().map(e => `<div class="bq-big">${e.id === 'chest3' ? '<span class="bq-ribbon">−10 %</span>' : ''}
             <div class="bq-pic">${e.kind === 'joker' ? JOKER_SVG : e.id === 'chest3' ? CHEST_SVG(170, 'translate(-6 4) scale(.9)') : CHEST_SVG(130)}</div>
             <div class="bq-name">${esc(e.name)}</div><div class="bq-desc">${esc(e.desc)}</div>
@@ -72,7 +78,7 @@ export async function boutiquePage(root: HTMLElement, uid: string) {
           <div><b>Packs de réactions</b>Phrases et sons rapides.</div><div><b>Passe de saison</b>Récompenses à débloquer en jouant.</div></div></section>` : ''}
       </div>
       <aside class="bq-aside">
-        <div class="bq-box"><h2>Gagner des pièces</h2>${[['Partie terminée', '+10'], ['Victoire', '+30'], ['Toutes ses mises tenues', '+15'], ['Haut fait', '+50'], ['Doublon dans un coffre', '+30 à +400']].map(([l, v]) => `<div class="bq-earn"><span>${l}</span><b>${v}</b></div>`).join('')}
+        <div class="bq-box"><h2>Gagner des pièces</h2>${[['Partie terminée', '+10'], ['Victoire', '+30 et 1 booster'], ['Première partie du jour', '1 booster'], ['Toutes ses mises tenues', '+15'], ['Haut fait', '+50'], ['Doublon dans un coffre', '+30 à +200']].map(([l, v]) => `<div class="bq-earn"><span>${l}</span><b>${v}</b></div>`).join('')}
           <p class="lbl">Seul face à des bots, une partie ne rapporte rien. L’échoppe ne vend jamais de Légendaire ni de Mythique : ceux-là se gagnent.</p></div>
         <div class="bq-box"><h2>Le Joker</h2><p>À la fin de la dernière manche, avant les résultats, chaque joueur qui possède un Joker peut le poser : la partie gagne une <b>manche bonus</b> (11 cartes chacun après 10 manches) pour tout le monde.</p>
           <p class="lbl">Un seul Joker par partie · jusqu'à 6 joueurs (au-delà, le paquet ne suffit pas pour 11 cartes chacun) · 20 s pour se décider · le Joker n'est retiré que s'il est posé.</p></div>

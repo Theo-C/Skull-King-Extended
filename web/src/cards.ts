@@ -68,7 +68,7 @@ const boxStyle = (b: { l: number; t: number; w: number; h: number }) => `left:${
  *  .lay reprend le rognage de l'image unique (720 × 1024 posée sur 252 × 352 : 3,2 px en haut et en bas), pour que
  *  les chiffres et les sceaux, placés en % de la face, ne bougent pas. */
 /** Variante visuelle (B8, D14) : n'a aucun effet sur le jeu. still = sans animation. */
-export interface Look { variant?: Variant; serial?: number | null; still?: boolean }
+export interface CardLook { variant?: Variant; serial?: number | null; still?: boolean }
 const RING: Partial<Record<Variant, string>> = { patine: 'patine', etain: 'etain', holo: 'prism', nacre: 'nacre', signee: 'signe', numero: 'nacre' };
 function layers(key: string, v: Variant, serial?: number | null): string {
   const holo = v === 'holo' || v === 'numero', viv = v === 'vivante' || v === 'numero', sig = v === 'signee' || v === 'numero';
@@ -109,7 +109,7 @@ function preloadMasks(key: string) {
 }
 const cardData = (c: Partial<Card>) => esc(JSON.stringify({ kind: c.kind, suit: c.suit, rank: c.rank, pid: c.pid, v: c.v, zf: c.zf, wild: c.wild, exp: c.exp }));
 /** Face illustrée (calques ou image unique, + médaillon chiffre + sceau) ; data-c permet de revenir en arrière. */
-function artFace(c: Partial<Card>, key: string, flat = !layered, look: Look = {}): string {
+function artFace(c: Partial<Card>, key: string, flat = !layered, look: CardLook = {}): string {
   const overlays = c.kind === 'num' && !c.wild ? medallion(c) : '';
   if (!flat && CALQUES[key]) {
     const v = look.variant && look.variant !== 'std' ? look.variant : 'std';
@@ -125,7 +125,7 @@ function artFace(c: Partial<Card>, key: string, flat = !layered, look: Look = {}
 }
 
 export function faceOf(key: string) { return wrapF(AB[key], A[key]); }
-export function faceHTML(c: Partial<Card>, look?: Look): string {
+export function faceHTML(c: Partial<Card>, look?: CardLook): string {
   const key = cardKey(c);
   return ART[key] ? artFace(c, key, !layered, look) : oldFace(c);
 }
@@ -143,7 +143,7 @@ function ruleOf(c: Partial<Card>): string {
   const t = DESC[c.wild ? 'wild' : c.kind as string] || '', n = cname(c as Card), i = t.indexOf(' : '), pre = t.slice(0, i);
   return i > 0 && i < 45 && (pre.startsWith(n) || n.startsWith(pre) || pre.startsWith(n.replace(/^(Le|La) /, ''))) ? t.charAt(i + 3).toUpperCase() + t.slice(i + 4) : t;
 }
-export function cardHTML(c: Partial<Card>, e?: Partial<Entry> | null, extra = '', attrs = '', look?: Look) {
+export function cardHTML(c: Partial<Card>, e?: Partial<Entry> | null, extra = '', attrs = '', look?: CardLook) {
   const k = c.kind; let cl = 'card k-' + (c.wild ? 'wild' : k);
   if (k === 'num' && !c.wild) cl += ' s-' + c.suit;
   let tag = '';

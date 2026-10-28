@@ -3,6 +3,7 @@ import * as E from './engine.ts';
 import { levelFor } from './xp.ts';
 import { settleGame, type SettleInput } from './settle.ts';
 import * as M from './music.ts';
+import * as C from './collection.ts';
 
 export interface GameRow { id: string; code: string; host: string; status: 'lobby' | 'playing' | 'finished'; options: any; state: any; version: number; /** dernier coup enregistré */ updated_at?: string }
 export interface SeatRow { seat: number; user_id: string | null; bot: boolean; name: string; final_score?: number | null; rank?: number | null }
@@ -107,6 +108,9 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'music.next': return musicNext(store, uid, body);
     case 'music.report': return musicReport(store, uid, body);
     case 'music.toggle': return musicToggle(store, uid, body);
+    case 'booster.open': return boosterOpen(store, uid, body);
+    case 'collection.list': return collectionList(store, uid);
+    case 'collection.choose': return collectionChoose(store, uid, body);
     default: throw bad('Action inconnue.');
   }
 }
@@ -422,8 +426,9 @@ async function wardrobe(store: Store, uid: string) {
   const [owned, w] = await Promise.all([store.userCosmetics(uid), store.wallet(uid)]);
   return { owned, coins: w.coins, chests: w.chests, jokers: w.jokers };
 }
-/** Prix permanents de la Boutique (SPEC « Boutique ») ; les objets de l'échoppe ont leur prix dans le catalogue. */
-export const SHOP_PRICES = { chest: 100, chest3: 270, joker: 150 } as const;
+/** Prix permanents de la Boutique (SPEC « Boutique ») ; les objets de l'échoppe ont leur prix dans le catalogue.
+ *  Le booster (50) se paie à l'ouverture (booster.open) ; les coffres ne servent plus qu'à la personnalisation du profil. */
+export const SHOP_PRICES = { chest: 50, chest3: 135, joker: 150, booster: C.BOOSTER_PRICE } as const;
 /** Boutique : porte-monnaie, coffres et bonus, échoppe de la semaine (6 objets, fin le lundi 00:00 heure de Paris). */
 async function shopList(store: Store, uid: string) {
   const [w, week, owned, cat] = await Promise.all([store.wallet(uid), store.rpc('shop_week_info', {}), store.userCosmetics(uid), store.cosmetics()]);
@@ -463,6 +468,35 @@ async function chestOpen(store: Store, uid: string) {
   const r = await store.rpc('chest_open', { p_user: uid, p_seed: null });
   if (r?.error) throw bad(r.error);
   // Le site attend { cosmetic_id, slot, value, name, rarity, duplicate, coins_gained, coins, chests } : voir web/src/chest.ts
+  return r;
+}
+/* ---------- Boosters et collection (D14, docs/boosters/SPEC.md) ---------- */
+/** Ouverture : tirage ici (côté serveur, avant que le site ne lance l'animation), enregistrement par booster_apply en
+ *  une transaction (booster en réserve ou 50 pièces, Numérotées, doublons → éclats). Belles prises annoncées aux amis. */
+async function boosterOpen(store: Store, uid: string, body: any) {
+  const pack = typeof body.pack === 'string' && C.PACK_BY_ID[body.pack] ? body.pack : null;
+  if (!pack) throw bad('Booster inconnu.');
+  const seed = new Uint32Array(1); crypto.getRandomValues(seed);
+  const d = C.drawBooster(pack, C.rng(seed[0]));
+  const r = await store.rpc('booster_apply', { p_user: uid, p_pack: pack, p_divine: d.divine, p_cards: d.cards });
+  if (r?.error) throw bad(r.error);
+  const big = (r.cards as { card_id: string; variant: string; serial: number | null }[]).filter(c => c.variant === 'signee' || c.variant === 'numero');
+  if ((big.length || r.divine) && store.broadcast) {
+    const pseudo = await store.pseudo(uid);
+    const p = store.broadcast('annonces', 'carte', { userId: uid, pseudo, divine: !!r.divine, cards: big.map(c => ({ card_id: c.card_id, name: C.CARD_BY_ID[c.card_id]?.name, variant: c.variant, serial: c.serial })) })
+      .catch(e => console.error('annonce Realtime', e));
+    store.background ? store.background(p) : await p;
+  }
+  return r;
+}
+async function collectionList(store: Store, uid: string) {
+  return store.rpc('collection_state', { p_user: uid });
+}
+async function collectionChoose(store: Store, uid: string, body: any) {
+  const card = typeof body.cardId === 'string' && C.CARD_BY_ID[body.cardId] ? body.cardId : null;
+  if (!card || !C.isVariant(body.variant)) throw bad('Variante inconnue.');
+  const r = await store.rpc('collection_choose', { p_user: uid, p_card: card, p_variant: body.variant });
+  if (r?.error) throw bad(r.error);
   return r;
 }
 /** Achat : 'chest', 'chest3', 'joker' ou un objet de l'échoppe de la semaine, en une seule transaction (shop_purchase). */

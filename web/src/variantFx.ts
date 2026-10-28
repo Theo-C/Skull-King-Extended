@@ -4,6 +4,11 @@
 /** Au-delà de ce nombre de cartes à effets visibles (main + pli), seules la carte survolée et celles du pli bougent. */
 export const MAX_ANIMATED = 8;
 
+/** Option d'accessibilité « Afficher les cartes des autres en Standard » (sur cet appareil). */
+const K_STD = 'pli.autresStandard';
+export function othersStandard(): boolean { try { return localStorage.getItem(K_STD) === '1'; } catch { return false; } }
+export function setOthersStandard(on: boolean) { try { localStorage.setItem(K_STD, on ? '1' : '0'); } catch { /* stockage indisponible */ } }
+
 let installed = false;
 export function installVariantFx() {
   if (installed || typeof document === 'undefined') return; installed = true;

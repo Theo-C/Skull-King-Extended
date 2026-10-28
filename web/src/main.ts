@@ -9,6 +9,9 @@ import { profilePage } from './pages/profile';
 import { playerPage } from './pages/player';
 import { casierPage } from './pages/casier';
 import { boutiquePage } from './pages/boutique';
+import { collectionPage } from './pages/collection';
+import { boosterPage } from './booster';
+import { listenAnnouncements } from './announce';
 import { historyPage } from './pages/history';
 import { leaderboardPage } from './pages/leaderboard';
 import { salonByCode } from './pages/salon';
@@ -52,6 +55,7 @@ async function route() {
     return;
   }
   const user = configured ? await currentUser() : null;
+  if (user) listenAnnouncements(user.id);
   const needAuth = (note?: string) => { remember(location.hash || '#/'); shell(null, 'login'); loginPage(view, note); };
   window.scrollTo(0, 0);
   switch (page) {
@@ -71,6 +75,8 @@ async function route() {
     case 'profil': if (!user) return needAuth(); shell(user, 'profile'); return profilePage(view, user.id, user.email ?? '');
     case 'casier': if (!user) return needAuth(); shell(user, 'casier'); return casierPage(view, user.id, new URLSearchParams(query));
     case 'boutique': if (!user) return needAuth(); shell(user, 'shop'); return boutiquePage(view, user.id);
+    case 'collection': if (!user) return needAuth(); shell(user, 'coll'); return collectionPage(view, new URLSearchParams(query));
+    case 'boosters': if (!user) return needAuth(); shell(user, 'shop'); return boosterPage(view, new URLSearchParams(query));
     case 'joueur': if (!user) return needAuth(); if (!/^[0-9a-f-]{36}$/.test(parts[1] || '') || parts[1] === user.id) return go('#/profil'); shell(user, ''); return playerPage(view, parts[1]);
     default: if (!user) return needAuth(); shell(user, 'home'); return homePage(view, user.id);
   }

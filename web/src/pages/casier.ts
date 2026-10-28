@@ -30,7 +30,7 @@ const SLOTS: Record<Tab, [string, string, string][]> = {
 const TAB_OF: Record<string, Tab> = Object.fromEntries((Object.keys(SLOTS) as Tab[]).flatMap(t => SLOTS[t].map(([k]) => [k, t])));
 const HINT: Record<Tab, string> = {
   pirate: "L'apparence de base est entièrement gratuite et modifiable à tout moment. Les objets se gagnent dans les coffres, par les niveaux et les hauts faits, ou s'achètent à l'échoppe de la semaine.",
-  cartes: 'Les dos se gagnent dans les coffres, par les niveaux ou à l’échoppe. Les cartes animées sont Mythiques (1 % par coffre) : chacune s’active ou se coupe à part, et un doublon rapporte 400 pièces.',
+  cartes: 'Les dos se gagnent dans les coffres, par les niveaux ou à l’échoppe. Les cartes animées Mythiques ne sortent plus des coffres : celles que vous avez s’activent ou se coupent une à une. Les variantes de cartes se gagnent dans les boosters (voir la Collection).',
   profil: 'Le titre s’affiche sous votre nom, à la table et au survol. Les 4 réactions sont les boutons rapides au-dessus de votre main (touches 1 à 4) ; le bouton GIF reste toujours à côté.',
 };
 const PIRATE_SLOTS = ['hat', 'face', 'neck', 'pet', 'bg', 'frame'] as const;
@@ -147,7 +147,7 @@ export async function casierPage(root: HTMLElement, uid: string, query: URLSearc
       const rows = itemsOf(s).filter(it => keep(has(it))).map(it => {
         const mine = has(it), on = mine && L().card_anims.includes(it.value);
         return `<div class="ck-an${prevKey === it.value ? ' on' : ''}${mine ? '' : ' lock'}" data-anim="${esc(it.value!)}" role="button" tabindex="0" aria-label="Aperçu : ${esc(it.name)}">
-          <img src="${ART[KEY_OF_FILE[it.value!]]}" alt=""><div><span class="myth">Mythique</span><b>${esc(it.name)}</b><span class="lbl">${esc(it.sub ?? '')}${mine ? '' : ' · 1 % par coffre'}</span></div>
+          <img src="${ART[KEY_OF_FILE[it.value!]]}" alt=""><div><span class="myth">Mythique</span><b>${esc(it.name)}</b><span class="lbl">${esc(it.sub ?? '')}</span></div>
           <button type="button" class="ck-switch${on ? ' on' : ''}" role="switch" aria-checked="${on}" aria-disabled="${!mine}" data-toggle="${esc(it.value!)}" aria-label="Animer ${esc(it.name)} à la table"></button>${mine ? '' : LOCK}</div>`;
       }).join('');
       return `<div class="ck-anims">${rows}</div><div class="lbl">Réglages · sur cet appareil</div>

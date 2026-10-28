@@ -35,8 +35,10 @@ export const ACHIEVEMENT_COSMETICS: Record<string, string> = {
   abyss:        'pet:poulpe',
 };
 /** Pièces (docs/casier-boutique/SPEC.md) : +10 par partie terminée, +30 par victoire, +15 si toutes ses mises sont tenues,
- *  +50 par haut fait débloqué. Coffres : 1 au vainqueur humain + 1 par niveau franchi (il s'achète aussi à la Boutique). */
-export const WALLET = { game: 10, win: 30, allBids: 15, achievement: 50, winChest: 1, levelChest: 1 } as const;
+ *  +50 par haut fait débloqué. Coffres (personnalisation du profil) : 1 par niveau franchi (ils s'achètent aussi à la
+ *  Boutique). Boosters de cartes (docs/boosters/SPEC.md) : 1 au vainqueur humain, et 1 gratuit le premier jour où l'on
+ *  termine une partie qui rapporte (accordé par game_settle, réglage free_daily_booster). */
+export const WALLET = { game: 10, win: 30, allBids: 15, achievement: 50, winBooster: 1, levelChest: 1 } as const;
 
 export interface SettleSeat { seat: number; user_id: string | null; bot: boolean; name: string }
 /** Ce que la base sait d'un joueur avant la partie (fonction SQL settle_inputs). */
@@ -53,7 +55,7 @@ export interface Settlement {
   /** Nouveaux objets cosmétiques gagnés (titre ou haut fait) : un par (user_id, cosmetic_id). */
   cosmetics: { user_id: string; cosmetic_id: string; source: string }[];
   /** Variation du porte-monnaie (pièces et coffres) à ajouter en bloc. Une seule ligne par joueur. */
-  wallet: { user_id: string; coins: number; chests: number }[];
+  wallet: { user_id: string; coins: number; chests: number; boosters: number; daily: boolean }[];
   /** Résumé par utilisateur, publié dans games.state.settled pour l'écran de fin de partie. */
   public: Record<string, any>;
 }
@@ -111,9 +113,10 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
     }
 
     // Pièces : +10 par partie, +30 victoire, +15 toutes mises tenues, +50 par haut fait.
-    // Coffres : 1 au vainqueur humain + 1 par niveau franchi dans cette partie (jamais rien pour un solo-vs-bots).
+    // Coffres : 1 par niveau franchi ; booster : 1 au vainqueur humain (jamais rien pour un solo-vs-bots).
     const coins = rewards ? WALLET.game + (win ? WALLET.win : 0) + (hist.length && made === hist.length ? WALLET.allBids : 0) + WALLET.achievement * fresh.length : 0;
-    const chests = rewards ? (win ? WALLET.winChest : 0) + WALLET.levelChest * Math.max(0, levelAfter - levelBefore) : 0;
+    const chests = rewards ? WALLET.levelChest * Math.max(0, levelAfter - levelBefore) : 0;
+    const boosters = rewards && win ? WALLET.winBooster : 0;
 
     const e = elo.find(x => x.id === uid);
     out.results.push({ user_id: uid, place, score: p.score, bids_made: made, rounds: hist.length, players: seats.length,
@@ -122,14 +125,14 @@ export function settleGame(S: E.State, seats: SettleSeat[], inputs: Record<strin
     out.achievements.push(...fresh.map(code => ({ user_id: uid, code })));
     out.stats.push({ user_id: uid, win, bids_made: made, bids_total: hist.length, score: p.score, sirens: f.sirens, zero_bids_made: zeroMade, ranked, elo_after: e ? e.after : Number(inp.elo) });
     out.cosmetics.push(...cos.map(c => ({ user_id: uid, ...c })));
-    out.wallet.push({ user_id: uid, coins, chests });
+    out.wallet.push({ user_id: uid, coins, chests, boosters, daily: rewards });
     out.public[uid] = {
       place, score: p.score, bidsMade: made, rounds: hist.length,
       xp: lines, xpTotal: gain, xpBefore: inp.xp, xpAfter: inp.xp + gain,
       levelBefore, levelAfter,
       achievements: fresh.map(code => ({ code, ...ACHIEVEMENTS[code] })),
       elo: e ? { before: e.before, after: e.after, delta: e.delta, vs: e.vs.map(v => ({ ...v, name: nameOf(v.id) })) } : null, unranked,
-      coins, chests, cosmetics: cos, noRewards: !rewards,
+      coins, chests, boosters, cosmetics: cos, noRewards: !rewards,
     };
   }
   return out;

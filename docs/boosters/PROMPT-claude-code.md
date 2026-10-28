@@ -25,9 +25,9 @@ Lis `docs/boosters/SPEC.md`, `docs/boosters/OUVERTURE.md` et `docs/boosters/ATEL
    - `booster.open` : contenu par emplacement avec l'échelle de Pokémon TCG Pocket légèrement réduite (tableau de la SPEC), cartes vedettes ×3, booster divin à 1/2 000 (renvoie `divine: true`), Numérotées limitées à 100, doublons → éclats. **Plus de garanties 6 / 30** ;
    - `collection.craft` (modes `random` et `pick`, voir `docs/boosters/ATELIER.md`), `collection.recycle`, `collection.choose`.
 5. **Boutique** :
-   - le booster à 50 pièces remplace le coffre à 100 pièces, avec le choix parmi 3 boosters et un booster gratuit par jour joué, après la 1re partie (réglage serveur `free_daily_booster`) ;
+   - le booster à 50 pièces devient l'article principal, avec le choix parmi 3 boosters et un booster gratuit par jour joué, après la 1re partie (réglage serveur `free_daily_booster`) ;
    - la victoire donne 1 booster ;
-   - les coffres de D13 ne restent que comme récompenses.
+   - les coffres restent, pour la personnalisation du profil seulement : coffre 50, 3 coffres 135, plus de carte animée Mythique dedans (décision du 28 octobre 2026).
 6. **Écran d'ouverture** comme la maquette `Booster` (version 2, voir la SPEC et `docs/boosters/OUVERTURE.md`) : carrousel des 3 boosters, coupe au doigt le long des pointillés (avec bouton « Ouvrir sans glisser »), lumière neutre identique pour tous les boosters (aucun spoil), pile qu'on fait glisser carte par carte, cartes 1 à 4 face visible et seule la 5e face cachée avec un dos neutre, booster divin signalé discrètement (paillettes, étoiles) puis annoncé au butin, moment Signée / Numérotée, grille du butin avec barre de collection, sons via `sfx.ts`, vibrations sur mobile, annonce aux amis. Le tirage est fait **côté serveur avant la coupe** (`booster.open`) : l'écran ne fait que le mettre en scène.
 7. **Atelier** comme la maquette `Atelier` (board 37) : recyclage, fabrication au hasard par rareté (prix de base, jamais de doublon) et au choix (×4), animation de forge.
 8. **Écran Collection** comme la maquette : filtres, grille avec pastilles, grande carte inclinable, liste des variantes, Utiliser / Fabriquer / Recycler, aperçu « À la table », récompenses de collection.

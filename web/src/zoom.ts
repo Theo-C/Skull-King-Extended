@@ -3,6 +3,7 @@
 // cartes illustrées « Cartes-v3 », on affiche à côté une fiche parchemin avec le nom et la règle.
 import { esc } from './util';
 import { attachAnim, detachAnim } from './animatedCards';
+import { VARIANT_INFO, isVariant } from '@shared/collection.ts';
 
 let installed = false;
 /** Pastille sous la carte agrandie (maquette Main : « Prendrait le pli »…), fournie par la table. */
@@ -21,7 +22,10 @@ export function installCardZoom() {
     const tag = card.querySelector('.tag'), note = noteFor?.(card) ?? null;
     const name = card.dataset.artName, rule = card.dataset.artRule;
     const anim = card.dataset.anim, myth = anim ? '<span class="irid">Mythique</span>' : '';
-    const info = name ? `<div class="zinfo">${myth}<b>${esc(name)}</b>${rule ? `<p>${esc(rule)}</p>` : ''}</div>` : '';
+    // variante de la collection (D14) : « Holographique · Théo »
+    const vi = card.dataset.variant && isVariant(card.dataset.variant) ? VARIANT_INFO[card.dataset.variant] : null;
+    const vline = vi ? `<span class="zvar" style="--vc:${vi.color}">${esc(vi.name)}${card.dataset.owner ? ' · ' + esc(card.dataset.owner) : ''}</span>` : '';
+    const info = name ? `<div class="zinfo">${myth}${vline}<b>${esc(name)}</b>${rule ? `<p>${esc(rule)}</p>` : ''}</div>` : '';
     pv.innerHTML = `<div class="zcol"><div class="card zc">${face.outerHTML}${tag ? tag.outerHTML : ''}</div>${note ? `<span class="znote" style="color:${esc(note.ink)}">${esc(note.text)}</span>` : ''}</div>${info}`;
     pv.classList.toggle('with-info', !!info);
     // carte animée : la copie ne garde que l'image ; la vidéo est relancée en grand (l'originale attend en pause)

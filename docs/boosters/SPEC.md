@@ -7,8 +7,8 @@ Maquettes :
 
 ## Principe
 
-- Le **booster remplace le coffre** comme achat à 50 pièces dans la Boutique et comme récompense de victoire.
-- Les coffres de la garde-robe (D13) restent, mais seulement comme récompenses ponctuelles : niveaux, hauts faits, défis. Ils ne s'achètent plus.
+- Le **booster remplace le coffre** comme article principal de la Boutique (50 pièces) et comme récompense de victoire.
+- **Les coffres restent** (décision du 28 octobre 2026), mais **seulement pour la personnalisation du profil** (objets du pirate, dos, titres…) : **coffre 50 pièces, 3 coffres 135** ; on en gagne aussi en passant un niveau. Ils ne donnent **plus de carte animée Mythique** : tirage Commun 62 %, Rare 26 %, Épique 9 %, Légendaire 3 %. Les cartes animées déjà gagnées restent possédées.
 - Un booster contient **5 cartes du jeu dans une variante visuelle**.
 - Chaque carte du paquet (cartes numérotées des 4 couleurs, pirates, Skull King, sirènes, Kraken, Baleine, Fuites…) existe en **8 variantes**.
 - **La variante ne change jamais la valeur de la carte** : c'est purement visuel. Pour chaque carte, le joueur choisit la variante qu'il joue, et tout le monde la voit quand la carte est posée.
@@ -115,7 +115,7 @@ Supprimées : avec ces probabilités et ~9 boosters par semaine, chacun ouvre pl
 
 Un petit rituel en 4 temps, pensé d'abord pour le téléphone (geste au doigt), qui marche aussi à la souris et au clavier. Détails techniques : `docs/boosters/OUVERTURE.md`.
 
-1. **Choisir** : les 3 boosters de la saison dans un **carrousel 3D** (celui du centre flotte, les voisins sont tournés et assombris). Flèches, glisser ou clic sur un voisin pour tourner. Dessous : nom, cartes vedettes ×3 (en Holo), « Ouvrir · 100 🪙 » et le booster gratuit avec son sablier.
+1. **Choisir** : les 3 boosters de la saison dans un **carrousel 3D** (celui du centre flotte, les voisins sont tournés et assombris). Flèches, glisser ou clic sur un voisin pour tourner. Dessous : nom, cartes vedettes ×3 (en Holo), « Ouvrir · 50 🪙 » et le booster gratuit avec son sablier.
 2. **Couper** : le sachet vient au centre et grossit. On **glisse le doigt le long des pointillés** du haut, de gauche à droite : une ligne de lumière suit le doigt, avec une étincelle à la pointe.
    - à 92 % la bande s'envole, petit flash ;
    - indice : une lueur qui court le long des pointillés et des chevrons « ››› » au bout (pas d'emoji) ;
