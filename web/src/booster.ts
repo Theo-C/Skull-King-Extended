@@ -68,8 +68,16 @@ export async function boosterPage(root: HTMLElement, query = new URLSearchParams
       <div class="bo-stage-w" id="boSW"><div class="bo-stage" id="boS" tabindex="-1"></div></div>
     </div></section>`;
   const stage = root.querySelector<HTMLElement>('#boS')!, sw = root.querySelector<HTMLElement>('#boSW')!;
-  // la scène est dessinée à 680 × 900 et mise à l'échelle de la place disponible (téléphone compris)
-  const fit = () => { const kx = Math.min(1, sw.clientWidth / 680); stage.style.transform = `scale(${kx})`; sw.style.height = 900 * kx + 'px'; };
+  // la scène est dessinée à 680 × 900 et mise à l'échelle de la place disponible ; sur téléphone (moins de 560 px), une scène
+  // étroite de 400 × 820 (classe .m, booster.css) affichée presque à taille réelle : textes lisibles, cartes plus grandes
+  // format choisi dès le premier rendu : sinon les boosters glisseraient de la scène large vers la scène étroite à l'arrivée
+  let mob = sw.clientWidth > 0 && sw.clientWidth < 560; stage.classList.toggle('m', mob);
+  const fit = () => {
+    const m = sw.clientWidth < 560;
+    if (m !== mob) { mob = m; stage.classList.toggle('m', m); render(); }
+    const W = mob ? 400 : 680, H = mob ? 820 : 900, kx = Math.min(1, sw.clientWidth / W);
+    stage.style.transform = `scale(${kx})`; sw.style.height = H * kx + 'px';
+  };
   const ro = new ResizeObserver(fit); ro.observe(sw);
 
   const pack = () => PACKS[sel], price = () => w.boosters ? 'offert' : `${BOOSTER_PRICE} 🪙`;
@@ -90,8 +98,10 @@ export async function boosterPage(root: HTMLElement, query = new URLSearchParams
     let h = '';
     if (showCar) {
       h += `<div class="bo-car">${P.map((p, i) => { const o = pos(i), isCur = o === 0;
-        const tf = inFocus ? (isCur ? 'translateY(40px) scale(1.22)' : `translateX(${o * 420}px) scale(.6)`) : `translateX(${o * 240}px) translateZ(${isCur ? 0 : -160}px) rotateY(${o * -32}deg) scale(${isCur ? 1 : .82})`;
-        const inner = isCur ? (phase === 'opening' ? 'opening' : phase === 'choose' ? 'float' : '') : '';
+        // téléphone : boosters voisins plus serrés et plus petits (ils dépassent à peine des bords), sachet coupé un peu plus bas
+        const dx = mob ? 150 : 240, side = mob ? .7 : .82;
+        const tf = inFocus ? (isCur ? `translateY(${mob ? 60 : 40}px) scale(${mob ? 1.25 : 1.22})` : `translateX(${o * 420}px) scale(.6)`) : `translateX(${o * dx}px) translateZ(${isCur ? 0 : -160}px) rotateY(${o * -32}deg) scale(${isCur ? 1 : side})`;
+        const inner = isCur ? (phase === 'opening' ? 'opening' : phase === 'choose' ? 'pfloat' : '') : '';
         return `<div class="pw${inFocus && !isCur ? ' off' : ''}" data-i="${i}" style="transform:${tf};opacity:${inFocus && !isCur ? 0 : isCur ? 1 : .55};filter:${isCur ? 'none' : 'brightness(.6) saturate(.8)'};z-index:${isCur ? 3 : 1}" ${isCur ? '' : `role="button" aria-label="${esc(p.name)}"`}>
           <div class="pin ${inner}">
             <div class="lrays"></div>
@@ -112,7 +122,7 @@ export async function boosterPage(root: HTMLElement, query = new URLSearchParams
     if (phase === 'focus') h += `<div class="bo-under low fi"><b class="bo-cta">Glissez le long des pointillés pour ouvrir</b><p>De gauche à droite, d’un seul geste. Au clavier : Entrée.</p>
         <div class="bo-btns"><button type="button" class="bo-btn" id="bAuto">Ouvrir sans glisser</button></div></div>`;
     if ((phase === 'opening' || phase === 'stack') && res) h += stackHTML();
-    if (phase === 'recap' && res) h += recapHTML(res, price());
+    if (phase === 'recap' && res) h += recapHTML(res, price(), mob ? 112 : 150);
     // le flash ne joue qu'une fois par demande (coupe, Signée, Numérotée), pas à chaque rendu
     h += `<div class="bo-flash${flash > flashShown ? (flash % 2 ? ' fa' : ' fb') : ''}" id="boFl"></div>`; flashShown = flash;
     stage.innerHTML = h;
@@ -238,12 +248,12 @@ export async function boosterPage(root: HTMLElement, query = new URLSearchParams
 }
 
 /** Butin : grille 3 + 2 en cascade, nouveautés et doublons convertis en éclats, barre de collection qui avance. */
-export function recapHTML(r: OpenResult, price = `${BOOSTER_PRICE} 🪙`) {
+export function recapHTML(r: OpenResult, price = `${BOOSTER_PRICE} 🪙`, size = 150) {
   return `<div class="bo-recap">
     <h2 class="fi">Votre butin</h2>
     ${r.divine ? '<div class="fi divb">✦ Booster divin · 1 sur 2 000 ✦</div>' : ''}
     <div class="bo-grid">${r.cards.map((c, i) => { const vi = VARIANT_INFO[c.variant];
-      return `<figure style="animation-delay:${(.08 + i * .1).toFixed(2)}s">${boosterCard(c, 150)}<figcaption><b>${esc(CARD_BY_ID[c.card_id].name)}</b>
+      return `<figure style="animation-delay:${(.08 + i * .1).toFixed(2)}s">${boosterCard(c, size)}<figcaption><b>${esc(CARD_BY_ID[c.card_id].name)}</b>
         <span style="color:${vi.color}">${vi.stars} ${esc(vi.name)}${c.serial ? ` · ${serialLabel(c.serial)}` : ''}</span>
         <span class="tag${c.duplicate ? ' dup' : ''}">${c.duplicate ? `Doublon · +${c.shards} ◆` : 'Nouveau'}</span></figcaption></figure>`; }).join('')}</div>
     <div class="bo-sum fi"><span class="nw">+${r.new} nouvelle${r.new > 1 ? 's' : ''} variante${r.new > 1 ? 's' : ''}</span><span class="sh">+${r.shards_gained} ◆ éclats</span></div>

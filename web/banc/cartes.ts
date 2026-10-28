@@ -38,7 +38,7 @@ function planche(o: { w?: number; keys?: string[]; still?: boolean } = {}) {
   const root = document.getElementById('banc')!, s = (o.w ?? 56) / 252;
   const grid = document.createElement('div'); grid.className = 'planche';
   grid.innerHTML = `<div class="prow head"><span></span>${VARIANTS.map(v => `<span>${v}</span>`).join('')}</div>`
-    + (o.keys ?? Object.keys(CALQUES)).map((k, i) => `<div class="prow"><span>${k}</span>${VARIANTS.map(v => cardHTML({ id: i, ...SAMPLE[k] }, null, '', `style="--s:${s}"`, { variant: v, serial: 42, still: o.still })).join('')}</div>`).join('');
+    + (o.keys ?? Object.keys(CALQUES)).map((k, i) => `<div class="prow"><span>${k}</span>${VARIANTS.map(v => cardHTML({ id: i, ...SAMPLE[k] }, null, '', `style="--s:${s}"`, { variant: v, serial: 4, still: o.still })).join('')}</div>`).join('');
   root.append(grid);
   return grid;
 }

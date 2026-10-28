@@ -18,7 +18,7 @@ for (const c of C.CARDS) for (const v of C.COLLECTIBLE) {
 }
 const st = { coins: 1240, shards: 1180, boosters: 2, choices: { rosie: 'signee', kraken: 'holo', g12: 'patine' } as Record<string, C.Variant> };
 const total = C.COLLECTION_SIZE;
-let serial = 41;
+let serial = 3; // premier tirage : N° 04 / 10
 
 function open(pack: string) {
   if (st.boosters > 0) st.boosters--; else if (st.coins >= 50) st.coins -= 50; else throw new Error('Il vous manque des pièces.');

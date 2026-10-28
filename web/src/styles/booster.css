@@ -41,7 +41,8 @@
 @keyframes boFoil{0%{background-position:130% 0}70%,100%{background-position:-60% 0}}
 .lid{position:absolute;left:0;right:0;top:0;height:34px;overflow:hidden}
 .lid img{filter:none}
-.float{animation:boFl 3.2s ease-in-out infinite}
+/* « pfloat » et non « float » : .float existe déjà dans game.css (points qui s'envolent à la table, translateX(-50 %)) */
+.pfloat{animation:boFl 3.2s ease-in-out infinite}
 @keyframes boFl{0%,100%{translate:0 0;rotate:-1deg}50%{translate:0 -10px;rotate:1deg}}
 .shadow{position:absolute;left:250px;top:452px;width:180px;height:22px;border-radius:50%;background:radial-gradient(rgba(0,0,0,.55),transparent 70%);transition:opacity .4s}
 /* bande à couper */
@@ -174,6 +175,34 @@
 @keyframes boBar{from{width:var(--a)}to{width:var(--b)}}
 .bo-recap .bo-btns{margin-top:10px;animation-delay:.7s}
 
+/* ---------- téléphone : scène étroite 400 × 820 (booster.ts, moins de 560 px de large), affichée à ~90 % ---------- */
+.bo-stage.m{width:400px;height:820px}
+.m .bo-car{width:400px;height:560px}
+.m .pw{left:90px;top:24px}
+.m .shadow{left:110px;top:404px}
+.m .bo-under{top:432px;gap:10px;padding:0 12px}
+.m .bo-under.low{top:530px}
+.m .bo-under p{font-size:15px;line-height:1.35}
+.m .bo-name{gap:6px}
+.m .bo-name b{font-size:32px;min-width:0}
+.m .bo-feat{gap:8px}
+.m .bo-cta{font-size:22px}
+.m .bo-btns{width:100%}
+.m .bo-btns .bo-btn.big{flex:1 1 100%}
+.m .stk{left:60px;top:64px}
+.m .info{left:-40px;right:-40px;top:416px;gap:7px}
+.m .info .nm{font-size:20px}.m .info .vn{font-size:16px}.m .info .ex{font-size:14px}
+.m .info .bo-note{font-size:14px}
+.m .ban{top:-58px;font-size:40px}
+.m .bo-skip{right:-6px;top:-8px}
+.m .bo-recap{gap:10px;padding:0 4px}
+.m .bo-recap h2{font-size:34px}
+.m .bo-grid{gap:16px 10px;padding:0;max-width:400px}
+.m .bo-grid figure{width:124px}
+.m .bo-grid figcaption{font-size:12px}.m .bo-grid figcaption b{font-size:13px}
+.m .bo-ct,.m .bo-bar{width:340px}
+.m .bo-sum{gap:16px}
+
 @media (max-width:1100px){.bo-cols{grid-template-columns:minmax(0,680px)}.bo-left{order:2}}
 @media (max-width:720px){.bo{padding:10px 16px 90px}.bo-wallet{margin-left:0;gap:10px;flex-wrap:wrap}}
-@media (prefers-reduced-motion: reduce){.float,.pfoil,.bo-caus,.grays,.hid .flip,.hid .fside.back,.runner,.chev,.bo-dos .gsh,.rise,.opening,.opening .lid,.burst,.spark,.stk .ring{animation:none!important}.opening{opacity:0;transition:opacity .4s}.flip{transition:none}}
+@media (prefers-reduced-motion: reduce){.pfloat,.pfoil,.bo-caus,.grays,.hid .flip,.hid .fside.back,.runner,.chev,.bo-dos .gsh,.rise,.opening,.opening .lid,.burst,.spark,.stk .ring{animation:none!important}.opening{opacity:0;transition:opacity .4s}.flip{transition:none}}

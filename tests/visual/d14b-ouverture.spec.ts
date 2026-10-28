@@ -63,12 +63,29 @@ test('booster divin signalé discrètement : paillettes à l’ouverture, étoil
   await expect(page.locator('.divb')).toContainText('Booster divin · 1 sur 2 000');
 });
 
-test('téléphone (390 × 844) : choix et butin', async ({ page }) => {
-  await open(page, 'epique', 390, 844);
-  await page.screenshot({ path: 'docs/captures/booster-mobile-choisir.png' });
-  await page.click('#bOpen'); await page.waitForTimeout(500); await page.click('#bAuto'); await page.waitForTimeout(2500);
-  await page.click('#bSkip'); await page.waitForTimeout(2600);
-  await page.screenshot({ path: 'docs/captures/booster-mobile-butin.png' });
-  const over = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
-  expect(over, 'pas de défilement horizontal').toBe(false);
+test('téléphone (390 × 844) : scène étroite presque à taille réelle, à chaque étape', async ({ page }) => {
+  test.setTimeout(90_000);
+  await open(page, 'numero', 390, 844);
+  // scène téléphone (400 × 820) : réduite à 85 % au plus, contre 53 % pour la scène de 680 px
+  await expect(page.locator('#boS.m')).toHaveCount(1);
+  const k = await page.$eval('#boS', e => (e as HTMLElement).getBoundingClientRect().width / 400);
+  expect(k, `échelle de la scène : ${k.toFixed(2)}`).toBeGreaterThan(.85);
+  const mshot = (name: string) => page.screenshot({ path: `docs/captures/booster-mobile-${name}.png` });
+  const noScroll = async (when: string) => expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), `pas de défilement horizontal (${when})`).toBe(false);
+  await mshot('choisir'); await noScroll('choix');
+  await page.click('#bOpen'); await page.waitForTimeout(700);
+  await mshot('couper');
+  await page.click('#bAuto'); await page.waitForTimeout(2600);
+  await expect(page.locator('#bTop')).toHaveCount(1);
+  await mshot('pile'); await noScroll('pile');
+  for (let i = 0; i < 4; i++) { await page.click('#bTop'); await page.waitForTimeout(550); }
+  await page.click('#bTop'); await page.waitForTimeout(1700);
+  await expect(page.locator('.ban.m')).toHaveText('Numérotée !');
+  await mshot('numerotee');
+  await page.click('#bTop'); await page.waitForTimeout(2600);
+  await expect(page.locator('.bo-grid figure')).toHaveCount(5);
+  await mshot('butin'); await noScroll('butin');
+  // le butin tient dans la scène : ses boutons ne dépassent pas du bas
+  const [btn, st] = await Promise.all([page.locator('#bColl').boundingBox(), page.locator('#boS').boundingBox()]);
+  expect(btn!.y + btn!.height, 'boutons du butin dans la scène').toBeLessThanOrEqual(st!.y + st!.height + 1);
 });
