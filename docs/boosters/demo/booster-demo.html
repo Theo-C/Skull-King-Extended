@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Démo · ouverture de booster</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;700;800;900&display=swap">
+<style>html,body{margin:0;height:100%;background:#06090b}booster-opening{height:100vh}
+.force{position:fixed;left:12px;bottom:12px;z-index:9;display:flex;gap:6px;font:13px system-ui;color:#c9d6db}.force button{border-radius:999px;border:1px solid #6b5a3a;background:#1a1410;color:#efe6d2;padding:4px 10px;cursor:pointer}.force button.on{background:#ead08a;color:#2b2117}</style>
+</head><body>
+<!-- Lancer un serveur à la racine du dépôt (ex. npx serve .) puis ouvrir /docs/boosters/demo/booster-demo.html -->
+<booster-opening id="b"></booster-opening>
+<div class="force">Forcer : <button data-f="" class="on">Au hasard</button><button data-f="e">Épique</button><button data-f="l">Signée</button><button data-f="m">Numérotée</button><button data-f="divin">Divin</button></div>
+<script type="module">
+import '../../../web/src/booster/booster-opening.js';
+const P = '../../../web/public/';
+const b = document.getElementById('b');
+b.cardsBase = P + 'cards/';
+b.price = 50; b.freeLabel = 'après 1 partie'; b.gyro = true;
+b.packs = [
+  { id: 'profondeurs', name: 'Profondeurs', desc: 'Kraken, Baleine blanche et 14 noir trois fois plus fréquents.', sachet: P + 'boosters/sachet_profondeurs.webp', back: P + 'cards/dos_profondeurs.webp', featured: ['kraken', 'whale', 'b14'] },
+  { id: 'sirenes', name: 'Chant des sirènes', desc: 'Alyra, Juanita et Marie trois fois plus fréquentes.', sachet: P + 'boosters/sachet_sirenes.webp', back: P + 'cards/dos_sirenes.webp', featured: ['alyra', 'juanita', 'mary'] },
+  { id: 'couronne', name: 'Couronne du roi', desc: 'Skull King, Rosie et Rascal trois fois plus fréquents.', sachet: P + 'boosters/sachet_couronne.webp', back: P + 'cards/dos_couronne.webp', featured: ['sk', 'rosie', 'rascal'] }];
+let force = '';
+document.querySelectorAll('.force button').forEach(x => x.onclick = () => { force = x.dataset.f; document.querySelectorAll('.force button').forEach(y => y.classList.toggle('on', y === x)); });
+// Simule booster.open (en vrai : appel serveur)
+const POOL = [['rosie','Rosie la douce'],['rascal','Rascal le Flambeur'],['juanita','Juanita Jade'],['harry','Harry le géant'],['mary','Marie Thorne'],['morgane','Morgane la Louve'],['bahij','Bendt le Ripate'],['sk','Skull King'],['kraken','Kraken'],['alyra','Alyra, sirène'],['whale','Baleine blanche'],['escape','Fuite'],['y7','7 jaune'],['g12','12 vert'],['p3','3 violet'],['b14','14 noir'],['g5','5 vert'],['y11','11 jaune']];
+const T4 = [['holo', 92], ['e', 5], ['signee', 2.3], ['numero', .7]], T5 = [['holo', 66], ['e', 21], ['signee', 10], ['numero', 3]];
+const pick = t => { let r = Math.random() * 100, a = 0; for (const [v, p] of t) { a += p; if (r < a) return v === 'e' ? (Math.random() < .5 ? 'nacre' : 'vivante') : v; } return 'holo'; };
+const RK = { patine: 'c', etain: 'c', holo: 'r', nacre: 'e', vivante: 'e', signee: 'l', numero: 'm' }, SH = { c: 5, r: 20, e: 60, l: 200, m: 0 };
+let owned = 63;
+b.open = async () => {
+  await new Promise(r => setTimeout(r, 200));
+  const pool = POOL.slice().sort(() => Math.random() - .5).slice(0, 5);
+  let vs = [0, 1, 2].map(() => Math.random() < .5 ? 'patine' : 'etain').concat([pick(T4), pick(T5)]);
+  const divine = force === 'divin';
+  if (divine) vs = vs.map(() => Math.random() < .9 ? 'signee' : 'numero');
+  if (force === 'e') vs[4] = 'vivante'; if (force === 'l') vs[4] = 'signee'; if (force === 'm') vs[4] = 'numero';
+  const cards = pool.map(([id, name], i) => { const rk = RK[vs[i]], isNew = rk === 'm' || Math.random() > .45; return { id, name, variant: vs[i], rarity: rk, isNew, shards: isNew ? 0 : SH[rk], serial: String(1 + Math.floor(Math.random() * 100)).padStart(3, '0') + ' / 100' }; });
+  const before = owned; owned += cards.filter(c => c.isNew).length;
+  return { cards, divine, collection: { before, after: owned, total: 224 } };
+};
+</script>
+</body></html>

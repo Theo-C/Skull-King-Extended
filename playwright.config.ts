@@ -11,5 +11,9 @@ export default defineConfig({
     { name: 'visuel', testIgnore: /performance/ },
     { name: 'performance', testMatch: /performance/, dependencies: ['visuel'] },
   ],
-  webServer: { command: 'npx vite web --port 5199 --strictPort', url: 'http://localhost:5199/banc/cartes.html', reuseExistingServer: true, timeout: 60_000 },
+  webServer: [
+    { command: 'npx vite web --port 5199 --strictPort', url: 'http://localhost:5199/banc/cartes.html', reuseExistingServer: true, timeout: 60_000 },
+    // démo autonome du composant <booster-opening> (docs/boosters/demo/), servie depuis la racine du dépôt
+    { command: 'node tests/visual/serveur-statique.mjs 5200', url: 'http://localhost:5200/docs/boosters/demo/booster-demo.html', reuseExistingServer: true, timeout: 60_000 },
+  ],
 });
