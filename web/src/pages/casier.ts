@@ -24,13 +24,14 @@ const LOCK = '<span class="ck-lock" aria-hidden="true"><svg viewBox="0 0 24 24" 
 type Tab = 'pirate' | 'cartes' | 'profil';
 const SLOTS: Record<Tab, [string, string, string][]> = {
   pirate: [['base', 'Visage', 'V'], ['hat', 'Chapeau', 'C'], ['face', 'Yeux et visage', 'Y'], ['neck', 'Cou', 'N'], ['pet', 'Compagnon', 'P'], ['bg', 'Décor', 'D'], ['frame', 'Cadre', 'F']],
-  cartes: [['card_back', 'Dos de cartes', 'D'], ['card_anim', 'Cartes animées', 'A']],
+  // cartes animées Mythiques mises de côté (migration 20261023000000) : rubrique masquée ; ['card_anim', 'Cartes animées', 'A'] pour la remettre
+  cartes: [['card_back', 'Dos de cartes', 'D']],
   profil: [['title', 'Titre', 'T'], ['reaction', 'Réactions rapides', 'R']],
 };
 const TAB_OF: Record<string, Tab> = Object.fromEntries((Object.keys(SLOTS) as Tab[]).flatMap(t => SLOTS[t].map(([k]) => [k, t])));
 const HINT: Record<Tab, string> = {
   pirate: "L'apparence de base est entièrement gratuite et modifiable à tout moment. Les objets se gagnent dans les coffres, par les niveaux et les hauts faits, ou s'achètent à l'échoppe de la semaine.",
-  cartes: 'Les dos se gagnent dans les coffres, par les niveaux ou à l’échoppe. Les cartes animées Mythiques ne sortent plus des coffres : celles que vous avez s’activent ou se coupent une à une. Les variantes de cartes se gagnent dans les boosters (voir la Collection).',
+  cartes: 'Les dos se gagnent dans les coffres, par les niveaux ou à l’échoppe. Les variantes de cartes se gagnent dans les boosters (voir la Collection).',
   profil: 'Le titre s’affiche sous votre nom, à la table et au survol. Les 4 réactions sont les boutons rapides au-dessus de votre main (touches 1 à 4) ; le bouton GIF reste toujours à côté.',
 };
 const PIRATE_SLOTS = ['hat', 'face', 'neck', 'pet', 'bg', 'frame'] as const;
