@@ -10,7 +10,7 @@ import { objectSVG } from '../objects';
 import { ART, backFace } from '../cards';
 import { ANIM, KEY_OF_FILE, attachAnim, detachAnim } from '../animatedCards';
 import { levelFor } from '../xp';
-import { RC, PLQ, RAR_NAME, owns, howText, progressOf, itemsOf, impactSound, setImpactSound, othersAnimated, setOthersAnimated, type Progress } from '../locker';
+import { RC, PLQ, RAR_NAME, owns, howText, progressOf, itemsOf, impactSound, setImpactSound, othersAnimated, setOthersAnimated, boosterReduced, setBoosterReduced, type Progress } from '../locker';
 import { setCleanup } from '../main';
 
 const DEFAULT_LOOK: Look = { skin: 1, hair: 'court', hc: 0, beard: 'none', hat: null, face: null, neck: null, pet: null, bg: 'mer', frame: null };
@@ -141,7 +141,10 @@ export async function casierPage(root: HTMLElement, uid: string, query: URLSearc
     }
     if (s === 'card_back') {
       const list = itemsOf(s).filter(it => keep(has(it))).map(it => tile(it, L().card_back === it.value, has(it), `<span class="ck-back" style="${backStyle(it.value)}">${it.bg ? '' : classic(.413)}</span>`, 'ck-it big')).join('');
-      return `<div class="ck-grid backs">${list}</div><p class="ck-note">Un seul dos à la fois. Il s'applique à toutes vos cartes face cachée ; les faces des cartes ne changent jamais, pour que tout le monde les lise pareil.</p>`;
+      return `<div class="ck-grid backs">${list}</div><p class="ck-note">Un seul dos à la fois. Il s'applique à toutes vos cartes face cachée ; les faces des cartes ne changent jamais, pour que tout le monde les lise pareil.</p>
+        <div class="lbl">Réglages · sur cet appareil</div>
+        <div class="ck-sets"><div class="ck-set"><div><b>Animations des autres</b><span class="lbl">Coupez-les si la partie rame sur votre appareil</span></div><button type="button" class="ck-switch${othersAnimated() ? ' on' : ''}" role="switch" aria-checked="${othersAnimated()}" data-set="oth" aria-label="Voir les animations des autres joueurs"></button></div>
+        <div class="ck-set"><div><b>Ouverture des boosters réduite</b><span class="lbl">Un simple fondu, sans mouvement ni flash</span></div><button type="button" class="ck-switch${boosterReduced() ? ' on' : ''}" role="switch" aria-checked="${boosterReduced()}" data-set="boost" aria-label="Ouverture des boosters réduite"></button></div></div>`;
     }
     if (s === 'card_anim') {
       const prevKey = st.animPrev ?? (L().card_anims[0] || animOwned[0]);
@@ -241,7 +244,7 @@ export async function casierPage(root: HTMLElement, uid: string, query: URLSearc
       st.animPrev = v; change();
     });
     root.querySelectorAll<HTMLButtonElement>('[data-set]').forEach(b => b.onclick = () => {
-      if (b.dataset.set === 'son') setImpactSound(!impactSound()); else setOthersAnimated(!othersAnimated());
+      if (b.dataset.set === 'son') setImpactSound(!impactSound()); else if (b.dataset.set === 'boost') setBoosterReduced(!boosterReduced()); else setOthersAnimated(!othersAnimated());
       render();
     });
     const say = (t: string) => { st.say = t; render(); clearTimeout(sayTimer); sayTimer = setTimeout(() => { st.say = null; if (st.slot === 'reaction') render(); }, 2600); };

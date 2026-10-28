@@ -12,9 +12,18 @@
 .bo-wallet a.bo-essai.on{border-style:solid;background:rgba(159,227,255,.12)}
 .bo-essai-tag{padding:3px 10px;border-radius:999px;background:#9fe3ff;color:#0b1419;font-size:12.5px;font-weight:900;letter-spacing:.04em}
 .bo .coin{display:inline-block;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%);vertical-align:-1px}
-/* le composant prend toute la place restante ; le panneau des chances reste à côté sur grand écran */
+/* grand écran : titre, porte-monnaie et panneaux dans la colonne de gauche ; le composant prend TOUTE la hauteur à droite
+   (sa scène de 680 × 900 est limitée par la hauteur : chaque pixel gagné agrandit les sachets et les cartes) */
 .bo-cols{flex:1;min-height:0;display:grid;grid-template-columns:280px minmax(0,1fr);gap:24px}
 .bo-left{display:flex;flex-direction:column;gap:14px;min-height:0;overflow:auto}
+@media (min-width:1101px){
+  .bo{display:grid;grid-template-columns:280px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"head comp" "left comp";column-gap:24px}
+  .bo-cols{display:contents}
+  .bo-head{grid-area:head;flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:14px}
+  .bo-wallet{margin-left:0;flex-wrap:wrap;gap:8px 14px}
+  .bo-left{grid-area:left}
+  .bo-comp{grid-area:comp}
+}
 .bo-comp{display:block;height:100%;min-height:0;border-radius:16px;overflow:hidden}
 .bo-panel{border-radius:14px;background:rgba(10,16,20,.72);border:1px solid rgba(234,208,138,.14);padding:14px 16px}
 .bo-lbl{font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#8fa3ab;margin-bottom:8px}

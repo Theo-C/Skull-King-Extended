@@ -108,9 +108,22 @@ test('booster divin signalé discrètement : paillettes, étoiles, annonce au bu
   await expect(page.locator('booster-opening .divb')).toContainText('Booster divin · 1 sur 2 000');
 });
 
-test('mouvement réduit : l’ouverture devient un simple fondu, rien ne flotte ni ne tourne', async ({ page }) => {
+test('réglage système « réduire les animations » ignoré : ouverture complète', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openGame(page, 'epique');
+  await expect(page.locator('booster-opening[reduce]')).toHaveCount(0);
+  await page.locator('booster-opening .go').click(); await page.waitForTimeout(400);
+  await page.locator('booster-opening .auto').click();
+  await expect(page.locator('booster-opening .in.opening')).toHaveCount(1);
+  expect(await page.locator('booster-opening .stk').evaluate(e => getComputedStyle(e).animationName), 'la pile monte du sachet').toBe('rise');
+  await page.waitForTimeout(700);
+  await expect(page.locator('booster-opening .car'), 'à 0,7 s, le sachet est encore là').toHaveCount(1);
+});
+
+test('« Ouverture des boosters réduite » (Casier) : simple fondu, rien ne flotte ni ne tourne', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('pli.booster.reduit', '1'));
+  await openGame(page, 'epique');
+  await expect(page.locator('booster-opening[reduce]')).toHaveCount(1);
   const anim = (sel: string) => page.locator(`booster-opening ${sel}`).first().evaluate(e => getComputedStyle(e).animationName);
   expect(await anim('.pw .in'), 'le sachet ne flotte pas').toBe('none');
   await page.locator('booster-opening .go').click(); await page.waitForTimeout(400);

@@ -147,6 +147,15 @@ export const sfx = {
   crinkle: () => { for (let i = 0; i < 5; i++) swish(i * .045 + Math.random() * .02, .06, 3000 + Math.random() * 2500, .12); },
   cut: (p: number) => swish(0, .05, 1400 + Math.min(1, Math.max(0, p)) * 3200, .08),
   tear: () => { swish(0, .32, 2200, .26); swish(.05, .2, 900, .16); breath(.1, .9, .08); },
+  /** Déchirure du sachet : une vingtaine de petits craquements aigus qui courent sur une demi-seconde (le papier qui se
+   *  sépare), puis un souffle léger ; aucune bouffée grave (l'ancien tear sonnait comme un ballon qui éclate). */
+  rip: () => {
+    let t = 0;
+    for (let i = 0; i < 22; i++) { const k = i / 21; swish(t, .012 + Math.random() * .016, 2600 + Math.random() * 3200, .05 + .05 * Math.sin(Math.PI * k)); t += .012 + .018 * Math.abs(k - .45) + Math.random() * .01; }
+    breath(.05, .55, .025);
+  },
+  /** Carte retournée : deux frottements doux. */
+  flip: () => { swish(0, .08, 2600, .07); swish(.11, .07, 1900, .05); },
   fwip: () => swish(0, .13, 3400, .17),
   reveal: (tier: string) => {
     if (tier === 'r') [1319, 1760, 2349].forEach((f, i) => tone(i * .07, .5, f, .035, 'triangle'));

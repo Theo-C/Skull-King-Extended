@@ -54,3 +54,8 @@ export function setImpactSound(on: boolean) { try { localStorage.setItem(K_SON, 
 /** « Animations des autres » : le réglage Cartes animées de la table (toutes / les miennes). */
 export const othersAnimated = () => getAnimMode() === 'toutes';
 export function setOthersAnimated(on: boolean) { setAnimMode(on ? 'toutes' : 'miennes'); }
+const K_BOOST = 'pli.booster.reduit';
+/** « Ouverture des boosters réduite » : simple fondu, sans mouvement. L'écran Booster ignore le réglage du système
+ *  (animations de Windows coupées = ouverture escamotée) : c'est ce réglage du jeu qui décide (sur cet appareil). */
+export function boosterReduced(): boolean { try { return localStorage.getItem(K_BOOST) === '1'; } catch { return false; } }
+export function setBoosterReduced(on: boolean) { try { localStorage.setItem(K_BOOST, on ? '1' : '0'); } catch { /* stockage indisponible */ } }

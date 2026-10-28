@@ -136,10 +136,11 @@ button{font-family:inherit}
 .tilt .glare{position:absolute;inset:0;border-radius:4%;pointer-events:none;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.28),transparent 45%);mix-blend-mode:overlay;opacity:0;transition:opacity .2s}
 .tilt.on .glare{opacity:1}
 .dcard .num{position:absolute;left:81%;top:13.2%;transform:translate(-50%,-50%);font-family:'Pirata One',cursive;font-size:calc(var(--w)*.13);color:#fff4d6;text-shadow:0 0 3px #000}
-@media (prefers-reduced-motion: reduce){.float,.foil,.caus,.grays,.hid .flip,.hid .face.back,.runner,.chev,.dcard .sh{animation:none!important}.flash.go{animation:none}}
-/* mouvement réduit (ajout de l'intégration au jeu) : l'ouverture devient un simple fondu de 300 ms (later() plafonne déjà les attentes à 300 ms) ;
+:host([reduce]) .float,:host([reduce]) .foil,:host([reduce]) .caus,:host([reduce]) .grays,:host([reduce]) .hid .flip,:host([reduce]) .hid .face.back,:host([reduce]) .runner,:host([reduce]) .chev,:host([reduce]) .dcard .sh{animation:none!important}:host([reduce]) .flash.go{animation:none}
+/* mouvement réduit (ajout de l'intégration au jeu) : attribut reduce posé par le jeu (réglage du Casier), le réglage du système est ignoré ;
+   l'ouverture devient un simple fondu de 300 ms (later() plafonne déjà les attentes à 300 ms) ;
    ni bande qui s'envole, ni lumière, ni rayons, ni pile qui monte, ni éclats : rien ne bouge ni ne tourne */
-@media (prefers-reduced-motion: reduce){.opening .lid,.opening .leak,.opening .lrays,.opening.in,.gsp,.stk.rise,.pop,.burst.go,.ring.go,.spark,.ban,.gc,.bar>div{animation:none!important}.opening.in{opacity:0;transition:opacity .3s}.stk.rise{animation:fi .3s ease-out both!important}.tilt{transform:none!important}}
+:host([reduce]) .opening .lid,:host([reduce]) .opening .leak,:host([reduce]) .opening .lrays,:host([reduce]) .opening.in,:host([reduce]) .gsp,:host([reduce]) .stk.rise,:host([reduce]) .pop,:host([reduce]) .burst.go,:host([reduce]) .ring.go,:host([reduce]) .spark,:host([reduce]) .ban,:host([reduce]) .gc,:host([reduce]) .bar>div{animation:none!important}:host([reduce]) .opening.in{opacity:0;transition:opacity .3s}:host([reduce]) .stk.rise{animation:fi .3s ease-out both!important}:host([reduce]) .tilt{transform:none!important}
 `;
 
 const RC = { c: 'rgba(255,244,214,.9)', r: '#4fa8ff', e: '#b77dff', l: '#ffc94a', m: '#e7c6ff' };
@@ -149,7 +150,7 @@ const BURST = {
   l: 'radial-gradient(circle,rgba(255,201,74,.8),transparent 58%)', m: 'radial-gradient(circle,rgba(231,198,255,.75),rgba(155,231,255,.4) 30%,transparent 58%)'
 };
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
-const reduced = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+// mouvement réduit : attribut reduce, posé par l'application (le réglage du système n'est pas lu ici)
 
 class BoosterOpening extends HTMLElement {
   constructor() {
@@ -168,8 +169,9 @@ class BoosterOpening extends HTMLElement {
     this.renderChoose();
   }
   disconnectedCallback() { this.clear(); this.ro && this.ro.disconnect(); }
-  resize() { const r = this.getBoundingClientRect(), s = Math.min(1.25, r.width / 700, r.height / 920); this.fit.style.transform = `translate(-50%,-50%) scale(${s})`; }
-  later(ms, f) { const k = this.k; this.timers.push(setTimeout(() => { if (this.k === k) f(); }, reduced() ? Math.min(ms, 300) : ms)); }
+  // mise à l'échelle (intégration au jeu) : la scène de 680 × 900 remplit le conteneur sans marge, pour des sachets plus grands
+  resize() { const r = this.getBoundingClientRect(), s = Math.min(1.25, r.width / 680, r.height / 900); this.fit.style.transform = `translate(-50%,-50%) scale(${s})`; }
+  later(ms, f) { const k = this.k; this.timers.push(setTimeout(() => { if (this.k === k) f(); }, this.hasAttribute('reduce') ? Math.min(ms, 300) : ms)); }
   clear() { this.timers.forEach(clearTimeout); this.timers = []; this.k = (this.k || 0) + 1; }
 
   // ---------- rendu d'une carte ----------
@@ -281,7 +283,7 @@ class BoosterOpening extends HTMLElement {
     this.top = 0; this.buildStack(true);
     this.later(1950, () => { this.car.remove(); this.stk.classList.remove('rise'); this.stk.style.zIndex = ''; this.phase = 'stack'; this.showTop(true); });
   }
-  flash() { if (reduced()) return; const f = h('div', 'flash'); this.fit.appendChild(f); void f.offsetWidth; f.classList.add('go'); setTimeout(() => f.remove(), 600); }
+  flash() { if (this.hasAttribute('reduce')) return; const f = h('div', 'flash'); this.fit.appendChild(f); void f.offsetWidth; f.classList.add('go'); setTimeout(() => f.remove(), 600); }
 
   // ---------- 4. pile ----------
   buildStack(rising) {

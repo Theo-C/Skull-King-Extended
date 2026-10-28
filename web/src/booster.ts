@@ -10,6 +10,7 @@ import { esc, toast } from './util';
 import { cardHTML } from './cards';
 import { sfx } from './sfx';
 import type { CallGame } from './pages/collection';
+import { boosterReduced } from './locker';
 import { PACKS, PACK_BY_ID, CARD_BY_ID, VARIANT_INFO, BOOSTER_PRICE, ODDS, SERIES, TIER_OF, NUMBERED_MAX, serialLabel, drawBooster, type Variant } from '@shared/collection.ts';
 
 /** Comptes qui voient le bouton « Essai gratuit » (aussi en développement, ou avec localStorage pli-debug = 1 sur l'appareil). */
@@ -44,11 +45,6 @@ function haptic(kind: 'light' | 'medium' | 'heavy') {
     navigator.vibrate?.(kind === 'light' ? 8 : kind === 'medium' ? 25 : [40, 30, 60]);
   } catch { /* pas de vibration */ }
 }
-/** Sons du composant → sfx.ts. */
-const SFX: Record<string, () => void> = {
-  crinkle: () => sfx.crinkle(), cut: () => sfx.cut(.5), tear: () => sfx.tear(), swipe: () => sfx.fwip(),
-  chime: () => sfx.reveal('r'), chord: () => sfx.reveal('e'), fanfare: () => sfx.reveal('l'),
-};
 
 /** Styles des cartes, partagés (une seule feuille construite) par toutes les cartes rendues dans le composant : ses cartes
  *  vivent dans son Shadow DOM, où game.css ne s'applique pas. Chaque carte a sa propre petite racine fantôme : nos
@@ -144,10 +140,20 @@ export async function boosterPage(root: HTMLElement, query = new URLSearchParams
       coins: w.coins, boosters: w.boosters, shards: w.shards,
       cards: d.cards.map(c => ({ ...c, serial: c.variant === 'numero' ? 1 + Math.floor(Math.random() * NUMBERED_MAX) : null, duplicate: false, shards: 0 })) });
   };
+  // animation complète, quel que soit le réglage du système ; le Casier propose « Ouverture des boosters réduite » (fondu)
+  comp.toggleAttribute('reduce', boosterReduced());
   comp.cardsBase = 'cards/';
   comp.renderCard = renderCard;
   comp.open = essai ? openEssai : openServer;
-  comp.haptics = haptic;
+  // sons du composant → sfx.ts. « tear » sert à la coupe (déchirure du papier) et au retournement de la 5e carte
+  // (frottement) ; le composant ne joue « cut » qu'au premier contact : le crissement suit le doigt grâce à la vibration
+  // légère qu'il envoie tous les 10 % de coupe
+  let cutStep = 0;
+  const SFX: Record<string, () => void> = {
+    crinkle: () => sfx.crinkle(), cut: () => { cutStep = 0; sfx.cut(0); }, tear: () => comp.phase === 'stack' ? sfx.flip() : sfx.rip(),
+    swipe: () => sfx.fwip(), chime: () => sfx.reveal('r'), chord: () => sfx.reveal('e'), fanfare: () => sfx.reveal('l'),
+  };
+  comp.haptics = (kind: 'light' | 'medium' | 'heavy') => { haptic(kind); if (kind === 'light' && comp.phase === 'focus') sfx.cut(Math.min(1, ++cutStep / 10)); };
   comp.sfx = (name: string) => SFX[name]?.();
   // inclinaison des cartes au gyroscope sur téléphone ; iOS demande la permission au premier toucher
   comp.gyro = matchMedia('(pointer: coarse)').matches;
