@@ -4,7 +4,9 @@
 # Les coordonnées sont dans l'image 720 x 1024.
 import cv2, numpy as np, json, os
 os.makedirs('web/public/cards/calques', exist_ok=True)
-SRC = 'web/public/cards'  # images d'origine 720 x 1024 ; lancer depuis la racine du dépôt
+SRC = 'web/public/cards/sources'  # images d'origine 720 x 1024 (avec bandeau) ; lancer depuis la racine du dépôt
+# CON est un nom de périphérique réservé sous Windows : la carte Con le belliqueux est le fichier corbin.webp (comme web/src/cards.ts)
+FICHIER = {'con': 'corbin'}
 # fenêtre transparente (x0,y0,x1,y1), médaillons qui restent opaques (cx,cy,r), bas du gabarit personnage
 T = {
  'suit':  dict(win=(116,104,602,911), meds=[(583,135,101)]),
@@ -30,7 +32,7 @@ OVR = {
 info = {}
 for k, tpl in C.items():
     cfg = dict(T[tpl]); cfg.update(OVR.get(k, {}))
-    im = cv2.resize(cv2.imread(f'{SRC}/{k}.webp', cv2.IMREAD_COLOR), (720, 1024), interpolation=cv2.INTER_AREA)
+    im = cv2.resize(cv2.imread(f'{SRC}/{FICHIER.get(k, k)}.webp', cv2.IMREAD_COLOR), (720, 1024), interpolation=cv2.INTER_AREA)
     x0, y0, x1, y1 = cfg['win']
     # --- calque cadre : alpha 0 dans la fenêtre, 255 ailleurs et sur les médaillons
     a = np.full((1024, 720), 255, np.uint8)

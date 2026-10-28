@@ -33,7 +33,8 @@ Par-dessus le cadre, on ajoute seulement :
 
 ## Découpe
 
-- Script : `docs/cartes-couches/decoupe_calques.py`. Il prend les images d'origine 720 × 1024 et écrit `web/public/cards/calques/`.
+- Script : `docs/cartes-couches/decoupe_calques.py`. Il prend les images d'origine 720 × 1024 dans `web/public/cards/sources/` et écrit `web/public/cards/calques/`.
+- Chaîne complète : `sources/` → `decoupe_calques.py` → `sans_bandeau.py` → `masques_effets.py` → `aplatir_cartes.py` (images uniques `cards/<clé>.webp`, identiques à la carte en couches). Exception de nom : la carte Con le belliqueux (clé `con`) est le fichier `corbin.webp` dans `sources/` et `cards/`, car CON est un nom réservé sous Windows ; les trois scripts font la correspondance (`FICHIER`).
 - Réglages par **gabarit**, en pixels de l'image 720 × 1024 :
   - `suit` (cartes de couleur) : fenêtre `116,104 → 602,911`, médaillon `(583,135) r101` ;
   - `pir` (personnages : pirates, sirènes, Skull King) : fenêtre `96,98 → 624,690`, au-dessus du parchemin du nom ; médaillons d'angle `(119,119) r86` et `(612,108) r80` ;

@@ -1,7 +1,9 @@
 # Cartes de personnages SANS bandeau : la fenêtre descend jusqu'au bas du cadre,
 # le parchemin et ses morceaux sur les bords sont retirés du calque cadre.
 import cv2, numpy as np, json
-SRC = 'web/public/cards'  # lancer depuis la racine du dépôt, après decoupe_calques.py
+SRC = 'web/public/cards/sources'  # images d'origine ; lancer depuis la racine du dépôt, après decoupe_calques.py
+# CON est un nom de périphérique réservé sous Windows : la carte Con le belliqueux est le fichier corbin.webp (comme web/src/cards.ts)
+FICHIER = {'con': 'corbin'}
 CARDS = {  # médaillon du bas (cx,cy,r), point focal horizontal de l'illustration (0..1)
  'rosie': ((595,885,100), .5), 'rascal': ((595,885,100), .5), 'juanita': ((595,885,100), .5), 'harry': ((595,885,100), .6),
  'mary': ((595,885,100), .5), 'tigress': ((595,885,100), .5), 'con': ((595,885,100), .45),
@@ -16,7 +18,7 @@ def mirror_tile(strip, n):
     while sum(s.shape[0] for s in out) < n: out.append(src)
     return np.concatenate(out, 0)[:n]
 for k, (bm, fx) in CARDS.items():
-    im = cv2.resize(cv2.imread(f'{SRC}/{k}.webp'), (720, 1024), interpolation=cv2.INTER_AREA)
+    im = cv2.resize(cv2.imread(f'{SRC}/{FICHIER.get(k, k)}.webp'), (720, 1024), interpolation=cv2.INTER_AREA)
     orig = im.copy()
     # 1. bandes latérales : on remplace la zone du bandeau par la bande saine du dessus (miroir), fondu sur 24 px
     ys, ye = 560, YB + 2

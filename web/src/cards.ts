@@ -12,7 +12,7 @@ const wrapF = (b: number, h: string) => `<div class="fb${b}">${h}</div>`;
 const A = ALT2 as Record<string, string>, AB = ALT2B as Record<string, number>, NUM = NUM2 as Record<string, any>;
 
 /** Version des illustrations, ajoutée aux URL : un nouveau jeu de cartes est rechargé sans vider le cache à la main. */
-export const ART_VERSION = 3;
+export const ART_VERSION = 4;
 const file = (f: string) => `cards/${f}.webp?v=${ART_VERSION}`;
 /** Correspondance clé → fichier illustré (web/public/cards/<fichier>). Chemin relatif pour Capacitor (base './').
  *  Note : Con le belliqueux est servi par corbin.webp (et pas con.webp) parce que CON est un nom de périphérique
