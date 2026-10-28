@@ -1,11 +1,11 @@
 // Collection (D14, docs/boosters/SPEC.md « Collection », maquette Collection) : chaque carte dans la variante qu'on joue,
 // pastilles des variantes possédées, grande carte inclinable, liste des 8 variantes, « Utiliser en partie », aperçu à la
-// table et récompenses de collection. Fabriquer et Recycler arrivent avec l'Atelier (D15).
+// table et récompenses de collection. Fabriquer (au choix, ×4) et Recycler les doublons, comme dans l'Atelier (D15).
 import '../styles/collection.css';
 import { callGame } from '../api';
 import { esc, toast } from '../util';
 import { cardHTML } from '../cards';
-import { CARDS, CARD_BY_ID, VARIANTS, VARIANT_INFO, COLLECTIBLE, SERIES, type Variant, type Family } from '@shared/collection.ts';
+import { CARDS, CARD_BY_ID, VARIANTS, VARIANT_INFO, COLLECTIBLE, SERIES, pickCost, recycleValue, type Variant, type Family } from '@shared/collection.ts';
 
 export interface CollState {
   owned: { card_id: string; variant: Variant; copies: number; serial: number | null }[];
@@ -82,6 +82,8 @@ export async function collectionPage(root: HTMLElement, query = new URLSearchPar
             <p>${esc(HOW[v])}${cnt ? '' : ' Pas encore obtenue.'}</p>
             <div class="vr-btns">
               <button type="button" class="gold" id="equip"${!cnt || eq === v || busy ? ' disabled' : ''}>${eq === v ? 'Utilisée en partie ✓' : cnt ? 'Utiliser en partie' : 'Pas encore obtenue'}</button>
+              ${!cnt && v !== 'std' && v !== 'numero' ? `<button type="button" id="craft"${st.shards < pickCost(v) || busy ? ' disabled' : ''}>Fabriquer · ${fmt(pickCost(v))} ◆</button>` : ''}
+              ${cnt > 1 && v !== 'numero' ? `<button type="button" id="recycle"${busy ? ' disabled' : ''}>Recycler ${cnt - 1} doublon${cnt > 2 ? 's' : ''} · +${fmt((cnt - 1) * recycleValue(v))} ◆</button>` : ''}
             </div>
           </div>
         </div>
@@ -113,6 +115,18 @@ export async function collectionPage(root: HTMLElement, query = new URLSearchPar
       } catch (e: any) { toast(e.message, 'err'); }
       busy = false; paint();
     };
+    root.querySelector<HTMLButtonElement>('#craft')?.addEventListener('click', async () => {
+      const v = view ?? played(sel); busy = true; paint();
+      try { const r = await api<any>('collection.craft', { mode: 'pick', cardId: sel, variant: v }); st.shards = r.shards; st.owned.push({ card_id: sel, variant: v, copies: 1, serial: null }); toast(`${CARD_BY_ID[sel].name} ${VARIANT_INFO[v].name} fabriquée · −${fmt(r.cost)} ◆`); }
+      catch (e: any) { toast(e.message, 'err'); }
+      busy = false; paint();
+    });
+    root.querySelector<HTMLButtonElement>('#recycle')?.addEventListener('click', async () => {
+      const v = view ?? played(sel); busy = true; paint();
+      try { const r = await api<any>('collection.recycle', { cardId: sel, variant: v }); st.shards = r.shards; const o = st.owned.find(x => x.card_id === sel && x.variant === v); if (o) o.copies = 1; toast(`+${r.shards_gained} ◆ éclats`); }
+      catch (e: any) { toast(e.message, 'err'); }
+      busy = false; paint();
+    });
     // grande carte inclinable (les reflets suivent déjà la souris : variantFx.ts)
     const t = root.querySelector<HTMLElement>('#tilt');
     if (t) {
