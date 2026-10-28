@@ -35,9 +35,12 @@ npm run build
 
 ## À faire pour la mise en ligne
 
-1. Appliquer les migrations : `20261019000000_cartes_couches.sql`, `20261020000000_boosters.sql` et `20261021000000_atelier.sql` (`npx supabase db push`).
-2. Redéployer la fonction Edge : `npx supabase functions deploy game`. Elle porte les nouvelles actions `booster.open`, `collection.list`, `collection.choose`, `collection.craft` et `collection.recycle`.
-3. Réglages serveur, dans la table `app_settings` : `cards_layered` et `free_daily_booster`. Les deux valent `true` par défaut.
+Fait le 28 octobre : migrations jusqu'au 21 appliquées, fonction  déployée, historique des migrations réparé ( du 3 au 18,  renommé en ).
+
+**Reste à appliquer** ({"_tag":"Error","error":{"code":"UnknownSubcommand","message":"Unknown subcommand "push\" for "supabase db"
+
+  Did you mean this?
+    push"}}) :  et .
 
 ## Décisions prises (validées le 28 octobre)
 
@@ -46,26 +49,21 @@ npm run build
 - **Coffres** : gardés pour la personnalisation du profil seulement. Le coffre coûte 50 pièces et les 3 coffres 135 (j'ai choisi −10 %, comme avant). Ils ne donnent plus de carte animée Mythique ; le tirage passe à Commun 62 %, Rare 26 %, Épique 9 %, Légendaire 3 %. Les SPEC sont mises à jour (`docs/boosters/SPEC.md`, `docs/casier-boutique/SPEC.md`).
 - **Booster** : article principal de la Boutique, à 50 pièces. On en gagne un par victoire, plus un gratuit le premier jour où l'on termine une partie qui rapporte.
 
+## Tranché le 28 octobre
+
+- **Numérotées** : 10 exemplaires par carte et par saison (« N° 04 / 10 »), jamais un doublon (déjà possédée → Signée), chaque numéro à un seul joueur.
+- **Cartes animées Mythiques** : mises de côté, retirées à tous les joueurs (migration du 23), rubrique du Casier masquée ; catalogue et vidéos gardés pour plus tard.
+- **Images uniques (B10)** : originaux dans , 24  recomposées depuis les calques. Python n'est pas installé sur le second poste : l'assemblage y a été fait dans Chromium, à l'identique d' (test Playwright < 1 %).
+- **Visuels des boosters** : nouvelles versions fournies (moins de 150 Ko, voir ), anciens  retirés.
+- **Paiement du booster** : débit dès « Ouvrir », pas de bouton « Changer de booster » à la coupe (confirmé).
+- **Écran d'ouverture sur téléphone** : scène étroite 400 × 820 sous 560 px, affichée à ~90 %.
+- **Annonce des belles prises** : toast pour tous les joueurs connectés (confirmé).
+
 ## À trancher
 
-1. **Récompenses de collection** : la Collection affiche la progression, mais rien n'est encore attribué. Il faut choisir la règle pour le dos de carte, car deux documents se contredisent :
-   - la SPEC dit : « compléter une famille en Holo » (par exemple les 14 cartes vertes) ;
-   - le `README` des boosters dit : « compléter la collection du booster en Holo », ce qui donne le dos du booster.
-
-   Pour les titres « Collectionneur de … » (les 7 variantes d'une carte), il faut créer les objets de titre.
-2. **Cartes animées Mythiques (D11)** : elles ne sortent plus des coffres, donc **plus rien ne permet d'en gagner**. Celles qui sont déjà possédées restent. Faut-il en faire une variante « Animée » des boosters, les vendre, ou les attribuer comme récompense ?
-3. **Illustrations des personnages** : les calques des 11 personnages viennent d'illustrations plus récentes (sans bandeau) que `web/public/cards/<personnage>.webp`. Trois endroits montrent donc encore l'ancienne version : le repli « image unique » (`cards_layered` = false), les miniatures du pouvoir de Juanita et le Casier. Il faudrait fournir les nouvelles images uniques.
-4. **Visuels des boosters** (`web/public/boosters/`) :
-   - `sachet_sirenes.webp` et `sachet_couronne.webp` étaient inversés : je les ai renommés d'après leur contenu ;
-   - les `.png` ne correspondent pas à leur nom (`sachet_profondeurs.png` = illustration seule, `sachet_sirenes.png` = sachet Profondeurs) : le site ne les utilise pas ;
-   - `sachet_profondeurs.webp` (1,6 Mo) et `sachet_sirenes.webp` (1,4 Mo) sont lourds pour le téléphone : à recompresser (moins de 200 Ko) ;
-   - `art_couronne.jpg` manque (il n'est pas utilisé pour l'instant).
-5. **Paiement du booster** : le tirage et le débit se font dès « Ouvrir », comme le demande `OUVERTURE.md`. Du coup, je n'ai pas mis de bouton « Changer de booster » à l'étape de la coupe, contrairement à la maquette : le booster est déjà payé. À confirmer.
-6. **Écran d'ouverture sur téléphone** : la scène (680 × 900) est réduite à environ 55 % à 390 px de large, et les textes sous la carte deviennent petits. Une mise en page propre au téléphone serait plus confortable.
-7. **Annonce des belles prises « dans le salon »** : faite par un toast pour **tous** les joueurs connectés (canal Realtime `annonces`), plus un fil « Belles prises » des amis sur l'Accueil. Faut-il limiter le toast aux amis ou au salon en cours ?
-8. **Deuxième Numérotée de la même carte** : elle devient une Signée, selon ma lecture de « une Numérotée n'est jamais un doublon ». À confirmer.
-9. **Changement de variante pendant une partie** : il ne s'affiche à la table qu'à la prochaine ouverture de la table, puisque la variante est lue à l'ouverture (décision prise).
-10. **Équilibre des pièces** : il faut surveiller le booster gratuit quotidien avec le coffre à 50 (point « À trancher » de la SPEC).
+1. **Récompenses de collection** (reporté) : dos de carte pour une famille en Holo (SPEC) ou pour tout le booster en Holo (README) ; objets de titre « Collectionneur de … » à créer.
+2. **Changement de variante pendant une partie** : visible à la prochaine ouverture de la table (décision prise).
+3. **Équilibre des pièces** : surveiller le booster gratuit quotidien avec le coffre à 50.
 
 ## Notes techniques
 
