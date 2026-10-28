@@ -76,7 +76,7 @@ async function route() {
     case 'casier': if (!user) return needAuth(); shell(user, 'casier'); return casierPage(view, user.id, new URLSearchParams(query));
     case 'boutique': if (!user) return needAuth(); shell(user, 'shop'); return boutiquePage(view, user.id);
     case 'collection': if (!user) return needAuth(); shell(user, 'coll'); return collectionPage(view, new URLSearchParams(query));
-    case 'boosters': if (!user) return needAuth(); shell(user, 'shop'); return boosterPage(view, new URLSearchParams(query));
+    case 'boosters': { if (!user) return needAuth(); shell(user, 'shop'); const b = await boosterPage(view, new URLSearchParams(query)); setCleanup(b.destroy); return; }
     case 'joueur': if (!user) return needAuth(); if (!/^[0-9a-f-]{36}$/.test(parts[1] || '') || parts[1] === user.id) return go('#/profil'); shell(user, ''); return playerPage(view, parts[1]);
     default: if (!user) return needAuth(); shell(user, 'home'); return homePage(view, user.id);
   }

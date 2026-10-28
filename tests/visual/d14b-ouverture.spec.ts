@@ -1,0 +1,74 @@
+// D14b · Ouverture de booster (docs/boosters/OUVERTURE.md) : parcours complet sur le banc web/banc/ecrans.html (faux
+// serveur en mémoire), règles anti-spoil, et captures dans docs/captures/ (à valider à l'œil).
+import { test, expect, type Page } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
+
+const shot = (page: Page, name: string) => page.locator('.bo').screenshot({ path: `docs/captures/booster-${name}.png` });
+async function open(page: Page, force: string, w = 1280, h = 1000) {
+  await page.setViewportSize({ width: w, height: h });
+  await page.goto(`/banc/ecrans.html?ecran=boosters&force=${force}`);
+  await page.waitForFunction(() => !!(window as any).banc); await page.evaluate(() => (window as any).banc.ready);
+  await page.waitForTimeout(600);
+}
+
+test('ouverture complète : coupe au doigt, pile, carte de chance, Numérotée, butin', async ({ page }) => {
+  test.setTimeout(120_000);
+  mkdirSync('docs/captures', { recursive: true });
+  await open(page, 'numero');
+  // lumière dorée identique pour les 3 boosters (aucun indice sur le contenu)
+  const glows = await page.$$eval('.pw', els => els.map(e => getComputedStyle(e).getPropertyValue('--glow').trim()));
+  expect(new Set(glows).size, 'même lumière pour tous les boosters').toBe(1);
+  await shot(page, '1-choisir');
+  await page.click('#bOpen'); await page.waitForTimeout(600);
+  // coupe : lâcher avant 92 % → la ligne se rétracte
+  const z = (await page.locator('#cutZ').boundingBox())!, y = z.y + z.height / 2;
+  await page.mouse.move(z.x + 40, y); await page.mouse.down();
+  for (let i = 0; i <= 5; i++) { await page.mouse.move(z.x + 40 + i * 25, y); await page.waitForTimeout(25); }
+  await shot(page, '2-couper');
+  await page.mouse.up(); await page.waitForTimeout(400);
+  expect(await page.$eval('#cutL', e => (e as HTMLElement).style.width), 'lâcher avant la fin : retour à 0').toBe('0px');
+  // coupe complète
+  await page.mouse.move(z.x + 40, y); await page.mouse.down();
+  for (let i = 0; i <= 14; i++) { await page.mouse.move(z.x + 40 + i * (z.width - 70) / 14, y); await page.waitForTimeout(25); }
+  await page.mouse.up();
+  await page.waitForTimeout(700); await shot(page, '3-ouverture');
+  await page.waitForTimeout(1500);
+  await expect(page.locator('#bTop .flipw.up')).toHaveCount(1);
+  await shot(page, '4-pile');
+  // cartes 1 à 4 face visible, glissées sur le côté ; la 5e arrive face cachée
+  for (let i = 0; i < 4; i++) {
+    const b = (await page.locator('#bTop').boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2 + 140, b.y + b.height / 2, { steps: 6 }); await page.mouse.up();
+    await page.waitForTimeout(550);
+  }
+  await expect(page.locator('#bTop .flipw.hid')).toHaveCount(1);
+  await shot(page, '5-carte-de-chance');
+  await page.click('#bTop'); await page.waitForTimeout(1700);
+  await expect(page.locator('.ban.m')).toHaveText('Numérotée !');
+  await expect(page.locator('.info .ex')).toContainText('/ 100');
+  await shot(page, '6-numerotee');
+  await page.click('#bTop'); await page.waitForTimeout(2600);
+  await expect(page.locator('.bo-grid figure')).toHaveCount(5);
+  await shot(page, '7-butin');
+});
+
+test('booster divin signalé discrètement : paillettes à l’ouverture, étoiles, annonce au butin', async ({ page }) => {
+  await open(page, 'divin');
+  await page.click('#bOpen'); await page.waitForTimeout(500); await page.click('#bAuto'); await page.waitForTimeout(500);
+  expect(await page.locator('.gsp').count(), '8 paillettes d’or').toBe(8);
+  await page.waitForTimeout(1700);
+  await expect(page.locator('.pdots.dv')).toHaveCount(1);
+  await page.click('#bSkip'); await page.waitForTimeout(1200);
+  await expect(page.locator('.divb')).toContainText('Booster divin · 1 sur 2 000');
+});
+
+test('téléphone (390 × 844) : choix et butin', async ({ page }) => {
+  await open(page, 'epique', 390, 844);
+  await page.screenshot({ path: 'docs/captures/booster-mobile-choisir.png' });
+  await page.click('#bOpen'); await page.waitForTimeout(500); await page.click('#bAuto'); await page.waitForTimeout(2500);
+  await page.click('#bSkip'); await page.waitForTimeout(2600);
+  await page.screenshot({ path: 'docs/captures/booster-mobile-butin.png' });
+  const over = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+  expect(over, 'pas de défilement horizontal').toBe(false);
+});
