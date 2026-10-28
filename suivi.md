@@ -35,12 +35,9 @@ npm run build
 
 ## À faire pour la mise en ligne
 
-Fait le 28 octobre : migrations jusqu'au 21 appliquées, fonction  déployée, historique des migrations réparé ( du 3 au 18,  renommé en ).
+Fait le 28 octobre : migrations jusqu'au 22 appliquées (Numérotées à 10 comprises), fonction `game` déployée, historique des migrations réparé (`migration repair` du 3 au 18, `temps_de_jeu` renommé en `20261012000100`).
 
-**Reste à appliquer** ({"_tag":"Error","error":{"code":"UnknownSubcommand","message":"Unknown subcommand "push\" for "supabase db"
-
-  Did you mean this?
-    push"}}) :  et .
+**Reste à appliquer** (`npx supabase db push`) : `20261023000000_cartes_animees_retirees.sql`.
 
 ## Décisions prises (validées le 28 octobre)
 
@@ -53,8 +50,8 @@ Fait le 28 octobre : migrations jusqu'au 21 appliquées, fonction  déployée, h
 
 - **Numérotées** : 10 exemplaires par carte et par saison (« N° 04 / 10 »), jamais un doublon (déjà possédée → Signée), chaque numéro à un seul joueur.
 - **Cartes animées Mythiques** : mises de côté, retirées à tous les joueurs (migration du 23), rubrique du Casier masquée ; catalogue et vidéos gardés pour plus tard.
-- **Images uniques (B10)** : originaux dans , 24  recomposées depuis les calques. Python n'est pas installé sur le second poste : l'assemblage y a été fait dans Chromium, à l'identique d' (test Playwright < 1 %).
-- **Visuels des boosters** : nouvelles versions fournies (moins de 150 Ko, voir ), anciens  retirés.
+- **Images uniques (B10)** : originaux dans `web/public/cards/sources/`, 24 `cards/<clé>.webp` recomposées depuis les calques. Python n'est pas installé sur le second poste : l'assemblage y a été fait dans Chromium, à l'identique d'`aplatir_cartes.py` (test Playwright < 1 %).
+- **Visuels des boosters** : nouvelles versions fournies (moins de 150 Ko, voir `web/public/boosters/CONTENU.md`), anciens `.png` retirés.
 - **Paiement du booster** : débit dès « Ouvrir », pas de bouton « Changer de booster » à la coupe (confirmé).
 - **Écran d'ouverture sur téléphone** : scène étroite 400 × 820 sous 560 px, affichée à ~90 %.
 - **Annonce des belles prises** : toast pour tous les joueurs connectés (confirmé).
