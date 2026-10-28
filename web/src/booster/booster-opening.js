@@ -28,29 +28,30 @@ button{font-family:inherit}
 .btn.ghost{border-color:transparent;background:transparent;color:#a8b8bf}
 .btn[disabled]{opacity:.45;cursor:default}
 .car{position:absolute;left:0;top:0;width:680px;height:620px;perspective:1100px;z-index:5}
-.pw{position:absolute;left:230px;top:70px;width:220px;height:360px;transition:transform .55s cubic-bezier(.3,1.1,.4,1),opacity .4s,filter .4s;transform-style:preserve-3d;cursor:pointer}
+/* sachet à sa taille d'ouverture (322 × 527), réduit au choix : jamais agrandi, donc toujours net (intégration au jeu) */
+.pw{position:absolute;left:179px;top:-13.5px;width:322px;height:527px;transition:transform .55s cubic-bezier(.3,1.1,.4,1),opacity .4s,filter .4s;transform-style:preserve-3d;cursor:pointer}
 .pw.off{pointer-events:none}
 .in{position:absolute;inset:0}
 .pbody,.lid{position:absolute;left:0;right:0;top:0;background-size:100% 100%;background-repeat:no-repeat;border-radius:4px}
 .pbody{bottom:0;filter:drop-shadow(0 18px 24px rgba(0,0,0,.6))}
-.lid{height:34px;z-index:2}
+.lid{height:9.44%;z-index:2}
 .foil{position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.35) 45%,rgba(160,220,255,.25) 50%,transparent 65%);background-size:250% 100%;animation:foil 3.4s ease-in-out infinite;mix-blend-mode:screen;pointer-events:none}
 @keyframes foil{0%{background-position:130% 0}70%,100%{background-position:-60% 0}}
 .float{animation:fl 3.2s ease-in-out infinite}
 @keyframes fl{0%,100%{translate:0 0;rotate:-1deg}50%{translate:0 -10px;rotate:1deg}}
-.shadow{position:absolute;left:250px;top:452px;width:180px;height:22px;border-radius:50%;background:radial-gradient(rgba(0,0,0,.55),transparent 70%);transition:opacity .4s}
-.cutzone{position:absolute;left:-30px;right:-30px;top:-22px;height:80px;cursor:crosshair;touch-action:none;z-index:4}
-.dots{position:absolute;left:10px;right:10px;top:33px;border-top:2px dashed rgba(255,244,214,.85);filter:drop-shadow(0 0 3px rgba(0,0,0,.8));z-index:3}
-.cutline{position:absolute;left:0;top:31px;width:220px;height:5px;border-radius:3px;background:linear-gradient(90deg,rgba(255,255,255,.2),#fff);box-shadow:0 0 12px 3px #fff6c9,0 0 30px 6px #ffd36e;transform-origin:0 50%;transform:scaleX(var(--cut,0));z-index:3}
-.tip{position:absolute;top:22px;left:calc(var(--cut,0) * 220px);width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle,#fff,rgba(255,240,190,.7) 40%,transparent 70%);animation:tw .25s linear infinite alternate;z-index:3;display:none}
+.shadow{position:absolute;left:232px;top:478px;width:216px;height:24px;border-radius:50%;background:radial-gradient(rgba(0,0,0,.55),transparent 70%);transition:opacity .4s}
+.cutzone{position:absolute;left:-44px;right:-44px;top:calc(9.44% - 82px);height:117px;cursor:crosshair;touch-action:none;z-index:4}
+.dots{position:absolute;left:15px;right:15px;top:calc(9.44% - 1.5px);border-top:2px dashed rgba(255,244,214,.85);filter:drop-shadow(0 0 3px rgba(0,0,0,.8));z-index:3}
+.cutline{position:absolute;left:0;top:calc(9.44% - 4.5px);width:100%;height:7px;border-radius:3px;background:linear-gradient(90deg,rgba(255,255,255,.2),#fff);box-shadow:0 0 12px 3px #fff6c9,0 0 30px 6px #ffd36e;transform-origin:0 50%;transform:scaleX(var(--cut,0));z-index:3}
+.tip{position:absolute;top:calc(9.44% - 17.5px);left:calc(var(--cut,0) * 100%);width:32px;height:32px;margin-left:-16px;border-radius:50%;background:radial-gradient(circle,#fff,rgba(255,240,190,.7) 40%,transparent 70%);animation:tw .25s linear infinite alternate;z-index:3;display:none}
 .cutting .tip{display:block}
 @keyframes tw{to{transform:scale(1.4)}}
-.runner{position:absolute;top:24px;left:10px;width:46px;height:18px;margin-left:-23px;border-radius:50%;background:radial-gradient(ellipse,#fff 0,rgba(255,236,170,.9) 25%,rgba(255,210,110,.35) 55%,transparent 72%);mix-blend-mode:screen;pointer-events:none;animation:run 2s cubic-bezier(.5,0,.5,1) infinite;z-index:3}
-@keyframes run{0%{left:10px;opacity:0}12%{opacity:1}80%{left:210px;opacity:1}100%{left:210px;opacity:0}}
-.chev{position:absolute;right:-30px;top:16px;font:900 22px/1 system-ui;letter-spacing:-2px;color:#ffe9b0;text-shadow:0 0 8px rgba(255,210,110,.9);animation:chv 1s ease-in-out infinite alternate;pointer-events:none;z-index:3}
+.runner{position:absolute;top:calc(9.44% - 14.5px);left:4.5%;width:67px;height:26px;margin-left:-33px;border-radius:50%;background:radial-gradient(ellipse,#fff 0,rgba(255,236,170,.9) 25%,rgba(255,210,110,.35) 55%,transparent 72%);mix-blend-mode:screen;pointer-events:none;animation:run 2s cubic-bezier(.5,0,.5,1) infinite;z-index:3}
+@keyframes run{0%{left:4.5%;opacity:0}12%{opacity:1}80%{left:95.5%;opacity:1}100%{left:95.5%;opacity:0}}
+.chev{position:absolute;right:-44px;top:calc(9.44% - 26px);font:900 32px/1 system-ui;letter-spacing:-2px;color:#ffe9b0;text-shadow:0 0 8px rgba(255,210,110,.9);animation:chv 1s ease-in-out infinite alternate;pointer-events:none;z-index:3}
 @keyframes chv{from{opacity:.35;transform:translateX(-4px)}to{opacity:1;transform:translateX(3px)}}
 .touched .runner,.touched .chev{display:none}
-.scis{position:absolute;left:-26px;top:20px;font-size:22px;color:#fff4d6;filter:drop-shadow(0 1px 2px #000);z-index:3}
+.scis{position:absolute;left:-38px;top:calc(9.44% - 20px);font-size:32px;color:#fff4d6;filter:drop-shadow(0 1px 2px #000);z-index:3}
 .opening .lid{animation:lidoff .55s cubic-bezier(.4,0,.8,.6) forwards}
 @keyframes lidoff{to{transform:translate(260px,-180px) rotate(38deg);opacity:0}}
 .opening .pbody{clip-path:polygon(0% 9.4%,4.5% 9.1%,9.1% 9.8%,13.6% 9.2%,18.2% 9.7%,22.7% 9.0%,27.3% 9.6%,31.8% 9.3%,36.4% 9.9%,40.9% 9.1%,45.5% 9.6%,50% 9.2%,54.5% 9.8%,59.1% 9.0%,63.6% 9.5%,68.2% 9.3%,72.7% 9.9%,77.3% 9.1%,81.8% 9.7%,86.4% 9.2%,90.9% 9.6%,95.5% 9.0%,100% 9.4%,100% 100%,0% 100%)}
@@ -59,12 +60,12 @@ button{font-family:inherit}
 .leak{position:absolute;left:-60px;right:-60px;top:-160px;height:220px;pointer-events:none;opacity:0;background:radial-gradient(ellipse 50% 60% at 50% 100%,rgba(255,236,190,.95),transparent 70%);mix-blend-mode:screen;z-index:3}
 .opening .leak{animation:leak 1.1s ease-out .2s forwards}
 @keyframes leak{0%{opacity:0;transform:scaleY(.2)}35%{opacity:1;transform:scaleY(1.2)}100%{opacity:0;transform:scaleY(1.6)}}
-.lrays{position:absolute;left:50%;top:34px;width:700px;height:700px;margin:-350px 0 0 -350px;border-radius:50%;opacity:0;pointer-events:none;background:repeating-conic-gradient(rgba(255,236,190,.95) 0 4deg,transparent 4deg 15deg);-webkit-mask:radial-gradient(circle,#000 5%,transparent 60%);mask:radial-gradient(circle,#000 5%,transparent 60%);mix-blend-mode:screen}
+.lrays{position:absolute;left:50%;top:9.44%;width:700px;height:700px;margin:-350px 0 0 -350px;border-radius:50%;opacity:0;pointer-events:none;background:repeating-conic-gradient(rgba(255,236,190,.95) 0 4deg,transparent 4deg 15deg);-webkit-mask:radial-gradient(circle,#000 5%,transparent 60%);mask:radial-gradient(circle,#000 5%,transparent 60%);mix-blend-mode:screen}
 .opening .lrays{animation:lr 1.3s ease-out .25s forwards}
 @keyframes lr{0%{opacity:0;transform:rotate(0) scale(.3)}30%{opacity:.9}100%{opacity:0;transform:rotate(40deg) scale(1.2)}}
 .gsp{position:absolute;top:30px;width:5px;height:5px;border-radius:50%;background:#fff6d0;box-shadow:0 0 6px 2px rgba(255,214,120,.9);opacity:0;pointer-events:none;animation:gsp 1.6s ease-out both;z-index:3}
 @keyframes gsp{0%{opacity:0;transform:translateY(0)}20%{opacity:1}100%{opacity:0;transform:translateY(-150px) translateX(12px)}}
-.flash{position:absolute;inset:-200px;background:#fff;opacity:0;pointer-events:none;z-index:30}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:30}
 .flash.go{animation:fla .5s ease-out}
 @keyframes fla{0%{opacity:.75}100%{opacity:0}}
 .stk{position:absolute;left:200px;top:90px;width:280px;height:398px;z-index:9}
@@ -208,12 +209,12 @@ class BoosterOpening extends HTMLElement {
     const car = h('div', 'car'); this.car = car; this.pws = [];
     this.packs.forEach((p, i) => {
       const pw = h('div', 'pw'), inn = h('div', 'in');
-      inn.innerHTML = `<div class="lrays"></div><div class="pbody" style="background-image:url(${p.sachet})"><div class="foil"></div></div><div class="lid" style="background-image:url(${p.sachet});background-size:100% 360px"></div><div class="leak"></div>`;
+      inn.innerHTML = `<div class="lrays"></div><div class="pbody" style="background-image:url(${p.sachet})"><div class="foil"></div></div><div class="lid" style="background-image:url(${p.sachet});background-size:100% 527px"></div><div class="leak"></div>`;
       pw.appendChild(inn); pw.addEventListener('click', () => this.pickPack(i)); car.appendChild(pw); this.pws.push(pw);
     });
     car.appendChild(h('div', 'shadow'));
     this.fit.appendChild(car);
-    const ui = h('div', 'ui fi'); ui.style.top = '500px'; this.uiChoose = ui; this.fit.appendChild(ui);
+    const ui = h('div', 'ui fi'); ui.style.top = '515px'; this.uiChoose = ui; this.fit.appendChild(ui);
     this.placePacks(); this.fillChooseUI();
     this.addSwipe(car);
   }
@@ -222,8 +223,9 @@ class BoosterOpening extends HTMLElement {
     this.pws.forEach((pw, i) => {
       let o = ((i - this.sel) % n + n) % n; if (o === n - 1 && n > 1) o = -1; if (o > 1) o = 2;
       const cur = o === 0, inn = pw.firstChild;
-      pw.style.transform = focus ? (cur ? 'translateY(40px) scale(1.22)' : `translateX(${o * 420}px) scale(.6)`)
-        : `translateX(${o * 240}px) translateZ(${cur ? 0 : -160}px) rotateY(${o * -32}deg) scale(${cur ? 1 : .82})`;
+      // échelles divisées par 1,22 (taille native = taille d'ouverture) ; voisins écartés de 280 px pour des sachets 20 % plus grands
+      pw.style.transform = focus ? (cur ? 'translateY(40px) scale(1)' : `translateX(${o * 420}px) scale(.49)`)
+        : `translateX(${o * 280}px) translateZ(${cur ? 0 : -160}px) rotateY(${o * -32}deg) scale(${cur ? .82 : .672})`;
       pw.style.opacity = focus && !cur ? 0 : cur ? 1 : Math.abs(o) > 1 ? 0 : .55;
       pw.style.filter = cur ? 'none' : 'brightness(.6) saturate(.8)'; pw.style.zIndex = cur ? 3 : 1;
       pw.classList.toggle('off', focus && !cur);
@@ -255,7 +257,7 @@ class BoosterOpening extends HTMLElement {
     cut.style.cssText = 'position:absolute;inset:0;z-index:4'; inn.appendChild(cut); this.cutEl = cut;
     const zone = cut.querySelector('.cutzone'); let prog = 0, active = false, step = 0, raf = 0;
     const setP = p => { prog = p; if (!raf) raf = requestAnimationFrame(() => { raf = 0; cut.style.setProperty('--cut', prog.toFixed(3)); }); const s = Math.floor(p * 10); if (s > step) { step = s; this.haptics('light'); } };
-    const pos = e => { const r = zone.getBoundingClientRect(); return (e.clientX - r.left - 30 * r.width / 280) / (220 * r.width / 280); };
+    const pos = e => { const r = inn.getBoundingClientRect(); return (e.clientX - r.left) / r.width; };
     zone.addEventListener('pointerdown', e => { if (this.phase !== 'focus') return; const p = pos(e); if (p > .35) return; zone.setPointerCapture(e.pointerId); active = true; cut.classList.add('cutting', 'touched'); setP(Math.max(0, p)); this.sfx('cut'); });
     zone.addEventListener('pointermove', e => { if (!active) return; const p = Math.max(prog, Math.min(1, pos(e))); setP(p); if (p >= .92) { active = false; this.doCut(); } });
     const up = () => { if (!active) return; active = false; cut.classList.remove('cutting'); cut.style.transition = 'none'; setP(0); step = 0; };
@@ -284,7 +286,7 @@ class BoosterOpening extends HTMLElement {
     this.top = 0; this.buildStack(true);
     this.later(1950, () => { this.car.remove(); this.stk.classList.remove('rise'); this.stk.style.zIndex = ''; this.phase = 'stack'; this.showTop(true); });
   }
-  flash() { if (this.hasAttribute('reduce')) return; const f = h('div', 'flash'); this.fit.appendChild(f); void f.offsetWidth; f.classList.add('go'); setTimeout(() => f.remove(), 600); }
+  flash() { if (this.hasAttribute('reduce')) return; const f = h('div', 'flash'); this.root.appendChild(f); void f.offsetWidth; f.classList.add('go'); setTimeout(() => f.remove(), 600); }
 
   // ---------- 4. pile ----------
   buildStack(rising) {
