@@ -89,3 +89,30 @@ test('téléphone (390 × 844) : scène étroite presque à taille réelle, à c
   const [btn, st] = await Promise.all([page.locator('#bColl').boundingBox(), page.locator('#boS').boundingBox()]);
   expect(btn!.y + btn!.height, 'boutons du butin dans la scène').toBeLessThanOrEqual(st!.y + st!.height + 1);
 });
+
+test('mode essai : ouvertures gratuites et illimitées, sans effet sur la collection ni le porte-monnaie', async ({ page }) => {
+  test.setTimeout(90_000);
+  // sans le droit de testeur : pas de bouton ; avec : bouton « Essai gratuit » qui mène au mode essai
+  await open(page, 'epique');
+  await expect(page.locator('.bo-essai')).toHaveCount(0);
+  await page.goto('/banc/ecrans.html?ecran=boosters&testeur=1');
+  await page.waitForFunction(() => !!(window as any).banc); await page.evaluate(() => (window as any).banc.ready);
+  await expect(page.locator('a.bo-essai')).toHaveAttribute('href', '#/boosters?essai=1');
+  await page.goto('/banc/ecrans.html?ecran=boosters&essai=1');
+  await page.waitForFunction(() => !!(window as any).banc); await page.evaluate(() => (window as any).banc.ready);
+  await page.waitForTimeout(400);
+  await expect(page.locator('.bo-essai-tag')).toBeVisible();
+  await expect(page.locator('#bOpen')).toContainText('essai gratuit');
+  const wallet = await page.locator('#boW').innerText();
+  for (let i = 0; i < 2; i++) {
+    await page.click(i ? '#bAgain' : '#bOpen'); await page.waitForTimeout(500); await page.click('#bAuto'); await page.waitForTimeout(2600);
+    await page.click('#bSkip'); await page.waitForTimeout(2600);
+    await expect(page.locator('.bo-grid figure')).toHaveCount(5);
+    await expect(page.locator('.bo-sum .nw')).toContainText('+0');
+  }
+  expect(await page.locator('#boW').innerText(), 'porte-monnaie inchangé').toBe(wallet);
+  // collection du faux serveur inchangée : booster.open n'a jamais été appelé
+  const owned = await page.evaluate(async () => (await (window as any).banc.fakeApi('collection.list')).owned.length);
+  const before = await page.evaluate(() => (window as any).banc.ownedAtStart);
+  expect(owned, 'collection inchangée').toBe(before);
+});

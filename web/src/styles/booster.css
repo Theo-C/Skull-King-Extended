@@ -8,6 +8,10 @@
 .bo-ser{font-size:14px;color:#c9d6db}
 .bo-wallet{margin-left:auto;display:flex;gap:16px;align-items:center;font-size:14px;font-weight:800}
 .bo-wallet .sh{color:#9fe3ff}.bo-wallet a{color:#ead08a}
+/* mode essai (#/boosters?essai=1) : ouvertures gratuites sans effet, réservé aux testeurs (isTester) */
+.bo-wallet a.bo-essai{padding:3px 10px;border-radius:999px;border:1px dashed rgba(159,227,255,.6);color:#9fe3ff;text-decoration:none}
+.bo-wallet a.bo-essai.on{border-style:solid;background:rgba(159,227,255,.12)}
+.bo-essai-tag{padding:3px 10px;border-radius:999px;background:#9fe3ff;color:#0b1419;font-size:12.5px;font-weight:900;letter-spacing:.04em}
 .bo .coin{display:inline-block;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%);vertical-align:-1px}
 .bo-cols{position:relative;display:grid;grid-template-columns:300px minmax(0,680px);gap:36px;justify-content:center;z-index:1}
 .bo-left{display:flex;flex-direction:column;gap:14px}

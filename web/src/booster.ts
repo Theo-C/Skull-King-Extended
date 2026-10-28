@@ -8,7 +8,14 @@ import { esc, toast } from './util';
 import { cardHTML } from './cards';
 import { sfx } from './sfx';
 import type { CallGame } from './pages/collection';
-import { PACKS, PACK_BY_ID, CARD_BY_ID, VARIANT_INFO, BOOSTER_PRICE, ODDS, SERIES, TIER_OF, serialLabel, type Variant } from '@shared/collection.ts';
+import { PACKS, PACK_BY_ID, CARD_BY_ID, VARIANT_INFO, BOOSTER_PRICE, ODDS, SERIES, TIER_OF, NUMBERED_MAX, serialLabel, drawBooster, type Variant } from '@shared/collection.ts';
+
+/** Comptes qui voient le bouton « Essai gratuit » (aussi en développement, ou avec localStorage pli-debug = 1 sur l'appareil). */
+const TESTEURS = ['theo.capitaine@clesence.fr'];
+export function isTester(email: string | null | undefined) {
+  let dbg = import.meta.env.DEV; try { dbg ||= localStorage.getItem('pli-debug') === '1'; } catch { /* stockage indisponible */ }
+  return dbg || TESTEURS.includes((email ?? '').toLowerCase());
+}
 
 /** Sachet de chaque booster (web/public/boosters/, docs/boosters/README.md). Contenu et poids : web/public/boosters/CONTENU.md. */
 const SACHET: Record<string, string> = { profondeurs: 'sachet_profondeurs.webp', sirenes: 'sachet_sirenes.webp', couronne: 'sachet_couronne.webp' };
@@ -18,7 +25,7 @@ export const packBack = (id: string) => PACK_BY_ID[id] ? `cards/dos_${id}.webp` 
 
 export interface OpenedCard { card_id: string; variant: Variant; serial: number | null; duplicate: boolean; shards: number }
 export interface OpenResult {
-  ok: true; pack: string; divine: boolean; cards: OpenedCard[]; paid: 'booster' | 'coins';
+  ok: true; pack: string; divine: boolean; cards: OpenedCard[]; paid: 'booster' | 'coins' | 'essai';
   shards_gained: number; new: number; owned: number; owned_before: number; total: number; coins: number; boosters: number; shards: number;
 }
 interface Wallet { coins: number; shards: number; boosters: number; free_today: boolean; free_daily: boolean; owned?: unknown[]; total?: number }
@@ -43,7 +50,17 @@ function haptic(kind: 'light' | 'medium' | 'heavy') {
 
 type Phase = 'choose' | 'focus' | 'opening' | 'stack' | 'recap';
 /** Écran d'ouverture. api : callGame (remplacé par le banc d'essai web/banc/ecrans.ts). */
-export async function boosterPage(root: HTMLElement, query = new URLSearchParams(), api: CallGame = callGame) {
+export async function boosterPage(root: HTMLElement, query = new URLSearchParams(), api: CallGame = callGame, tester = false) {
+  // Mode essai (#/boosters?essai=1) : tirage fait ici, avec les mêmes chances que le serveur (drawBooster), sans appeler
+  // booster.open : ni pièces, ni booster offert, ni collection, ni éclats, ni annonce. Pour tester l'ouverture à volonté.
+  const essai = query.get('essai') === '1', server = api;
+  if (essai) api = (async (action: string, p: Record<string, any> = {}) => {
+    if (action !== 'booster.open') return server(action, p);
+    const d = drawBooster(p.pack, Math.random), n = w.owned?.length ?? 0;
+    return { ok: true, pack: p.pack, divine: d.divine, paid: 'essai', shards_gained: 0, new: 0, owned: n, owned_before: n, total: w.total ?? 0,
+      coins: w.coins, boosters: w.boosters, shards: w.shards,
+      cards: d.cards.map(c => ({ ...c, serial: c.variant === 'numero' ? 1 + Math.floor(Math.random() * NUMBERED_MAX) : null, duplicate: false, shards: 0 })) };
+  }) as CallGame;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let sel = Math.max(0, PACKS.findIndex(p => p.id === query.get('pack'))), phase: Phase = 'choose', res: OpenResult | null = null;
   let up: boolean[] = [], top = 0, cut = 0, cutting = false, touched = false, k = 0, boom = 0, flash = 0, flashShown = 0, lastBuzz = 0, lastTick = 0;
@@ -53,7 +70,7 @@ export async function boosterPage(root: HTMLElement, query = new URLSearchParams
   try { w = await api<Wallet>('collection.list', {}); } catch (e: any) { toast(e.message, 'err'); }
 
   root.innerHTML = `<section class="bo"><div class="bo-caus" aria-hidden="true"></div>
-    <header class="bo-head"><h1>Boosters</h1><span class="bo-ser">Série 1 · <b>${esc(SERIES.name)}</b></span>
+    <header class="bo-head"><h1>Boosters</h1>${essai ? '<span class="bo-essai-tag">Mode essai · rien n’est enregistré</span>' : ''}<span class="bo-ser">Série 1 · <b>${esc(SERIES.name)}</b></span>
       <span class="bo-wallet" id="boW"></span></header>
     <div class="bo-cols">
       <aside class="bo-left">
@@ -80,9 +97,10 @@ export async function boosterPage(root: HTMLElement, query = new URLSearchParams
   };
   const ro = new ResizeObserver(fit); ro.observe(sw);
 
-  const pack = () => PACKS[sel], price = () => w.boosters ? 'offert' : `${BOOSTER_PRICE} 🪙`;
+  const pack = () => PACKS[sel], price = () => essai ? 'essai gratuit' : w.boosters ? 'offert' : `${BOOSTER_PRICE} 🪙`;
   const paintSide = () => {
-    root.querySelector('#boW')!.innerHTML = `<span><span class="coin"></span> ${w.coins.toLocaleString('fr-FR')}</span><span class="sh">◆ ${w.shards.toLocaleString('fr-FR')} éclats</span><span>${w.boosters} offert${w.boosters > 1 ? 's' : ''}</span><a href="#/collection">Collection</a>`;
+    root.querySelector('#boW')!.innerHTML = `<span><span class="coin"></span> ${w.coins.toLocaleString('fr-FR')}</span><span class="sh">◆ ${w.shards.toLocaleString('fr-FR')} éclats</span><span>${w.boosters} offert${w.boosters > 1 ? 's' : ''}</span><a href="#/collection">Collection</a>`
+      + (essai ? '<a href="#/boosters" class="bo-essai on">Quitter l’essai</a>' : tester ? '<a href="#/boosters?essai=1" class="bo-essai">Essai gratuit</a>' : '');
     const stepI = { choose: 0, focus: 1, opening: 1, stack: 2, recap: 3 }[phase];
     root.querySelector('#boSteps')!.innerHTML = ['Choisir le booster', 'Couper le sachet', 'Faire défiler la pile', 'Le butin'].map((t, i) => `<div class="bo-step${i === stepI ? ' on' : i < stepI ? ' done' : ''}"><i>${i + 1}</i>${t}</div>`).join('');
     root.querySelector('#boFree')!.innerHTML = `<div class="bo-lbl">Booster gratuit</div><div class="bo-free"><span class="hg" aria-hidden="true">⏳</span><b>${
@@ -118,7 +136,7 @@ export async function boosterPage(root: HTMLElement, query = new URLSearchParams
         <p>${esc(cur.desc)}</p>
         <div class="bo-feat">${cur.featured.map(id => `<span>${boosterCard({ card_id: id, variant: 'holo', serial: null }, 78, '', true)}<i>×3</i></span>`).join('')}</div>
         <div class="bo-btns"><button type="button" class="bo-btn gold big" id="bOpen">Ouvrir · ${price()}</button></div>
-        <p class="bo-note">${w.boosters ? 'Un booster offert est utilisé en premier.' : `Un booster coûte ${BOOSTER_PRICE} pièces, débitées à l’ouverture.`}</p></div>`;
+        <p class="bo-note">${essai ? 'Mode essai : ouvertures illimitées et gratuites, rien n’est ajouté à votre collection.' : w.boosters ? 'Un booster offert est utilisé en premier.' : `Un booster coûte ${BOOSTER_PRICE} pièces, débitées à l’ouverture.`}</p></div>`;
     if (phase === 'focus') h += `<div class="bo-under low fi"><b class="bo-cta">Glissez le long des pointillés pour ouvrir</b><p>De gauche à droite, d’un seul geste. Au clavier : Entrée.</p>
         <div class="bo-btns"><button type="button" class="bo-btn" id="bAuto">Ouvrir sans glisser</button></div></div>`;
     if ((phase === 'opening' || phase === 'stack') && res) h += stackHTML();

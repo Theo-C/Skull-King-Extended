@@ -76,5 +76,5 @@ export async function fakeApi<T = any>(action: string, p: Record<string, any> = 
 
 installVariantFx();
 const view = document.getElementById('view')!, ecran = q.get('ecran') ?? 'collection';
-const ready = ecran === 'boosters' ? boosterPage(view, q, fakeApi) : ecran === 'atelier' ? atelierPage(view, q, fakeApi) : collectionPage(view, q, fakeApi);
-(window as any).banc = { ready, fakeApi };
+const ready = ecran === 'boosters' ? boosterPage(view, q, fakeApi, q.get('testeur') === '1') : ecran === 'atelier' ? atelierPage(view, q, fakeApi) : collectionPage(view, q, fakeApi);
+(window as any).banc = { ready, fakeApi, ownedAtStart: owned.size };
