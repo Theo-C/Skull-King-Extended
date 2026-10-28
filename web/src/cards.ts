@@ -6,7 +6,7 @@ import { ALT2, ALT2B, NUM2 } from './cardsdata';
 import { cname, DESC, PIRATES, type Card, type Entry } from '@engine';
 import { esc } from './util';
 import { CALQUES, MER, cadreUrl, illuUrl, illuBox, masks, signer, windowBox } from './calques';
-import type { Variant } from '@shared/collection.ts';
+import { serialLabel, type Variant } from '@shared/collection.ts';
 
 const wrapF = (b: number, h: string) => `<div class="fb${b}">${h}</div>`;
 const A = ALT2 as Record<string, string>, AB = ALT2B as Record<string, number>, NUM = NUM2 as Record<string, any>;
@@ -86,7 +86,7 @@ function layers(key: string, v: Variant, serial?: number | null): string {
   // 2. cadre d'origine (fenêtre transparente) : jamais animé, jamais recoloré ; 3. matière de toute la marge, ajouts
   let top = RING[v] ? `<div class="ring ${RING[v]}"></div>` : '';
   if (v === 'etain') top += '<div class="riv" style="left:1%;top:.8%"></div><div class="riv" style="right:1%;top:.8%"></div><div class="riv" style="left:1%;bottom:.8%"></div><div class="riv" style="right:1%;bottom:.8%"></div>';
-  if (v === 'numero' && serial) top += `<div class="serial">N° ${String(serial).padStart(3, '0')} / 100</div>`;
+  if (v === 'numero' && serial) top += `<div class="serial">${serialLabel(serial)}</div>`;
   return `<div class="lay"><div class="win" style="${boxStyle(windowBox(key))}">${win}</div>`
     + `<img class="cadre" src="${cadreUrl(key)}" alt="" decoding="async" draggable="false">${top}</div>`;
 }

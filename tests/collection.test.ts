@@ -89,18 +89,18 @@ ok('un doublon de booster ne s’ajoute pas aux exemplaires', copies === 1, copi
 ok('tirage invalide refusé', !!(await rpc('booster_apply', { p_user: A, p_pack: 'profondeurs', p_divine: false, p_cards: draw.slice(0, 4) }))?.error);
 ok('booster inconnu refusé', !!(await rpc('booster_apply', { p_user: A, p_pack: 'atlantide', p_divine: false, p_cards: draw }))?.error);
 
-// Numérotées : il reste 6 exemplaires de Rosie (95 à 100) ; 10 ouvertures lancées en même temps
-await db.exec(`insert into numbered_stock (series_id, card_id, next_serial) values ('S1', 'rosie', 95)`);
+// Numérotées : il reste 6 exemplaires de Rosie (5 à 10) ; 10 ouvertures lancées en même temps
+await db.exec(`insert into numbered_stock (series_id, card_id, next_serial) values ('S1', 'rosie', 5)`);
 for (let i = 2; i <= 11; i++) await db.exec(`insert into user_wallet (user_id, coins) values ('${uid(i)}', 100)`);
 const numDraw: C.Drawn[] = [{ card_id: 'g1', variant: 'patine' }, { card_id: 'g2', variant: 'patine' }, { card_id: 'g4', variant: 'patine' }, { card_id: 'kraken', variant: 'holo' }, { card_id: 'rosie', variant: 'numero' }];
 const many = await Promise.all(Array.from({ length: 10 }, (_, i) => rpc('booster_apply', { p_user: uid(i + 2), p_pack: 'couronne', p_divine: false, p_cards: numDraw })));
 const serials = many.map(m => m.cards[4]).filter((c: any) => c.variant === 'numero').map((c: any) => c.serial);
-ok('Numérotées : 6 exemplaires restants attribués, numéros uniques de 95 à 100', serials.length === 6 && new Set(serials).size === 6 && Math.min(...serials) === 95 && Math.max(...serials) === 100, serials);
+ok('Numérotées : 6 exemplaires restants attribués, numéros uniques de 5 à 10', serials.length === 6 && new Set(serials).size === 6 && Math.min(...serials) === 5 && Math.max(...serials) === 10, serials);
 ok('Numérotées : stock épuisé → Signée', many.filter(m => m.cards[4].variant === 'signee').length === 4);
 const top = (await db.query<any>(`select max(serial) as m, count(*)::int as n from user_card_variants where card_id = 'rosie' and variant = 'numero'`)).rows[0];
-ok('Numérotées : jamais plus de 100', top.m <= 100 && top.n === 6, top);
+ok('Numérotées : jamais plus de 10', top.m <= 10 && top.n === 6, top);
 const stock = (await db.query<any>(`select next_serial from numbered_stock where card_id = 'rosie'`)).rows[0].next_serial;
-ok('stock bloqué à 101', stock === 101, stock);
+ok('stock bloqué à 11', stock === 11, stock);
 // une Numérotée n'est jamais un doublon : déjà celle de cette carte → Signée
 await db.exec(`update user_wallet set coins = 100 where user_id = '${uid(2)}'; insert into numbered_stock (series_id, card_id) values ('S1', 'kraken')`);
 const owner = many.findIndex(m => m.cards[4].variant === 'numero') + 2;

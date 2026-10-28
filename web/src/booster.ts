@@ -8,9 +8,9 @@ import { esc, toast } from './util';
 import { cardHTML } from './cards';
 import { sfx } from './sfx';
 import type { CallGame } from './pages/collection';
-import { PACKS, PACK_BY_ID, CARD_BY_ID, VARIANT_INFO, BOOSTER_PRICE, ODDS, SERIES, TIER_OF, type Variant } from '@shared/collection.ts';
+import { PACKS, PACK_BY_ID, CARD_BY_ID, VARIANT_INFO, BOOSTER_PRICE, ODDS, SERIES, TIER_OF, serialLabel, type Variant } from '@shared/collection.ts';
 
-/** Sachet de chaque booster (web/public/boosters/, docs/boosters/README.md). Les .png fournis ne correspondent pas à leur nom (voir suivi.md). */
+/** Sachet de chaque booster (web/public/boosters/, docs/boosters/README.md). Contenu et poids : web/public/boosters/CONTENU.md. */
 const SACHET: Record<string, string> = { profondeurs: 'sachet_profondeurs.webp', sirenes: 'sachet_sirenes.webp', couronne: 'sachet_couronne.webp' };
 export const packArt = (id: string) => `boosters/${SACHET[id] ?? SACHET.profondeurs}`;
 /** Dos des cartes du booster ouvert (la 5e carte arrive face cachée avec ce dos) ; dos neutre par défaut. */
@@ -133,7 +133,7 @@ export async function boosterPage(root: HTMLElement, query = new URLSearchParams
       ${c ? `<div class="top ${top % 2 ? 'pa' : 'pb'}" id="bTop" role="button" tabindex="0" aria-label="${cUp ? esc(CARD_BY_ID[c.card_id].name) + ', ' + esc(vi!.name) + ' : carte suivante' : 'Carte de chance, face cachée : la retourner'}">
         <div class="flipw${cUp ? ' up' : ' hid'}"><div class="flip"><div class="fside back">${backHTML(res!.pack, 280)}</div><div class="fside front">${boosterCard(c, 280)}</div></div></div></div>` : ''}
       <div id="bFly"></div>
-      ${phase === 'stack' ? `<div class="info">${c && cUp ? `<b class="nm">${esc(CARD_BY_ID[c.card_id].name)}</b>${c.serial ? `<span class="ex">EXEMPLAIRE N° ${String(c.serial).padStart(3, '0')} / 100</span>` : ''}
+      ${phase === 'stack' ? `<div class="info">${c && cUp ? `<b class="nm">${esc(CARD_BY_ID[c.card_id].name)}</b>${c.serial ? `<span class="ex">EXEMPLAIRE ${serialLabel(c.serial)}</span>` : ''}
           <span class="vn" style="color:${vi!.color}">${vi!.stars} ${esc(vi!.name)}</span><span class="tag${c.duplicate ? ' dup' : ''}">${c.duplicate ? `Doublon · +${c.shards} ◆` : 'Nouveau'}</span>`
         : c ? '<b class="nm gold">Carte de chance</b><span class="bo-note">Touchez pour la retourner</span>' : ''}
         <div class="pdots${res!.divine ? ' dv' : ''}">${cs.map((_, i) => `<span class="${i < top ? 'on' : i === top ? 'cur' : ''}"></span>`).join('')}</div>
@@ -244,7 +244,7 @@ export function recapHTML(r: OpenResult, price = `${BOOSTER_PRICE} 🪙`) {
     ${r.divine ? '<div class="fi divb">✦ Booster divin · 1 sur 2 000 ✦</div>' : ''}
     <div class="bo-grid">${r.cards.map((c, i) => { const vi = VARIANT_INFO[c.variant];
       return `<figure style="animation-delay:${(.08 + i * .1).toFixed(2)}s">${boosterCard(c, 150)}<figcaption><b>${esc(CARD_BY_ID[c.card_id].name)}</b>
-        <span style="color:${vi.color}">${vi.stars} ${esc(vi.name)}${c.serial ? ` · N° ${String(c.serial).padStart(3, '0')} / 100` : ''}</span>
+        <span style="color:${vi.color}">${vi.stars} ${esc(vi.name)}${c.serial ? ` · ${serialLabel(c.serial)}` : ''}</span>
         <span class="tag${c.duplicate ? ' dup' : ''}">${c.duplicate ? `Doublon · +${c.shards} ◆` : 'Nouveau'}</span></figcaption></figure>`; }).join('')}</div>
     <div class="bo-sum fi"><span class="nw">+${r.new} nouvelle${r.new > 1 ? 's' : ''} variante${r.new > 1 ? 's' : ''}</span><span class="sh">+${r.shards_gained} ◆ éclats</span></div>
     <div class="bo-ct fi"><span>Collection · Série 1</span><b>${r.owned} / ${r.total} variantes</b></div>

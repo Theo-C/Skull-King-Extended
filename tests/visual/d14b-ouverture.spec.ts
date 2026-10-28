@@ -46,7 +46,7 @@ test('ouverture complète : coupe au doigt, pile, carte de chance, Numérotée, 
   await shot(page, '5-carte-de-chance');
   await page.click('#bTop'); await page.waitForTimeout(1700);
   await expect(page.locator('.ban.m')).toHaveText('Numérotée !');
-  await expect(page.locator('.info .ex')).toContainText('/ 100');
+  await expect(page.locator('.info .ex')).toContainText('/ 10');
   await shot(page, '6-numerotee');
   await page.click('#bTop'); await page.waitForTimeout(2600);
   await expect(page.locator('.bo-grid figure')).toHaveCount(5);

@@ -93,7 +93,9 @@ export const ODDS: { tier: 'r' | 'e' | 'l' | 'm'; label: string; slot4: number; 
 ];
 /** Booster divin : 1 sur 2 000 ; ses 5 cartes sont Signées (90 %) ou Numérotées (10 %). */
 export const DIVINE_ODDS = 1 / 2000, DIVINE_NUMBERED = .1;
-export const NUMBERED_MAX = 100;
+export const NUMBERED_MAX = 10;
+/** Numéro d'une Numérotée tel qu'il est gravé : « N° 03 / 10 ». */
+export const serialLabel = (n: number) => `N° ${String(n).padStart(String(NUMBERED_MAX).length, '0')} / ${NUMBERED_MAX}`;
 
 /** Générateur pseudo-aléatoire reproductible (mulberry32), pour les tests à graine fixe. */
 export function rng(seed: number): () => number {
@@ -102,7 +104,7 @@ export function rng(seed: number): () => number {
 }
 export interface Drawn { card_id: string; variant: Variant }
 /** Tirage d'un booster : 5 cartes différentes (vedettes ×3) et leur variante par emplacement. Pas de garanties.
- *  Les Numérotées sont attribuées ensuite par la base (stock de 100 par carte et par saison, sinon Signée). */
+ *  Les Numérotées sont attribuées ensuite par la base (stock de NUMBERED_MAX par carte et par saison, sinon Signée). */
 export function drawBooster(packId: string, random: () => number): { divine: boolean; cards: Drawn[] } {
   const pack = PACK_BY_ID[packId]; if (!pack) throw new Error('Booster inconnu.');
   const divine = random() < DIVINE_ODDS;

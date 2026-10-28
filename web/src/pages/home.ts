@@ -5,6 +5,7 @@ import { sb, callGame } from '../api';
 import { $, esc, toast, relDay, signed, de, modal } from '../util';
 import { optionsHTML, readOptions, wireOptions, paintRanked } from '../options';
 import { roundsOf } from '@engine';
+import { serialLabel } from '@shared/collection.ts';
 import { go } from '../main';
 import { myProfile } from '../account';
 import { avatarHTML, fromProfile } from '../avatar';
@@ -72,7 +73,7 @@ async function loadPulls(root: HTMLElement) {
   const { data, error } = await sb.rpc('card_announcements_feed', { p_limit: 5 });
   const el = root.querySelector('#pulls'); if (!el) return;
   if (error) { el.innerHTML = '<p class="empty">Indisponible pour le moment.</p>'; return; }
-  el.innerHTML = (data as any[] || []).map(a => `<div class="feat"><span class="fbadge">${a.kind === 'divine' ? '✦' : a.kind === 'numero' ? '★★' : '★'}</span><span><b>${esc(a.pseudo)}</b><span>${a.kind === 'divine' ? 'a ouvert un booster divin (1 sur 2 000)' : `${esc(a.card_name ?? '')} ${a.kind === 'numero' ? `Numérotée N° ${String(a.serial).padStart(3, '0')} / 100` : 'Signée'}`} · ${esc(relDay(a.created_at).toLowerCase())}</span></span></div>`).join('')
+  el.innerHTML = (data as any[] || []).map(a => `<div class="feat"><span class="fbadge">${a.kind === 'divine' ? '✦' : a.kind === 'numero' ? '★★' : '★'}</span><span><b>${esc(a.pseudo)}</b><span>${a.kind === 'divine' ? 'a ouvert un booster divin (1 sur 2 000)' : `${esc(a.card_name ?? '')} ${a.kind === 'numero' ? `Numérotée ${serialLabel(a.serial)}` : 'Signée'}`} · ${esc(relDay(a.created_at).toLowerCase())}</span></span></div>`).join('')
     || '<p class="empty">Aucune Signée ni Numérotée ces deux dernières semaines.</p>';
 }
 

@@ -23,7 +23,7 @@ const HOW: Record<Variant, string> = {
   vivante: 'L’illustration bouge doucement en deux plans sous le cadre immobile ; la mer ondule sur les cartes marines.',
   nacre: 'Marge en nacre irisée et reflets.',
   signee: 'Marge crème dorée et signature dorée à chaud sur l’illustration (le personnage, ou Barbe-Grise le cartographe).',
-  numero: 'Signée, Vivante et Holo, avec un numéro gravé dans la marge : 100 exemplaires par carte et par saison. Ni fabricable ni recyclable.',
+  numero: 'Signée, Vivante et Holo, avec un numéro gravé dans la marge : 10 exemplaires par carte et par saison, chacun à un seul joueur. Ni fabricable ni recyclable.',
 };
 const RARITY: Record<string, string> = { c: 'Commune', r: 'Rare', e: 'Épique', l: 'Légendaire', m: 'Mythique' };
 const sOf = (w: number) => `style="--s:${(w / 252).toFixed(4)}"`;

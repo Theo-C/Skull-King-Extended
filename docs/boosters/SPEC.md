@@ -54,7 +54,7 @@ La maquette utilise des rectangles approchés (voir `CarteVar.dc.html`). En prod
 | Vivante | Animated | Épique | **2 plans** : le fond et le personnage bougent en sens opposés (parallaxe), la mer ondule sur les cartes marines, rayons de lumière et particules dans le fond ; le cadre reste immobile |
 | Nacre | Pearl Foil | Épique | marge en nacre irisée, filet d'or, reflets |
 | Signée | Signature | Légendaire | marge crème dorée + reflet + **signature dorée à chaud** (or miroir, léger gaufrage, reflet qui glisse) en bas de l'illustration. Les pirates signent leur carte, Barbe-Grise le cartographe signe les autres |
-| Numérotée | Serialized | Mythique | Signée + Vivante + Holo + **numéro gravé dans la marge** « N° 042 / 100 ». **100 exemplaires par carte et par saison**, pour tous les joueurs |
+| Numérotée | Serialized | Mythique | Signée + Vivante + Holo + **numéro gravé dans la marge** « N° 04 / 10 ». **10 exemplaires par carte et par saison**, pour tous les joueurs : chaque numéro n'appartient qu'à un seul joueur |
 
 - Les 6 cartes animées existantes (D11) gardent leur variante **Animée** (Mythique). Leur animation est déjà limitée à l'illustration.
 - **Noms officiels** : termes usuels des jeux de cartes à collectionner, affichés en petit sous le nom français dans la Collection. Holo, Signature et Serialized sont des termes établis (Pokémon, Magic, Hearthstone) ; Vintage, Silver Border, Animated et Pearl Foil sont des équivalents descriptifs.
@@ -92,7 +92,7 @@ Pour mémoire, Pocket : carte 4 = 89 / 6,6 / 3,3 / 1,1 %, carte 5 = 56,8 / 25,7 
 
 - La 4e carte peut surprendre (8 % de chance d'être Épique ou mieux) ; la 5e est la meilleure en moyenne (34 %), **mais pas forcément** : tout dépend du tirage.
 - **Booster divin** : **1 sur 2 000** (0,05 %, comme les « god packs » de Pocket). Les 5 cartes sont Signées (90 %) ou Numérotées (10 %).
-- Une **Numérotée** n'est tirée que s'il reste des exemplaires de cette carte pour la saison. Le numéro est attribué dans l'ordre (le 1er trouvé = N° 001). Sinon, elle devient une Signée. À 4 joueurs, les 100 exemplaires ne seront jamais épuisés : la limite n'a de sens que si d'autres groupes rejoignent le jeu.
+- Une **Numérotée** n'est tirée que s'il reste des exemplaires de cette carte pour la saison. Le numéro est attribué dans l'ordre (le 1er trouvé = N° 01). Sinon, elle devient une Signée. Une Numérotée n'est jamais un doublon : qui a déjà celle de cette carte reçoit une Signée. Un exemplaire possédé n'est plus accessible aux autres joueurs.
 - Les chances sont **affichées dans le jeu** (panneau « Chances par carte » de l'écran d'ouverture).
 
 ### Garanties
@@ -127,7 +127,7 @@ Un petit rituel en 4 temps, pensé d'abord pour le téléphone (geste au doigt),
    - on **glisse la carte sur le côté** (ou on la touche) pour passer à la suivante ; elle s'envole ;
    - **cartes 1 à 4 face visible**. Une Holo ou mieux déclenche une onde, un anneau et des étincelles de sa couleur (la surprise de la 4e) ;
    - **la 5e, la « carte de chance », arrive toujours face cachée**, même si ce n'est qu'une Holo. Le dos est **neutre** (`web/public/cards/dos.webp`, source `docs/boosters/dos-carte.svg` : cuir bleu nuit, rose des vents et filets dorés en relief) : même lueur dorée douce et même léger flottement quelle que soit la rareté. **Aucun spoil.** « Touchez pour la retourner » : retournement lent (1,1 s) ;
-   - **Signée / Numérotée** : écran assombri, rayons qui tournent, bannière « Signée ! » / « Numérotée ! », « EXEMPLAIRE N° 042 / 100 » ;
+   - **Signée / Numérotée** : écran assombri, rayons qui tournent, bannière « Signée ! » / « Numérotée ! », « EXEMPLAIRE N° 04 / 10 » ;
    - sous la carte : nom, losanges de rareté (◆ à ★★), variante, « Nouveau » ou « Doublon · +20 ◆ » ; points de progression 1 à 5 ; « Tout voir » pour sauter.
    - **Booster divin, signalé discrètement** : la lumière est la même, mais quelques paillettes d'or s'échappent du sachet à l'ouverture et les points de progression deviennent des étoiles dorées. Le joueur comprend en voyant la 1re carte (une Signée à la place d'une commune) ; l'annonce explicite « ✦ Booster divin · 1 sur 2 000 ✦ » n'arrive qu'au butin, puis aux amis et dans le salon.
 5. **Le butin** : grille 3 + 2 qui apparaît en cascade, cartes inclinables ; « +3 nouvelles variantes · +25 ◆ éclats » ; **barre de collection** de la série qui avance (63 → 66 / 224) ; « Ouvrir un autre » (repart directement à l'étape Couper), « Voir la collection », « Changer de booster ».
