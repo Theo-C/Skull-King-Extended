@@ -12,7 +12,7 @@ import { othersAnimated } from './locker';
 import { PACKS, PACK_BY_ID, CARD_BY_ID, VARIANT_INFO, BOOSTER_PRICE, ODDS, SERIES, TIER_OF, NUMBERED_MAX, serialLabel, drawBooster, type Variant } from '@shared/collection.ts';
 
 /** Comptes qui voient le bouton « Essai gratuit » (aussi en développement, ou avec localStorage pli-debug = 1 sur l'appareil). */
-const TESTEURS = ['theo.capitaine@clesence.fr'];
+const TESTEURS = ['theo.capitaine2@gmail.com', 'theo.capitaine@clesence.fr'];
 export function isTester(email: string | null | undefined) {
   let dbg = import.meta.env.DEV; try { dbg ||= localStorage.getItem('pli-debug') === '1'; } catch { /* stockage indisponible */ }
   return dbg || TESTEURS.includes((email ?? '').toLowerCase());
