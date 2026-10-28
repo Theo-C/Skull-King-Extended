@@ -24,17 +24,19 @@ async function cut(page: Page) {
 const sampleRise = (page: Page) => page.evaluate(async () => {
   const sr = document.querySelector('booster-opening')!.shadowRoot!, frame = () => new Promise(r => requestAnimationFrame(r));
   while (!sr.querySelector('.in.opening')) await frame();
-  const t0 = performance.now(), out: { at: number; ty: number; z: string; stkTop: number; packTop: number }[] = [];
-  for (const at of [400, 900, 1400]) {
+  const t0 = performance.now(), out: { at: number; ty: number; z: string; stkTop: number; packTop: number; compTop: number }[] = [];
+  // 1,1 s : sommet de la montée de la pile (rise : délai 0,5 s, sommet à 45 % de 1,35 s)
+  for (const at of [400, 900, 1100, 1400]) {
     while (performance.now() - t0 < at) await frame();
     const s = sr.querySelector('.stk') as HTMLElement, cs = getComputedStyle(s);
-    out.push({ at, ty: new DOMMatrix(cs.transform).m42, z: cs.zIndex, stkTop: s.getBoundingClientRect().top, packTop: sr.querySelector('.in.opening')?.getBoundingClientRect().top ?? NaN });
+    out.push({ at, ty: new DOMMatrix(cs.transform).m42, z: cs.zIndex, stkTop: s.getBoundingClientRect().top, packTop: sr.querySelector('.in.opening')?.getBoundingClientRect().top ?? NaN, compTop: document.querySelector('booster-opening')!.getBoundingClientRect().top });
   }
   return out;
 });
 /** La pile sort par le haut DERRIÈRE le sachet, puis passe devant pendant qu'il glisse vers le bas (ANIMATIONS.md, §3). */
 function expectRise(r: Awaited<ReturnType<typeof sampleRise>>) {
-  const [a, b, c] = r;
+  const [a, b, top, c] = r;
+  expect(top.stkTop, `1,1 s : les cartes restent dans l’écran (haut de la pile ${top.stkTop.toFixed(0)} px, haut du composant ${top.compTop.toFixed(0)} px)`).toBeGreaterThanOrEqual(top.compTop);
   expect(a.z, '0,4 s : pile encore derrière le sachet').toBe('1');
   expect(b.z, '0,9 s : pile toujours derrière').toBe('1');
   expect(b.ty, `0,9 s : la pile monte (translateY ${b.ty.toFixed(0)} px)`).toBeLessThan(a.ty - 50);
@@ -43,7 +45,9 @@ function expectRise(r: Awaited<ReturnType<typeof sampleRise>>) {
 }
 /** Glisse les 4 premières cartes, retourne la 5e (Numérotée), puis le butin. */
 async function pileToRecap(page: Page, prefix: string | null) {
-  await expect(page.locator('booster-opening .slot.top .flipw.up')).toHaveCount(1, { timeout: 4000 });
+  // la carte du dessus existe déjà pendant l'ouverture : on attend la fin (le sachet est retiré, la pile répond au doigt)
+  await expect(page.locator('booster-opening .car')).toHaveCount(0, { timeout: 4000 });
+  await expect(page.locator('booster-opening .slot.top .flipw.up')).toHaveCount(1);
   if (prefix) await shot(page, `${prefix}-4-pile`);
   for (let i = 0; i < 4; i++) {
     const b = (await page.locator('booster-opening .slot.top').boundingBox())!, cx = b.x + b.width / 2, cy = b.y + b.height / 2;
@@ -118,6 +122,12 @@ test('réglage système « réduire les animations » ignoré : ouverture compl�
   expect(await page.locator('booster-opening .stk').evaluate(e => getComputedStyle(e).animationName), 'la pile monte du sachet').toBe('rise');
   await page.waitForTimeout(700);
   await expect(page.locator('booster-opening .car'), 'à 0,7 s, le sachet est encore là').toHaveCount(1);
+  // les cartes Vivante restent animées (game.css les fige au réglage système ; pas dans l'écran Booster)
+  await page.waitForTimeout(1500);
+  await page.locator('booster-opening .skip button').click(); await page.waitForTimeout(1500);
+  const viv = page.locator('booster-opening .gc .art.vivante .bg').first();
+  expect(await viv.evaluate(e => getComputedStyle(e).animationName), 'Vivante animée au butin').toBe('k4bb');
+  await expect(page.locator('booster-opening .gc .pli-card filter#k4rip').first(), 'filtre de la mer qui ondule embarqué').toHaveCount(1);
 });
 
 test('« Ouverture des boosters réduite » (Casier) : simple fondu, rien ne flotte ni ne tourne', async ({ page }) => {

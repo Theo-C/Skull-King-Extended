@@ -7,7 +7,7 @@ import './styles/booster.css';
 import './booster/booster-opening.js';
 import { callGame } from './api';
 import { esc, toast } from './util';
-import { cardHTML } from './cards';
+import { cardHTML, RIP_SVG } from './cards';
 import { sfx } from './sfx';
 import type { CallGame } from './pages/collection';
 import { boosterReduced } from './locker';
@@ -57,6 +57,9 @@ function cardStyles() {
   const keep = (r: CSSRule): string => {
     if (r instanceof CSSStyleRule) return CARD_RULE.test(r.selectorText) ? r.cssText : '';
     if (r instanceof CSSKeyframesRule || (typeof CSSPropertyRule !== 'undefined' && r instanceof CSSPropertyRule)) return r.cssText;
+    // l'écran Booster ignore le réglage système (animations de Windows coupées = variantes figées) : c'est l'option du
+    // Casier « Ouverture des boosters réduite » qui fige les cartes (renderCard, still)
+    if (r instanceof CSSMediaRule && /prefers-reduced-motion/.test(r.conditionText)) return '';
     if (r instanceof CSSMediaRule || r instanceof CSSSupportsRule) {
       const inner = Array.from(r.cssRules).map(keep).join('');
       return inner ? `${r instanceof CSSMediaRule ? '@media ' + r.conditionText : '@supports ' + r.conditionText}{${inner}}` : '';
@@ -76,7 +79,8 @@ function renderCard(c: Partial<CompCard> & { id: string; variant?: Variant }, { 
   const host = document.createElement('div'), def = CARD_BY_ID[c.id];
   host.className = 'pli-card'; host.style.cssText = 'position:relative;display:block';
   const sr = host.attachShadow({ mode: 'open' }); sr.adoptedStyleSheets = [cardStyles()];
-  sr.innerHTML = def ? `<div style="display:flex;justify-content:center;width:100%;height:100%">${cardHTML({ id: 0, ...def.card }, null, '', `style="--s:${(width / 252).toFixed(4)}"`, { variant: c.variant ?? 'std', serial: c.n ?? null, still })}</div>` : '';
+  // filtre SVG de la mer qui ondule (Vivante) embarqué : url(#k4rip) ne voit pas au-delà de la racine fantôme
+  sr.innerHTML = def ? `${RIP_SVG}<div style="display:flex;justify-content:center;width:100%;height:100%">${cardHTML({ id: 0, ...def.card }, null, '', `style="--s:${(width / 252).toFixed(4)}"`, { variant: c.variant ?? 'std', serial: c.n ?? null, still: still || boosterReduced() })}</div>` : '';
   return host;
 }
 

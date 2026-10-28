@@ -169,8 +169,9 @@ class BoosterOpening extends HTMLElement {
     this.renderChoose();
   }
   disconnectedCallback() { this.clear(); this.ro && this.ro.disconnect(); }
-  // mise à l'échelle (intégration au jeu) : la scène de 680 × 900 remplit le conteneur sans marge, pour des sachets plus grands
-  resize() { const r = this.getBoundingClientRect(), s = Math.min(1.25, r.width / 680, r.height / 900); this.fit.style.transform = `translate(-50%,-50%) scale(${s})`; }
+  // mise à l'échelle (intégration au jeu) : la scène de 680 × 900 remplit le conteneur, avec 100 px réservés au-dessus
+  // (à l'ouverture, la pile monte de 175 px et dépassait le haut de la scène) ; la scène est donc décalée de 50 px vers le bas
+  resize() { const r = this.getBoundingClientRect(), s = Math.min(1.25, r.width / 680, r.height / 1000); this.fit.style.transform = `translate(-50%,-50%) translateY(${(50 * s).toFixed(1)}px) scale(${s})`; }
   later(ms, f) { const k = this.k; this.timers.push(setTimeout(() => { if (this.k === k) f(); }, this.hasAttribute('reduce') ? Math.min(ms, 300) : ms)); }
   clear() { this.timers.forEach(clearTimeout); this.timers = []; this.k = (this.k || 0) + 1; }
 

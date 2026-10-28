@@ -90,13 +90,16 @@ function layers(key: string, v: Variant, serial?: number | null): string {
   return `<div class="lay"><div class="win" style="${boxStyle(windowBox(key))}">${win}</div>`
     + `<img class="cadre" src="${cadreUrl(key)}" alt="" decoding="async" draggable="false">${top}</div>`;
 }
-/** Filtre SVG de l'ondulation de la mer (Vivante des cartes marines), ajouté une seule fois dans la page. */
+/** Filtre SVG de l'ondulation de la mer (Vivante des cartes marines). Les cartes rendues dans un Shadow DOM (écran Booster)
+ *  l'embarquent elles-mêmes : url(#k4rip) ne voit pas au-delà de leur racine. */
+export const RIP_SVG = '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="k4rip" x="-5%" y="-5%" width="110%" height="110%" primitiveUnits="objectBoundingBox"><feTurbulence type="fractalNoise" baseFrequency="1.6 9" numOctaves="1" seed="4" result="n"><animate attributeName="baseFrequency" dur="8s" values="1.6 9;1.9 11;1.6 9" repeatCount="indefinite"/></feTurbulence><feOffset in="n" dx="0" dy="0" result="m"><animate attributeName="dy" dur="8s" values="0;.04;0" repeatCount="indefinite"/></feOffset><feDisplacementMap in="SourceGraphic" in2="m" scale=".022" xChannelSelector="R" yChannelSelector="G"/></filter></svg>';
+/** Le filtre, ajouté une seule fois dans la page. */
 function ensureRipFilter() {
   if (typeof document === 'undefined' || document.getElementById('k4rip')) return;
   const add = () => {
     if (document.getElementById('k4rip')) return;
     const d = document.createElement('div');
-    d.innerHTML = '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="k4rip" x="-5%" y="-5%" width="110%" height="110%" primitiveUnits="objectBoundingBox"><feTurbulence type="fractalNoise" baseFrequency="1.6 9" numOctaves="1" seed="4" result="n"><animate attributeName="baseFrequency" dur="8s" values="1.6 9;1.9 11;1.6 9" repeatCount="indefinite"/></feTurbulence><feOffset in="n" dx="0" dy="0" result="m"><animate attributeName="dy" dur="8s" values="0;.04;0" repeatCount="indefinite"/></feOffset><feDisplacementMap in="SourceGraphic" in2="m" scale=".022" xChannelSelector="R" yChannelSelector="G"/></filter></svg>';
+    d.innerHTML = RIP_SVG;
     document.body.append(d.firstChild!);
   };
   document.body ? add() : addEventListener('DOMContentLoaded', add);
