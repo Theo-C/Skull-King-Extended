@@ -46,6 +46,10 @@ export function installVariantFx() {
     const over = arts.length > MAX_ANIMATED;
     for (const a of arts) a.classList.toggle('capped', over && a !== live && !a.closest('.tslot'));
   }
-  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+  // seulement quand des cartes arrivent ou partent : la table modifie la page sans arrêt (journal, classement, chrono), et
+  // recalculer le plafond à chaque fois forçait une mise en page par image pendant la pose des cartes
+  const hasCard = (n: Node) => n.nodeType === 1 && ((n as Element).matches('.card, .art') || !!(n as Element).querySelector('.art.fx'));
+  new MutationObserver(recs => { if (recs.some(r => [...r.addedNodes].some(hasCard) || [...r.removedNodes].some(hasCard))) schedule(); })
+    .observe(document.body, { childList: true, subtree: true });
   schedule();
 }
