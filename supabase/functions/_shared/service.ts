@@ -111,6 +111,8 @@ export async function handle(store: Store, uid: string | null, body: any): Promi
     case 'booster.open': return boosterOpen(store, uid, body);
     case 'collection.list': return collectionList(store, uid);
     case 'collection.choose': return collectionChoose(store, uid, body);
+    case 'collection.craft': return collectionCraft(store, uid, body);
+    case 'collection.recycle': return collectionRecycle(store, uid, body);
     default: throw bad('Action inconnue.');
   }
 }
@@ -496,6 +498,30 @@ async function collectionChoose(store: Store, uid: string, body: any) {
   const card = typeof body.cardId === 'string' && C.CARD_BY_ID[body.cardId] ? body.cardId : null;
   if (!card || !C.isVariant(body.variant)) throw bad('Variante inconnue.');
   const r = await store.rpc('collection_choose', { p_user: uid, p_card: card, p_variant: body.variant });
+  if (r?.error) throw bad(r.error);
+  return r;
+}
+/** Atelier (D15, docs/boosters/ATELIER.md) : au hasard par rareté (jamais une variante déjà possédée) ou au choix (×4) ;
+ *  graine tirée ici pour le hasard. Numérotées refusées par la base. */
+async function collectionCraft(store: Store, uid: string, body: any) {
+  let args: Record<string, unknown>;
+  if (body.mode === 'random') {
+    if (!['c', 'r', 'e', 'l'].includes(body.tier)) throw bad('Rareté inconnue.');
+    const seed = new Uint32Array(1); crypto.getRandomValues(seed);
+    args = { p_user: uid, p_mode: 'random', p_tier: body.tier, p_card: null, p_variant: null, p_seed: seed[0] };
+  } else if (body.mode === 'pick') {
+    if (!(typeof body.cardId === 'string' && C.CARD_BY_ID[body.cardId]) || !C.isVariant(body.variant) || body.variant === 'std') throw bad('Variante inconnue.');
+    args = { p_user: uid, p_mode: 'pick', p_tier: null, p_card: body.cardId, p_variant: body.variant, p_seed: null };
+  } else throw bad('Mode de fabrication inconnu.');
+  const r = await store.rpc('collection_craft', args);
+  if (r?.error) throw bad(r.error);
+  return r;
+}
+/** Recycle les doublons (on garde 1 exemplaire) : tous (all) ou une variante. */
+async function collectionRecycle(store: Store, uid: string, body: any) {
+  const all = body.all === true;
+  if (!all && !(typeof body.cardId === 'string' && C.CARD_BY_ID[body.cardId] && C.isVariant(body.variant))) throw bad('Variante inconnue.');
+  const r = await store.rpc('collection_recycle', { p_user: uid, p_all: all, p_card: all ? null : body.cardId, p_variant: all ? null : body.variant });
   if (r?.error) throw bad(r.error);
   return r;
 }

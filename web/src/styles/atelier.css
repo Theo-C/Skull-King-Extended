@@ -1,0 +1,95 @@
+/* Atelier (D15, maquette Atelier) : recycler, forger au hasard ou au choix. */
+.at{box-sizing:border-box;min-height:calc(100vh - 60px);padding:16px 24px 60px;font-family:'Alegreya Sans',sans-serif;color:#efe6d2;background:radial-gradient(ellipse at 56% 40%,#2a1b10,#120c08 65%)}
+.at .lbl{font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#a8987f;margin-top:18px}
+.at .h{margin:0;font:400 21px 'IM Fell English SC',serif;color:#ead08a}
+.at .txt{font-size:13.5px;color:#cfc3ab;line-height:1.45;margin:6px 0 12px}
+.at .txt.dim{color:#8f8270;font-size:12.5px}
+.at .coin{display:inline-block;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c4 0 12%,#e2bd62 40%,#a77b22 100%);vertical-align:-1px}
+.at-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:12px;margin-bottom:16px;border-bottom:1px solid rgba(234,208,138,.14)}
+.at-head h1{margin:0;font:400 30px 'Pirata One','Pirata One Fallback',serif;color:#ead08a}
+.at-head .sub{font-size:14px;color:#d9cdb6}
+.at-w{margin-left:auto;display:flex;gap:16px;align-items:center;font-weight:800;font-size:14px}
+.at-w .sh{font-size:18px;color:#9fe3ff;font-variant-numeric:tabular-nums}
+.at-w a{color:#ead08a}
+.at-cols{display:grid;grid-template-columns:330px minmax(0,640px) 300px;gap:24px;justify-content:center;align-items:start}
+.at-panel{border-radius:14px;background:linear-gradient(180deg,#221912,#17110c);border:1px solid rgba(234,208,138,.16);padding:16px 18px}
+.at .dl{display:flex;justify-content:space-between;font-size:13.5px;padding:4px 0;border-bottom:1px solid rgba(234,208,138,.08)}
+.at .g{color:#9fe3ff;font-weight:800}
+.at .tot{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+.at .tot .g{font-size:17px;font-weight:900}
+.at-btn{min-height:42px;padding:0 18px;border-radius:11px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.35);color:#f2e7cd;font:800 15px 'Alegreya Sans',sans-serif;cursor:pointer}
+.at-btn.gold{border:0;background:linear-gradient(180deg,#f0cf72,#b78c33);color:#2b2117;box-shadow:0 6px 18px rgba(183,140,51,.3)}
+.at-btn.blue{border:0;background:linear-gradient(180deg,#8fe0ff,#3a9fcf);color:#08202c;box-shadow:0 6px 18px rgba(58,159,207,.35)}
+.at-btn.wide{width:100%;margin-top:12px}.at-btn.big{min-height:48px;font-size:16px}
+.at-btn:disabled{opacity:.38;cursor:default;box-shadow:none}
+.at button:focus-visible{outline:2px solid #ead08a;outline-offset:2px}
+.at-tabs{display:flex;gap:8px;margin-bottom:14px}
+.at .tab{height:40px;padding:0 18px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font:900 14.5px 'Alegreya Sans',sans-serif;cursor:pointer}
+.at .tab.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.at .chip{height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font:800 13px 'Alegreya Sans',sans-serif;cursor:pointer}
+.at .chip.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.at-rand,.at-pick{display:flex;gap:18px}
+.at-tiers{width:300px;flex:none;display:flex;flex-direction:column;gap:10px}
+.at .tier{display:flex;gap:14px;align-items:center;width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid rgba(234,208,138,.14);background:rgba(0,0,0,.22);color:#efe6d2;cursor:pointer;text-align:left;font-family:inherit}
+.at .tier.on{border-color:var(--c);background:rgba(255,255,255,.04);box-shadow:0 0 0 1px var(--c) inset}
+.at .tier.off{opacity:.45}
+.at .tt{flex:1;display:flex;flex-direction:column}.at .tt b{font-size:16px}.at .tt small{font-size:12.5px;color:#a8987f}
+.at .gem{flex:none;width:34px;height:34px;margin:6px;border-radius:10px;transform:rotate(45deg);background:radial-gradient(circle at 35% 30%,#fff,var(--c) 55%,#0006);box-shadow:0 0 14px var(--c)}
+.at .price{font:400 30px 'Pirata One','Pirata One Fallback',serif;color:#9fe3ff;text-shadow:0 0 12px rgba(159,227,255,.4)}
+.at .tier .price{font-size:24px}
+.at .x4{font-size:12px;font-weight:900;padding:2px 8px;border-radius:999px;background:rgba(159,227,255,.15);color:#9fe3ff}
+.at-forge-w{flex:1;display:flex;flex-direction:column;align-items:center;gap:12px}
+/* forge */
+.forge{position:relative;width:322px;height:500px;display:flex;align-items:center;justify-content:center}
+.forge.small{width:292px;height:360px}
+.anvil{position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;background:radial-gradient(circle,rgba(159,227,255,.16),transparent 62%);box-shadow:inset 0 0 0 2px rgba(159,227,255,.18)}
+.anvil::after{content:'';position:absolute;inset:26px;border-radius:50%;border:1.5px dashed rgba(159,227,255,.28);animation:atRot 30s linear infinite}
+@keyframes atRot{to{transform:rotate(360deg)}}
+.mote{position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px;border-radius:2px;transform:rotate(45deg);background:#bff0ff;box-shadow:0 0 8px #6fd3ff;opacity:0}
+.forging .mote{animation:atSuck 1.1s cubic-bezier(.6,0,.9,.6) var(--d) both}
+@keyframes atSuck{0%{opacity:0;transform:translate(var(--x),var(--y)) rotate(45deg) scale(1.2)}20%{opacity:1}100%{opacity:0;transform:translate(0,0) rotate(225deg) scale(.3)}}
+.core{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px;border-radius:50%;background:radial-gradient(circle,#fff,var(--c) 40%,transparent 70%);opacity:0;pointer-events:none}
+.forging .core{animation:atCore 1.4s ease-in both}
+@keyframes atCore{0%{opacity:0;transform:scale(.2)}70%{opacity:1;transform:scale(3)}85%{opacity:1;transform:scale(9)}100%{opacity:0;transform:scale(14)}}
+.forge .ring{position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px;border-radius:50%;border:3px solid var(--c);opacity:0;pointer-events:none}
+.forge .ring.go{animation:atRg .9s ease-out .9s both}
+@keyframes atRg{0%{opacity:1;transform:scale(.5)}100%{opacity:0;transform:scale(2.2)}}
+.forge .idle{position:relative;color:#a8987f;font-size:14px}
+.forge .flipw{position:relative;width:240px;height:335px;perspective:1100px}
+.forge .flip{position:absolute;inset:0;transform-style:preserve-3d;transition:transform 1s cubic-bezier(.3,1.25,.45,1)}
+.forge .flipw.up .flip{transform:rotateY(180deg)}
+.forge .fside{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.forge .fside.front{transform:rotateY(180deg)}
+.forge .bo-dos .face img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;border-radius:13px}
+.forge .card{box-shadow:0 14px 30px rgba(0,0,0,.6)}
+.appear{animation:atApp .5s cubic-bezier(.3,1.4,.5,1) both}
+@keyframes atApp{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
+.grey{filter:grayscale(1) brightness(.55)}
+.at-res{display:flex;flex-direction:column;align-items:center;gap:8px;min-height:90px;text-align:center}
+.at-res b{font-size:16px}
+.at .new{font-size:12px;font-weight:900;padding:2px 9px;border-radius:999px;background:#8fbf7a;color:#14240f}
+.fi{animation:atFi .4s ease-out both}
+@keyframes atFi{from{opacity:0}to{opacity:1}}
+/* au choix */
+.at-pl{width:330px;flex:none}
+.at-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.at-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;max-height:520px;overflow:auto}
+.at .ct{position:relative;padding:3px;border:2px solid transparent;border-radius:9px;background:none;cursor:pointer;display:flex;justify-content:center}
+.at .ct.on{border-color:#ead08a;background:rgba(234,208,138,.08)}
+.at-pr{flex:1;display:flex;flex-direction:column;align-items:center;gap:10px}
+.at-pr .nm{font-size:17px}
+.vchips{display:flex;gap:2px;flex-wrap:wrap;justify-content:center}
+.at .vchip{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 8px;border-radius:10px;border:1.5px solid transparent;background:none;color:#efe6d2;cursor:pointer;font:800 12px 'Alegreya Sans',sans-serif}
+.at .vchip.on{border-color:rgba(234,208,138,.6);background:rgba(234,208,138,.08)}
+.at .vchip.own{opacity:.45}
+.at .vchip small{font-size:11px;color:#a8987f}
+.at-pr .pc{display:flex;align-items:center;gap:10px}
+/* prix */
+.at-prices table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0 14px}
+.at-prices td{padding:4px 0;border-bottom:1px solid rgba(234,208,138,.08)}
+.at-prices td+td{text-align:right;font-weight:800;color:#9fe3ff}
+.at-prices tr.hd td{font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:#a8987f}
+.at-prices .note{margin-top:10px}.at-prices .note b{color:#f2e7cd;font-size:14px}.at-prices .note p{margin:3px 0 0;font-size:13px;color:#c9bfaa;line-height:1.45}
+@media (max-width:1300px){.at-cols{grid-template-columns:minmax(0,640px)}.at-panel{order:2}}
+@media (max-width:720px){.at{padding:12px 16px 90px}.at-w{margin-left:0;flex-wrap:wrap;gap:10px}.at-rand,.at-pick{flex-direction:column;align-items:center}.at-tiers,.at-pl{width:100%}.forge{width:300px;height:380px}}
+@media (prefers-reduced-motion: reduce){.anvil::after,.forging .mote,.forging .core,.forge .ring.go,.appear{animation:none!important}.forge .flip{transition:none}}

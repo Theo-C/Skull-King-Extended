@@ -127,7 +127,37 @@ let blocked = false; try { await db.query(`insert into user_card_variants (user_
 await db.exec('reset role');
 ok('RLS : on ne voit que sa collection', seen.length === 1 && seen[0].user_id === uid(3), seen);
 ok('RLS : impossible de s’ajouter une variante', blocked);
-void wallet;
+/* ---------- 4. Atelier (D15) : fabrication et recyclage ---------- */
+const F = uid(12);
+// F possède toutes les Holo sauf celles de rosie et de kraken
+await db.exec(`insert into user_card_variants (user_id, card_id, variant, source) select '${F}', card_id, 'holo', 'test' from card_catalog where card_id not in ('rosie', 'kraken');
+  insert into user_wallet (user_id, shards) values ('${F}', 2000)`);
+const r1 = await rpc('collection_craft', { p_user: F, p_mode: 'random', p_tier: 'r', p_seed: 5 });
+const r2 = await rpc('collection_craft', { p_user: F, p_mode: 'random', p_tier: 'r', p_seed: 5 });
+ok('au hasard : seulement des variantes manquantes', r1.ok && r2.ok && new Set([r1.card_id, r2.card_id]).size === 2 && [r1.card_id, r2.card_id].every((c: string) => c === 'rosie' || c === 'kraken'), [r1, r2]);
+ok('au hasard : prix de base (Holo 80)', r1.cost === 80 && r2.shards === 2000 - 160, r2);
+const r3 = await rpc('collection_craft', { p_user: F, p_mode: 'random', p_tier: 'r', p_seed: 5 });
+ok('au hasard : refusé quand tout est possédé', !!r3?.error && /déjà à vous/.test(r3.error), r3);
+const p1 = await rpc('collection_craft', { p_user: F, p_mode: 'pick', p_card: 'sk', p_variant: 'vivante' });
+ok('au choix : 4 × le prix de base (Épique 960)', p1.ok && p1.cost === 960 && p1.shards === 2000 - 160 - 960, p1);
+ok('au choix : solde trop bas → refus', /manque/.test((await rpc('collection_craft', { p_user: F, p_mode: 'pick', p_card: 'sk', p_variant: 'signee' }))?.error ?? ''));
+ok('au choix : refusé si déjà possédée', !!(await rpc('collection_craft', { p_user: F, p_mode: 'pick', p_card: 'g1', p_variant: 'holo' }))?.error);
+ok('au choix : Numérotée refusée', /Numérotées/.test((await rpc('collection_craft', { p_user: F, p_mode: 'pick', p_card: 'sk', p_variant: 'numero' }))?.error ?? ''));
+ok('au hasard : Numérotée refusée', !!(await rpc('collection_craft', { p_user: F, p_mode: 'random', p_tier: 'm' }))?.error);
+// solde jamais négatif sous concurrence : 30 éclats, deux Communes au hasard (20 chacune) lancées ensemble
+await db.exec(`update user_wallet set shards = 30 where user_id = '${F}'`);
+const both = await Promise.all([rpc('collection_craft', { p_user: F, p_mode: 'random', p_tier: 'c', p_seed: 1 }), rpc('collection_craft', { p_user: F, p_mode: 'random', p_tier: 'c', p_seed: 2 })]);
+const left = (await wallet(F)).shards;
+ok('concurrence : une seule fabrication passe, solde jamais négatif', both.filter(b => b.ok).length === 1 && both.filter(b => b.error).length === 1 && left === 10, { both, left });
+// recyclage : on garde 1 exemplaire
+await db.exec(`update user_card_variants set copies = 3 where user_id = '${F}' and card_id = 'g2' and variant = 'holo';
+  insert into user_card_variants (user_id, card_id, variant, copies, source) values ('${F}', 'g2', 'nacre', 2, 'test')`);
+const one = await rpc('collection_recycle', { p_user: F, p_all: false, p_card: 'g2', p_variant: 'holo' });
+ok('recycler une variante : 2 doublons Holo = 40 éclats', one.ok && one.recycled === 2 && one.shards_gained === 40, one);
+const all = await rpc('collection_recycle', { p_user: F, p_all: true });
+ok('tout recycler : le doublon Nacre = 60 éclats, 1 exemplaire gardé', all.ok && all.shards_gained === 60 && (await db.query<any>(`select max(copies) as m from user_card_variants where user_id = '${F}'`)).rows[0].m === 1, all);
+ok('plus rien à recycler', !!(await rpc('collection_recycle', { p_user: F, p_all: true }))?.error);
+ok('journal des éclats de l’Atelier', (await db.query<any>(`select count(*)::int as n from shard_events where user_id = '${F}' and reason in ('craft_random', 'craft_pick', 'recycle')`)).rows[0].n >= 6);
 
 console.log(`Collection : ${passes} vérifications réussies, ${fails} échec(s).`);
 if (fails) process.exit(1);

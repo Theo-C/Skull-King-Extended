@@ -5,6 +5,7 @@ import '../src/app.css';
 import { installVariantFx } from '../src/variantFx';
 import { collectionPage } from '../src/pages/collection';
 import { boosterPage } from '../src/booster';
+import { atelierPage } from '../src/pages/atelier';
 import * as C from '@shared/collection.ts';
 
 const q = new URLSearchParams(location.search), force = q.get('force');
@@ -75,5 +76,5 @@ export async function fakeApi<T = any>(action: string, p: Record<string, any> = 
 
 installVariantFx();
 const view = document.getElementById('view')!, ecran = q.get('ecran') ?? 'collection';
-const ready = ecran === 'boosters' ? boosterPage(view, q, fakeApi) : collectionPage(view, q, fakeApi);
+const ready = ecran === 'boosters' ? boosterPage(view, q, fakeApi) : ecran === 'atelier' ? atelierPage(view, q, fakeApi) : collectionPage(view, q, fakeApi);
 (window as any).banc = { ready, fakeApi };
