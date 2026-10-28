@@ -47,3 +47,9 @@
 </g>
 <rect width="720" height="1024" fill="#fff" filter="url(#grain)" opacity=".5"/>
 </svg>
+## Note d'intégration (28 octobre 2026)
+
+- Les fichiers sont dans `web/public/boosters/`.
+- `sachet_sirenes.webp` et `sachet_couronne.webp` étaient inversés : ils ont été renommés d'après leur contenu.
+- Les `.png` ne correspondent pas à leur nom (`sachet_profondeurs.png` est l'illustration seule en 434 × 754, `sachet_sirenes.png` montre le sachet Profondeurs) : le site n'utilise que les `.webp`.
+- `art_couronne.jpg` manque (non utilisé : le sachet n'est pas recomposé en CSS).

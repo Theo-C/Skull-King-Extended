@@ -142,4 +142,18 @@ export const sfx = {
   chord: (rarity: string) => { const n = CHORDS[rarity] ?? CHORDS.c, rich = n.length > 3; n.forEach((f, i) => { tone(i * (rich ? .07 : .05), rich ? 1.4 : .8, f, .05); if (rich) tone(i * .07 + .02, 1.2, f * 2, .015, 'triangle'); }); },
   open: () => { swish(0, .18, 1200, .2); tone(0, .16, 110, .1, 'triangle'); tone(.04, .25, 1760, .03, 'triangle'); },
   bad: () => { tone(0, .22, 294, .06, 'triangle'); tone(.14, .34, 220, .06, 'triangle'); },
+  // booster (docs/boosters/SPEC.md, « Sons ») : froissement du sachet, crissement de la coupe dont la hauteur suit la
+  // progression, déchirure et souffle, « fwip » de chaque carte, carillon (Holo), accord (Épique), fanfare (Signée, Numérotée)
+  crinkle: () => { for (let i = 0; i < 5; i++) swish(i * .045 + Math.random() * .02, .06, 3000 + Math.random() * 2500, .12); },
+  cut: (p: number) => swish(0, .05, 1400 + Math.min(1, Math.max(0, p)) * 3200, .08),
+  tear: () => { swish(0, .32, 2200, .26); swish(.05, .2, 900, .16); breath(.1, .9, .08); },
+  fwip: () => swish(0, .13, 3400, .17),
+  reveal: (tier: string) => {
+    if (tier === 'r') [1319, 1760, 2349].forEach((f, i) => tone(i * .07, .5, f, .035, 'triangle'));
+    else if (tier === 'e') CHORDS.e.forEach((f, i) => tone(i * .06, 1, f, .045));
+    else if (tier === 'l' || tier === 'm') {
+      [523, 659, 784, 1047].forEach((f, i) => tone(i * .09, .28, f, .06, 'triangle'));
+      (tier === 'm' ? CHORDS.m : CHORDS.l).forEach((f, i) => { tone(.4 + i * .05, 1.6, f, .05); tone(.42 + i * .05, 1.3, f * 2, .014, 'triangle'); });
+    }
+  },
 };
