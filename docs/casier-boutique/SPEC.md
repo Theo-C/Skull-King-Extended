@@ -48,8 +48,9 @@ Barre du bas : état (« Modifications non enregistrées » ou « Enregistré �
 ## Boutique
 - **En-tête** : catégories À la une, Coffres et bonus, Apparence, Cartes, Titres et réactions, et le porte-monnaie (pièces, coffres, jokers).
 - **Coffres et bonus**, toujours disponibles :
-  - Coffre : **100 pièces** ;
-  - 3 coffres : **270 pièces** (−10 %) ;
+  - Coffre : **50 pièces** (100 avant le 28 octobre 2026) ;
+  - 3 coffres : **135 pièces** (−10 %) ;
+  - depuis D14, les coffres ne servent qu'à la personnalisation du profil (plus de carte animée Mythique dedans) et le **booster de cartes** (50 pièces, `docs/boosters/`) est l'article principal ;
   - Joker : **150 pièces**.
 - **Échoppe de la semaine** : 6 objets en vente temporaire contre des pièces.
   - Renouvelée **chaque lundi à 00:00 (heure de Paris)**, avec un compte à rebours en jours et heures (« encore 4 j 13 h »).

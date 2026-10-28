@@ -559,6 +559,9 @@ body:not(.at-table){background:radial-gradient(ellipse at 30% 0%,#2a1f17 0%,#120
 .ftag.c{color:#b9a27f}.ftag.r{color:#6fb3d0}.ftag.l{color:#ead08a}
 .fcoins{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;background:rgba(201,161,74,.14);border:1px solid rgba(234,208,138,.3);align-self:flex-start;animation:inL .4s calc(2.8s * var(--spd,1)) ease-out both;font-size:14px}
 .fcoins b{color:var(--brass2)}
+.fbooster{display:flex;align-items:center;gap:16px;padding:12px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(201,161,74,.16),rgba(40,30,20,.6));border:1px solid rgba(234,208,138,.35);animation:inL .4s ease-out both}
+.fbooster img{width:62px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.6));transform:rotate(-6deg)}
+.fbooster .abtn{align-self:flex-start;text-decoration:none}
 @keyframes wob{0%,100%{transform:rotate(0)}20%{transform:rotate(-6deg)}40%{transform:rotate(5deg)}60%{transform:rotate(-3deg)}}
 @keyframes pop{0%{opacity:0;transform:scale(.6) rotate(-8deg)}70%{transform:scale(1.08)}100%{opacity:1;transform:none}}
 /* partie classée ou non (Élo), sous le nombre de manches : visible avant chaque lancement */

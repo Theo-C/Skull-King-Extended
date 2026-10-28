@@ -54,6 +54,7 @@ export async function homePage(root: HTMLElement, uid: string) {
       <div class="col only-dk">
         <section class="apanel"><div class="hrow"><h2>Entre amis</h2><span>Élo</span></div><div id="friends"><p class="empty">Chargement…</p></div><a class="more" href="#/classement">Voir le classement</a></section>
         <section class="apanel"><h2>Derniers hauts faits</h2><div id="feats"><p class="empty">Chargement…</p></div><a class="more" href="#/profil">Tous vos hauts faits</a></section>
+        <section class="apanel"><h2>Belles prises</h2><div id="pulls"><p class="empty">Chargement…</p></div><a class="more" href="#/collection">Votre collection</a></section>
       </div>
     </div>
   </section>`;
@@ -64,7 +65,15 @@ export async function homePage(root: HTMLElement, uid: string) {
     if (c) { go('#/rejoindre/' + c); return; }
     $('#acts', root).classList.add('open'); inp.focus();
   });
-  loadLive(root, uid); loadDone(root, uid); loadFriends(root, uid); loadFeats(root, uid);
+  loadLive(root, uid); loadDone(root, uid); loadFriends(root, uid); loadFeats(root, uid); loadPulls(root);
+}
+/** Signées, Numérotées et boosters divins de ses amis (14 derniers jours, card_announcements_feed). */
+async function loadPulls(root: HTMLElement) {
+  const { data, error } = await sb.rpc('card_announcements_feed', { p_limit: 5 });
+  const el = root.querySelector('#pulls'); if (!el) return;
+  if (error) { el.innerHTML = '<p class="empty">Indisponible pour le moment.</p>'; return; }
+  el.innerHTML = (data as any[] || []).map(a => `<div class="feat"><span class="fbadge">${a.kind === 'divine' ? '✦' : a.kind === 'numero' ? '★★' : '★'}</span><span><b>${esc(a.pseudo)}</b><span>${a.kind === 'divine' ? 'a ouvert un booster divin (1 sur 2 000)' : `${esc(a.card_name ?? '')} ${a.kind === 'numero' ? `Numérotée N° ${String(a.serial).padStart(3, '0')} / 100` : 'Signée'}`} · ${esc(relDay(a.created_at).toLowerCase())}</span></span></div>`).join('')
+    || '<p class="empty">Aucune Signée ni Numérotée ces deux dernières semaines.</p>';
 }
 
 /** Parties en cours et salons, avec le bandeau « À vous de jouer » pour la première où l'on est attendu. */

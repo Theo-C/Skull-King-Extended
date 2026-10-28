@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Collection de cartes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800;900&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible{outline:2px solid #ead08a;outline-offset:2px}
+.btn{min-height:40px;padding:0 16px;border-radius:9px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.35);color:#f2e7cd;font-weight:800;font-size:14px;cursor:pointer}
+.btn.gold{border:0;background:linear-gradient(180deg,#e2bd62,#b78c33);color:#2b2117}
+.btn[aria-disabled="true"]{opacity:.4;cursor:default}
+.card{border-radius:14px;background:linear-gradient(180deg,#221912,#17110c);border:1px solid rgba(234,208,138,.16);box-sizing:border-box}
+.h{font-family:'IM Fell English SC',serif;font-size:19px;color:#ead08a}
+.chip{height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font-weight:800;font-size:13px;cursor:pointer}
+.chip.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.ct{position:relative;padding:4px;border:2px solid transparent;border-radius:10px;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px}
+.ct:hover{background:rgba(234,208,138,.06)}
+.ct.on{border-color:#ead08a;background:rgba(234,208,138,.08)}
+.pips{display:flex;gap:2px}
+.pips i{width:7px;height:7px;border-radius:50%;display:block}
+.vr{display:flex;align-items:center;gap:10px;width:100%;padding:5px 8px;border-radius:10px;border:1.5px solid transparent;background:none;color:#efe6d2;cursor:pointer;text-align:left}
+.vr:hover{background:rgba(234,208,138,.06)}
+.vr.on{border-color:rgba(234,208,138,.6);background:rgba(234,208,138,.08)}
+.vr.lock .mini{filter:grayscale(.9) brightness(.5)}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:#1b140e}
+.myth{background:linear-gradient(90deg,#ff9ad5,#9be7ff,#c8a8ff,#ffe39a)}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 1120px; overflow: hidden; font-family: 'Alegreya Sans', sans-serif; background: #120c08; color: #efe6d2;">
+<div style="position: absolute; left: 0; top: 0; width: 1440px; height: 60px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid rgba(234,208,138,.14); background: #0f0a07;">
+<div style="font-family: 'Pirata One', cursive; font-size: 30px; color: #ead08a;">Collection</div>
+<div style="font-size: 14px; color: #d9cdb6;">Série 1 · <b>Les Sept Mers</b></div>
+<div style="width: 260px; height: 8px; border-radius: 4px; background: rgba(234,208,138,.14); overflow: hidden;"><div style="width: 31%; height: 100%; background: linear-gradient(90deg,#b78c33,#ead08a);"></div></div>
+<div style="font-size: 13.5px; color: #a8987f;">148 / 472 variantes</div>
+<div style="margin-left: auto; display: flex; gap: 14px; font-size: 14px; font-weight: 800;"><span>🪙 1 240</span><span style="color: #9fe3ff;">◆ {{eclats}} éclats</span><span>🎴 2 boosters</span></div>
+</div>
+
+<!-- grille des cartes -->
+<div style="position: absolute; left: 24px; top: 76px; width: 610px;">
+<div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;"><sc-for list="{{filters}}" as="f" hint-placeholder-count="7"><button class="{{f.cls}}" onClick="{{f.pick}}">{{f.label}}</button></sc-for></div>
+<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
+<sc-for list="{{grid}}" as="c" hint-placeholder-count="18">
+<button class="{{c.cls}}" onClick="{{c.pick}}" aria-label="{{c.name}}">
+<dc-import name="CarteVar" card="{{c.id}}" v="{{c.v}}" w="{{74}}" hint-size="74px,105px"></dc-import>
+<div class="pips"><sc-for list="{{c.pips}}" as="p" hint-placeholder-count="8"><i style="background: {{p}};"></i></sc-for></div>
+</button>
+</sc-for>
+</div>
+</div>
+
+<!-- grande carte -->
+<div style="position: absolute; left: 654px; top: 76px; width: 380px; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+<div style="font-size: 13px; color: #a8987f;">Survolez la carte pour la faire bouger</div>
+<dc-import name="CarteVar" card="{{sel.id}}" v="{{view}}" serial="{{serial}}" w="{{250}}" tilt="{{true}}" hint-size="250px,356px"></dc-import>
+<div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;"><b style="font-size: 20px;">{{sel.name}}</b></div>
+<div style="display: flex; align-items: center; gap: 8px;"><span class="{{vi.pillCls}}" style="background: {{vi.c}};">{{vi.rar}}</span><span style="font-size: 15px; font-weight: 800;">{{vi.name}}</span></div>
+<div style="font-size: 11.5px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: #a8987f; margin-top: 4px;">Lisibilité à la taille de la main mobile</div>
+<div style="display: flex; gap: 3px;"><sc-for list="{{small}}" as="m" hint-placeholder-count="8"><dc-import name="CarteVar" card="{{sel.id}}" v="{{m}}" w="{{32}}" still="{{true}}" hint-size="32px,46px"></dc-import></sc-for></div>
+</div>
+
+<!-- variantes -->
+<div class="card" style="position: absolute; left: 1054px; top: 76px; width: 362px; padding: 12px 10px;">
+<div class="h" style="padding: 0 6px 6px;">Variantes</div>
+<sc-for list="{{vars}}" as="v" hint-placeholder-count="8">
+<button class="{{v.cls}}" onClick="{{v.pick}}">
+<div class="mini"><dc-import name="CarteVar" card="{{sel.id}}" v="{{v.id}}" w="{{38}}" hint-size="38px,54px"></dc-import></div>
+<div style="flex: 1; min-width: 0;"><div style="display: flex; align-items: center; gap: 6px;"><b style="font-size: 14px;">{{v.name}}</b><sc-if value="{{v.eq}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; font-weight: 900; color: #ead08a;">EN JEU</span></sc-if></div><div style="font-size: 12px; font-weight: 800;"><span style="color: {{v.c}};">{{v.rar}}</span><span style="color: #8f8270; font-weight: 700; font-style: italic;"> · {{v.off}}</span></div></div>
+<span style="font-size: 12.5px; color: #a8987f; text-align: right;">{{v.own}}</span>
+</button>
+</sc-for>
+<div style="border-top: 1px solid rgba(234,208,138,.12); margin: 8px 6px 0; padding-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+<div style="font-size: 13px; color: #d9cdb6; line-height: 1.4;">{{vi.how}}</div>
+<div style="display: flex; gap: 6px; flex-wrap: wrap;">
+<button class="btn gold" onClick="{{equip}}" aria-disabled="{{equipDis}}">{{equipLbl}}</button>
+<sc-if value="{{canCraft}}" hint-placeholder-val="{{false}}"><button class="btn" onClick="{{craft}}">Fabriquer · {{vi.costTxt}} ◆</button></sc-if>
+<sc-if value="{{canRecycle}}" hint-placeholder-val="{{false}}"><button class="btn" onClick="{{recycle}}">Recycler {{dupN}} doublon{{dupS}} · +{{dupGain}} ◆</button></sc-if>
+</div>
+</div>
+</div>
+
+<!-- ce que voient les autres -->
+<div class="card" style="position: absolute; left: 24px; top: 640px; width: 1010px; height: 250px; padding: 14px 18px; background: radial-gradient(ellipse at 50% 60%, #2a6066, #1f4c50 60%, #13353a); border-color: rgba(234,208,138,.25);">
+<div style="font-size: 12px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,240,210,.75);">À la table : chacun voit la variante que vous avez choisie</div>
+<div style="display: flex; gap: 18px; margin-top: 14px; align-items: flex-end;">
+<sc-for list="{{trick}}" as="t" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+<dc-import name="CarteVar" card="{{t.id}}" v="{{t.v}}" w="{{112}}" hint-size="112px,160px"></dc-import>
+<span style="font-size: 12.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px; background: rgba(10,8,6,.7); white-space: nowrap;">{{t.who}}</span>
+</div>
+</sc-for>
+<div style="flex: 1; font-size: 13.5px; color: #e9f2f0; line-height: 1.5; padding-left: 10px;">Au survol d'une carte posée : « Holographique · Théo ». La variante ne change jamais la valeur de la carte, seulement son apparence. Le réglage « Animations des autres » fige les reflets chez soi.</div>
+</div>
+</div>
+
+<!-- notes -->
+<div style="position: absolute; left: 0; top: 910px; width: 1440px; height: 210px; box-sizing: border-box; padding: 20px 40px; background: #0b0805; display: flex; gap: 24px;">
+<div style="flex: none; width: 240px;"><div style="font-family: 'IM Fell English SC', serif; font-size: 22px; color: #ead08a;">8 variantes par carte</div><div style="font-size: 13.5px; color: #d9cdb6; line-height: 1.45; margin-top: 6px;">Chaque carte existe en 8 versions, sans jamais brouiller sa famille : un vert reste vert, un drapeau reste noir.</div></div>
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<div style="flex: 1; display: flex; flex-direction: column; gap: 6px;"><span style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;">{{n.i}}</span><b style="color: #f2e7cd; font-size: 15px;">{{n.t}}</b><span style="font-size: 13px; color: #cfc3ab; line-height: 1.45;">{{n.d}}</span></div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1120}}'>
+class Component extends DCLogic {
+  state = { sel: 'rosie', view: null, filter: 'all', eq: { rosie: 'holo', kraken: 'nacre', sk: 'std', g12: 'patine', b14: 'vivante' }, eclats: 85, extra: {} };
+  data() {
+    var B = id => '/_blob/' + id;
+    var Y = B('05feb9c03cccae02dce55d08994efa21'), G = B('2c16dc4f13e00525e43b0c72d94b5d79'), P = B('ede6e1952639731efc606df4abd932fb'), K = B('26a04d135256b5ce9809aee0f5bd0a69');
+    return [
+      ['rosie', 'Rosie la douce', 'pir', B('ff39722f03278f1e6498792ff8a63a68'), '', 'Rosie'], ['rascal', 'Rascal le Flambeur', 'pir', B('0413965c5c4c86820e9361da2a76a38e'), '', 'Rascal'],
+      ['juanita', 'Juanita Jade', 'pir', B('8d801eb5980a3c0d200586e98c540b4f'), '', 'Juanita'], ['harry', 'Harry le géant', 'pir', B('e7f1e802fee8db9f7668760507ce9995'), '', 'Harry'],
+      ['mary', 'Marie Thorne', 'pir', B('eef6b77f7aba125ac59f2d8ca134e5b6'), '', 'Marie'], ['morgane', 'Morgane la Louve', 'pir', B('6b6cbdc706a4a8875d0a5ffb9670681d'), '', 'Morgane'],
+      ['sk', 'Skull King', 'cre', B('7a37721affe1ef5255747f13414114f3'), '', 'Le Roi'], ['kraken', 'Kraken', 'cre', B('6885b5bd62cdd9221b9f8d5b202e0e0b'), '', 'Barbe-Grise'],
+      ['alyra', 'Alyra, sirène', 'cre', B('6beebbcf643930819e694405ddeece17'), '', 'Alyra'], ['whale', 'Baleine blanche', 'cre', B('c87e1ef0ce512a24858a58a1828cb1ee'), '', 'Barbe-Grise'],
+      ['escape', 'Fuite', 'cre', B('c167a41d609a8d0d7583370a22d27659'), '', 'Barbe-Grise'], ['bahij', 'Bahij', 'pir', B('e261b22a16494f4b3738c0497a1f1126'), '', 'Bahij'],
+      ['y7', '7 jaune', 'yellow', Y, '7', 'Barbe-Grise'], ['y14', '14 jaune', 'yellow', Y, '14', 'Barbe-Grise'], ['g12', '12 vert', 'green', G, '12', 'Barbe-Grise'], ['g3', '3 vert', 'green', G, '3', 'Barbe-Grise'],
+      ['p1', '1 violet', 'purple', P, '1', 'Barbe-Grise'], ['p9', '9 violet', 'purple', P, '9', 'Barbe-Grise'], ['b14', '14 noir', 'black', K, '14', 'Barbe-Grise'], ['b10', '10 noir', 'black', K, '10', 'Barbe-Grise']
+    ];
+  }
+  renderVals() {
+    var s = this.state;
+    var V = [
+      ['std', 'Standard', 'Base', '#8f8270', 'Tout le monde l’a.', 0],
+      ['patine', 'Patinée', 'Commune', '#c9d3dc', 'Taches et craquelures de vieux parchemin sur l’illustration et la marge. Les couleurs ne changent pas.', 80],
+      ['etain', 'Bord d’étain', 'Commune', '#c9d3dc', 'Marge en étain brossé, rivets aux quatre coins.', 80],
+      ['holo', 'Holographique', 'Rare', '#4fa8ff', 'Reflets argentés et paillettes qui suivent le mouvement, marge irisée. Au moins une par booster.', 320],
+      ['vivante', 'Vivante', 'Épique', '#b77dff', 'L’illustration bouge doucement dans sa fenêtre (zoom, lumière qui passe). Le cadre reste immobile.', 960],
+      ['nacre', 'Nacre', 'Épique', '#b77dff', 'Marge en nacre irisée, filet d’or, reflets.', 960],
+      ['signee', 'Signée', 'Légendaire', '#ffc94a', 'Nacre, paillettes et signature à l’encre d’or sur l’illustration (le pirate, ou Barbe-Grise le cartographe).', 3200],
+      ['numero', 'Numérotée', 'Mythique', 'myth', 'Signée + Vivante, numéro unique gravé dans la marge : 100 exemplaires par carte et par saison, pour tous les joueurs. Ni fabricable ni recyclable.', 0]
+    ];
+    var OFF = { std: 'Regular', patine: 'Vintage', etain: 'Silver Border', holo: 'Holo', vivante: 'Animated', nacre: 'Pearl Foil', signee: 'Signature', numero: 'Serialized' };
+    var tplOf = c => c[2] === 'pir' || c[0] === 'sk' || c[0] === 'alyra' ? 'pir' : c[2] === 'cre' ? 'cre' : 'suit';
+    var D = this.data();
+    var FAM = { all: () => 1, pir: c => c[2] === 'pir', cre: c => c[2] === 'cre', yellow: c => c[2] === 'yellow', green: c => c[2] === 'green', purple: c => c[2] === 'purple', black: c => c[2] === 'black' };
+    var hash = str => { var h = 7; for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 9973; return h; };
+    var owned = (c, vid) => { if (vid === 'std') return 1; var k = c[0] + ':' + vid; if (s.extra[k] != null) return s.extra[k]; var h = hash(k) % 100;
+      var t = { patine: 70, etain: 60, holo: 45, nacre: 18, vivante: 14, signee: c[0] === 'rosie' ? 100 : 4, numero: c[0] === 'kraken' ? 100 : 0 }[vid]; return h < t ? 1 + (h % 3) : 0; };
+    var colorOf = v => v[3] === 'myth' ? '#e7c6ff' : v[3];
+    var sel = D.find(c => c[0] === s.sel), eqv = s.eq[sel[0]] || 'std', view = s.view || eqv, vi = V.find(v => v[0] === view), cnt = owned(sel, view);
+    var dup = Math.max(0, cnt - 1), gain = { std: 0, patine: 5, etain: 5, holo: 20, nacre: 60, vivante: 60, signee: 200, numero: 0 }[view] * dup;
+    var setX = (k, n) => { var x = Object.assign({}, this.state.extra); x[k] = n; this.setState({ extra: x }); };
+    return {
+      eclats: s.eclats,
+      filters: [['all', 'Toutes'], ['pir', 'Pirates'], ['cre', 'Créatures et spéciales'], ['yellow', 'Jaune'], ['green', 'Vert'], ['purple', 'Violet'], ['black', 'Noir']].map(f => ({ label: f[1], cls: 'chip' + (s.filter === f[0] ? ' on' : ''), pick: () => this.setState({ filter: f[0] }) })),
+      grid: D.filter(FAM[s.filter]).map(c => ({ id: c[0], name: c[1], tpl: tplOf(c), img: c[3], num: c[4], sig: c[5], v: s.eq[c[0]] || 'std', cls: 'ct' + (s.sel === c[0] ? ' on' : ''),
+        pips: V.map(v => owned(c, v[0]) ? colorOf(v) : 'rgba(234,208,138,.14)'), pick: () => this.setState({ sel: c[0], view: null }) })),
+      sel: { id: sel[0], name: sel[1], tpl: tplOf(sel), img: sel[3], num: sel[4], sig: sel[5] }, view: view, serial: '042 / 100',
+      vi: { name: vi[1], rar: vi[2], c: vi[3] === 'myth' ? 'transparent' : vi[3], pillCls: 'pill' + (vi[3] === 'myth' ? ' myth' : ''), how: vi[4] + (cnt ? '' : ' Pas encore obtenue.'), cost: vi[5], costTxt: vi[5].toLocaleString('fr-FR') },
+      vars: V.map(v => { var n = owned(sel, v[0]); return { off: OFF[v[0]], id: v[0], name: v[1], rar: v[2], c: colorOf(v), eq: eqv === v[0], own: n ? (v[0] === 'std' ? '' : '×' + n) : '🔒',
+        cls: 'vr' + (view === v[0] ? ' on' : '') + (n ? '' : ' lock'), pick: () => this.setState({ view: v[0] }) }; }),
+      equipLbl: eqv === view ? 'Utilisée en partie ✓' : cnt ? 'Utiliser en partie' : 'Pas encore obtenue', equipDis: String(!cnt || eqv === view),
+      equip: () => { if (!cnt) return; var e = Object.assign({}, this.state.eq); e[sel[0]] = view; this.setState({ eq: e }); },
+      canCraft: !cnt && vi[5] > 0, craft: () => { if (this.state.eclats >= vi[5]) { setX(sel[0] + ':' + view, 1); this.setState({ eclats: this.state.eclats - vi[5] }); } },
+      canRecycle: dup > 0 && gain > 0, dupN: dup, dupS: dup > 1 ? 's' : '', dupGain: gain,
+      recycle: () => { setX(sel[0] + ':' + view, 1); this.setState({ eclats: this.state.eclats + gain }); },
+      small: V.map(v => v[0]),
+      trick: [
+        { id: 'kraken', tpl: 'cre', img: D[7][3], num: '', v: 'nacre', sig: 'Barbe-Grise', who: 'Maëlle · Nacre' },
+        { id: 'g12', tpl: 'suit', img: D[14][3], num: '12', v: 'etain', sig: '', who: 'Corentin · Bord d’étain' },
+        { id: sel[0], tpl: tplOf(sel), img: sel[3], num: sel[4], v: eqv, sig: sel[5], who: 'Vous · ' + V.find(v => v[0] === eqv)[1] },
+        { id: 'b14', tpl: 'suit', img: D[18][3], num: '14', v: 'std', sig: '', who: 'Ysolde · Standard' }
+      ],
+      notes: [
+        { i: 1, t: 'Le cadre ne change jamais', d: 'couleur du cadre, médaillon de valeur, icône et bandeau du nom sont protégés. Une variante ne joue que sur l’illustration (dans sa fenêtre), la marge, les reflets et des ajouts (signature, numéro).' },
+        { i: 2, t: 'Une carte, une variante en jeu', d: 'pour chaque carte, on choisit la variante qu’on joue. Elle s’affiche chez tout le monde quand la carte est posée : c’est là que la collection se montre.' },
+        { i: 3, t: 'Doublons utiles', d: 'les doublons se recyclent en éclats (5 à 200), et les éclats fabriquent la variante voulue (80 à 3 200), ou une variante au hasard 4 fois moins cher dans l’Atelier. Seules les Numérotées ne se fabriquent pas.' },
+        { i: 4, t: 'Un album à compléter', d: 'les pastilles sous chaque carte montrent les variantes possédées. Compléter une famille en Holographique, ou une carte en entier, donne des dos de cartes et des titres.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

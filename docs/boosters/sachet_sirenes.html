@@ -1,0 +1,16 @@
+# Visuels des boosters
+
+| Fichier | Usage | Remplace dans les maquettes |
+|---|---|---|
+| `web/public/boosters/sachet_profondeurs.webp` (.png) | sachet « Profondeurs », 880 × 1440, fond transparent, bords sertis | `/_blob/37c9f571b4b0887791c18ec62766df86` (illustration seule) |
+| `web/public/boosters/sachet_sirenes.webp` (.png) | sachet « Chant des sirènes » | `/_blob/6ab498a5dfcaa5cc662ff4f2cc91431a` |
+| `web/public/boosters/sachet_couronne.webp` (.png) | sachet « Couronne du roi » | `/_blob/79bcb352d8461025c558da4b2d03c1c5` |
+| `web/public/boosters/art_<booster>.jpg` | illustration seule du sachet, si le sachet est composé en CSS comme dans la maquette (bande déchirable animée) | idem |
+| `web/public/cards/dos_profondeurs.webp` | dos des cartes du booster « Profondeurs » (rose des vents, bleu nuit) | `/_blob/448115e69b9e45021d6c7d8194700ccb` (`dos.webp`) |
+| `web/public/cards/dos_sirenes.webp` | dos « Chant des sirènes » (coquille et trident, indigo, perles) | — |
+| `web/public/cards/dos_couronne.webp` | dos « Couronne du roi » (couronne et sabres croisés, cramoisi) | — |
+
+- Le dos affiché à l'ouverture (carte de chance, 5e carte) est celui du booster ouvert.
+- Ces dos peuvent aussi être proposés dans le Casier (onglet Dos de cartes), débloqués en complétant la collection du booster en Holographique.
+- Sources : `dos_<booster>.svg` (régénérer avec `gen_dos.py`, polices Pirata One et IM Fell English SC) et `sachet_<booster>.html` (capture 440 × 720 à ×2, fond transparent).
+- Pour l'animation de coupe, le sachet peut rester composé en CSS (comme la maquette `Booster`) avec `art_<booster>.jpg` ; l'image complète sert ailleurs (Boutique, notifications, partage).

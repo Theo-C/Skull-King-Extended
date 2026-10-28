@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Carte (calques, variantes)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Mrs+Saint+Delafield&family=Alegreya+Sans:wght@700;900&display=swap">
+<style>
+body{margin:0}
+.k4{position:relative;width:var(--w);height:calc(var(--w)*1.4222);flex:none;border-radius:calc(var(--w)*.04);overflow:hidden;box-shadow:0 8px 22px rgba(0,0,0,.55);transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .12s;--mx:50%;--my:30%;background:#efe2c3;isolation:isolate}
+.k4 .win{position:absolute;overflow:hidden;background:#1b140e;isolation:isolate}
+.k4 .mv{position:absolute;transform-origin:var(--ox) var(--oy)}
+.k4 .art,.k4 .rip,.k4 .fg{position:absolute;inset:0;background-size:100% 100%}
+.k4 .frame{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+.k4 .num{position:absolute;left:81%;top:13.2%;transform:translate(-50%,-50%);font-family:'Pirata One',cursive;font-size:calc(var(--w)*.13);line-height:1;color:#fff4d6;text-shadow:0 0 3px #000,0 2px 2px rgba(0,0,0,.7)}
+.k4 .msk{-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+
+/* ---------- marge : TOUT le blanc de la bordure, via le masque marge_<clé>.png ---------- */
+.k4 .ring{position:absolute;inset:0;-webkit-mask-image:var(--mk);mask-image:var(--mk);-webkit-mask-size:100% 100%;mask-size:100% 100%;mix-blend-mode:multiply;pointer-events:none}
+.k4 .ring.patine{background:radial-gradient(circle at 6% 94%,rgba(110,68,25,.75),transparent 18%),radial-gradient(circle at 95% 5%,rgba(110,68,25,.6),transparent 15%),radial-gradient(circle at 92% 70%,rgba(130,85,35,.35),transparent 12%),repeating-linear-gradient(37deg,transparent 0 7px,rgba(90,60,20,.12) 7px 8px),linear-gradient(#dcc596,#bf9d62)}
+.k4 .ring.etain{background:repeating-linear-gradient(90deg,rgba(255,255,255,.25) 0 1px,transparent 1px 3px),linear-gradient(135deg,#d6dbe0,#8e969e 35%,#eef0f2 52%,#7f878f 75%,#c3c9cf)}
+.k4 .ring.prism{mix-blend-mode:multiply;background:linear-gradient(115deg,#ffb3d1,#ffe9a3,#b8ffd2,#a8e4ff,#d2c2ff,#ffb3d1,#ffe9a3);background-size:300% 300%;background-position:var(--mx) var(--my)}
+.k4 .ring.nacre{background:conic-gradient(from 0deg at var(--mx) var(--my),#f6ecff,#d3ecff,#ffe8d1,#e7d6ff,#d6fff0,#f6ecff)}
+.k4 .ring.signe{background:radial-gradient(circle at var(--mx) var(--my),#fffaf0,#f3e6c6 45%,#e6d2a2)}
+.k4 .riv{position:absolute;width:calc(var(--w)*.028);height:calc(var(--w)*.028);border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#9aa1a8 60%,#4d545b);box-shadow:0 1px 1px rgba(0,0,0,.5)}
+
+/* ---------- Patinée ---------- */
+.k4 .stain{position:absolute;inset:0;background:radial-gradient(ellipse at 20% 80%,rgba(120,80,30,.3),transparent 35%),radial-gradient(ellipse at 85% 30%,rgba(120,80,30,.22),transparent 30%),repeating-linear-gradient(37deg,transparent 0 9px,rgba(60,40,15,.15) 9px 10px),repeating-linear-gradient(-53deg,transparent 0 13px,rgba(60,40,15,.11) 13px 14px);mix-blend-mode:multiply}
+
+/* ---------- Holographique : feuille texturée sur le FOND seulement (foil_<clé>.png), cadre mat ---------- */
+.k4 .foil{position:absolute;inset:0;background:repeating-linear-gradient(115deg,#ff3d6e 0%,#ffa23d 3.5%,#fff04a 7%,#3dff7a 10.5%,#33cfff 14%,#7a4dff 17.5%,#ff3dd0 21%,#ff3d6e 24.5%);background-size:220% 220%;background-position:var(--mx) var(--my);mix-blend-mode:color-dodge;opacity:.55;filter:brightness(.62) contrast(1.6) saturate(1.5);-webkit-mask-image:var(--fo);mask-image:var(--fo)}
+.k4 .engr{position:absolute;inset:0;mix-blend-mode:overlay;
+  background:repeating-radial-gradient(circle at 50% 118%,rgba(0,0,0,.35) 0 calc(var(--w)*.006),rgba(255,255,255,.95) calc(var(--w)*.009),rgba(0,0,0,.35) calc(var(--w)*.012)),
+             repeating-linear-gradient(172deg,transparent 0 calc(var(--w)*.03),rgba(255,255,255,.5) calc(var(--w)*.031),transparent calc(var(--w)*.034));
+  -webkit-mask-image:var(--fo);mask-image:var(--fo)}
+.k4 .crest{position:absolute;inset:0;background:linear-gradient(115deg,transparent 38%,rgba(255,255,255,.95) 47%,rgba(255,255,255,.95) 49%,transparent 58%);background-size:300% 300%;background-position:var(--mx) var(--my);mix-blend-mode:overlay;-webkit-mask-image:var(--fo);mask-image:var(--fo)}
+.k4 .glit{position:absolute;inset:0;background-image:radial-gradient(circle,#fff 0 .9px,transparent 1.4px),radial-gradient(circle,rgba(220,240,255,.9) 0 .7px,transparent 1.2px),radial-gradient(circle,rgba(255,240,200,.9) 0 .6px,transparent 1.1px);background-size:13px 11px,19px 17px,23px 29px;background-position:0 0,6px 7px,3px 12px;mix-blend-mode:screen;-webkit-mask-image:var(--fo);mask-image:var(--fo);animation:tw 1.6s steps(2) infinite}
+@keyframes tw{50%{opacity:.35}}
+/* reflet doux sur l'illustration (Nacre, Signée) */
+.k4 .sheen{position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.6) 45%,rgba(255,255,255,.1) 52%,transparent 62%);background-size:260% 260%;background-position:var(--mx) var(--my);mix-blend-mode:soft-light}
+
+/* ---------- Vivante : parallaxe 2 plans + mer qui ondule + rayons + particules ---------- */
+.k4.vivante .bg{animation:kbb 10s ease-in-out infinite alternate}
+.k4.vivante .fgm{animation:kbf 10s ease-in-out infinite alternate}
+@keyframes kbb{0%{transform:scale(1.02) translate(.6%,0)}100%{transform:scale(1.035) translate(-1%,.5%)}}
+@keyframes kbf{0%{transform:scale(1.025) translate(-.5%,.2%)}100%{transform:scale(1.03) translate(.6%,-.2%)}}
+.k4 .fg{-webkit-mask-image:linear-gradient(#000,#000),var(--fd);mask-image:linear-gradient(#000,#000),var(--fd);-webkit-mask-composite:xor;mask-composite:exclude}
+.k4 .rip{filter:url(#k4rip);-webkit-mask-image:linear-gradient(transparent 38%,#000 62%),var(--fd);mask-image:linear-gradient(transparent 38%,#000 62%),var(--fd);-webkit-mask-composite:source-in;mask-composite:intersect}
+.k4 .rays{position:absolute;left:-60%;top:-60%;width:220%;height:220%;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,236,180,.0) 0deg 7deg,rgba(255,236,180,.32) 9deg 11deg,rgba(255,236,180,0) 13deg 22deg);mix-blend-mode:soft-light;animation:ry 24s linear infinite;-webkit-mask-image:radial-gradient(circle at 50% 50%,#000 0,transparent 45%);mask-image:radial-gradient(circle at 50% 50%,#000 0,transparent 45%)}
+@keyframes ry{to{transform:rotate(360deg)}}
+.k4 .light{position:absolute;inset:-30%;background:radial-gradient(circle at 30% 25%,rgba(255,236,190,.65),transparent 32%);animation:lt 6s ease-in-out infinite alternate;mix-blend-mode:soft-light}
+@keyframes lt{0%{transform:translate(-12%,-8%)}100%{transform:translate(22%,16%)}}
+.k4 .motes{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,236,170,.95) 0 1.1px,transparent 1.8px),radial-gradient(circle,rgba(255,255,255,.8) 0 .8px,transparent 1.4px),radial-gradient(circle,rgba(255,214,140,.7) 0 1.4px,transparent 2.4px);background-size:37px 53px,29px 41px,61px 71px;mix-blend-mode:screen;animation:mo 7s linear infinite;-webkit-mask-image:var(--fd),linear-gradient(transparent,#000 30%,#000 80%,transparent);mask-image:var(--fd),linear-gradient(transparent,#000 30%,#000 80%,transparent);-webkit-mask-composite:source-in;mask-composite:intersect}
+@keyframes mo{from{background-position:0 0,10px 0,20px 0}to{background-position:12px -106px,-8px -123px,30px -142px}}
+
+/* ---------- Signée : signature dorure à chaud (or miroir, gaufrage léger) ---------- */
+.k4 .sig{position:absolute;left:4%;right:4%;bottom:5%;transform:rotate(-7deg);font-family:'Mrs Saint Delafield',cursive;font-size:calc(var(--w)*var(--sz,.17));line-height:1.15;white-space:nowrap;text-align:center;-webkit-text-stroke:calc(var(--w)*.0025) rgba(150,105,30,.55);
+  background:linear-gradient(100deg,#7a5418 0%,#d9ac4c 14%,#fff6cf 20%,#e0b453 27%,#8a6320 40%,#c99a3c 55%,#fff3c4 62%,#b8862e 72%,#6e4c14 86%,#d9ac4c 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 -.5px 0 rgba(40,22,0,.9)) drop-shadow(0 .8px 0 rgba(255,236,170,.75)) drop-shadow(0 2px 2px rgba(0,0,0,.75));animation:gs 5s ease-in-out infinite alternate}
+@keyframes gs{from{background-position:0 0}to{background-position:100% 0}}
+.k4 .serial{position:absolute;left:50%;bottom:0;height:calc(var(--w)*.033);transform:translateX(-50%);display:flex;align-items:center;color:#7a5418;font-family:'Alegreya Sans',sans-serif;font-weight:900;letter-spacing:.12em;font-size:calc(var(--w)*.026);white-space:nowrap;text-shadow:0 1px 0 rgba(255,255,255,.7)}
+
+.k4.auto .foil,.k4.auto .crest,.k4.auto .sheen,.k4.auto .ring.prism{animation:hm 5s ease-in-out infinite alternate}
+.k4.auto .ring.nacre,.k4.auto .ring.signe{animation:hn 6s ease-in-out infinite alternate}
+@keyframes hm{0%{background-position:0% 0%}100%{background-position:100% 100%}}
+@keyframes hn{0%{--mx:10%;--my:20%}100%{--mx:90%;--my:80%}}
+@property --mx{syntax:'<percentage>';inherits:true;initial-value:50%}
+@property --my{syntax:'<percentage>';inherits:true;initial-value:30%}
+.k4.still *{animation:none!important}
+.k4.only-frame{background:transparent;box-shadow:none}.k4.only-frame .win{visibility:hidden}
+.k4.only-art{background:transparent;box-shadow:none}.k4.only-art .frame,.k4.only-art .num,.k4.only-art .ring{display:none}
+.k4 .dos{position:absolute;inset:0;background:#0e2730 url(/_blob/448115e69b9e45021d6c7d8194700ccb) center/100% 100%}
+.k4 .dos .gsh{position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,240,200,.35) 47%,rgba(255,255,255,.12) 52%,transparent 62%);background-size:300% 300%;mix-blend-mode:screen;animation:dsh 4.5s ease-in-out infinite}
+@keyframes dsh{0%{background-position:100% 100%}60%,100%{background-position:0% 0%}}
+.k4 .dos .gem{position:absolute;left:50%;top:44.4%;width:70%;height:49.2%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,var(--glow) 0,transparent 62%);mix-blend-mode:screen;opacity:.9;animation:gp 1.1s ease-in-out infinite alternate}
+@keyframes gp{from{opacity:.45;scale:.85}to{opacity:1;scale:1.08}}
+@media (prefers-reduced-motion: reduce){.k4 *{animation:none!important}}
+.k4 .foil,.k4 .engr,.k4 .crest,.k4 .glit,.k4 .fg,.k4 .rip,.k4 .motes{-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+
+</style>
+</helmet>
+<div class="{{cls}}" style="--w: {{w}}px; --mx: {{mx}}%; --my: {{my}}%; --rx: {{rx}}deg; --ry: {{ry}}deg; --ox: 50%; --oy: 50%; --mk: url({{c.m}}); --fo: url({{c.fo}}); --fd: url({{c.fd}});" onMouseMove="{{move}}" onMouseLeave="{{leave}}">
+<svg width="0" height="0" style="position:absolute"><filter id="k4rip" x="-5%" y="-5%" width="110%" height="110%" primitiveUnits="objectBoundingBox"><feTurbulence type="fractalNoise" baseFrequency="1.6 9" numOctaves="1" seed="4" result="n"><animate attributeName="baseFrequency" dur="8s" values="1.6 9;1.9 11;1.6 9" repeatCount="indefinite"></animate></feTurbulence><feOffset in="n" dx="0" dy="0" result="m"><animate attributeName="dy" dur="8s" values="0;.04;0" repeatCount="indefinite"></animate></feOffset><feDisplacementMap in="SourceGraphic" in2="m" scale=".022" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap></filter></svg>
+<sc-if value="{{isBack}}" hint-placeholder-val="{{false}}"><div class="dos" style="--glow: {{glow}};"><div class="gsh"></div><sc-if value="{{hasGlow}}" hint-placeholder-val="{{false}}"><div class="gem"></div></sc-if></div></sc-if>
+<sc-if value="{{isFace}}" hint-placeholder-val="{{true}}">
+<!-- 1. fenêtre d'illustration : seule zone animée -->
+<div class="win" style="left: {{c.wl}}%; top: {{c.wt}}%; width: {{c.ww}}%; height: {{c.wh}}%;">
+<div class="mv bg" style="left: {{c.il}}%; top: {{c.it}}%; width: {{c.iw}}%; height: {{c.ih}}%;">
+<div class="art" style="background-image: url({{c.art}});"></div>
+<sc-if value="{{l.rip}}" hint-placeholder-val="{{false}}"><div class="rip" style="background-image: url({{c.art}});"></div></sc-if>
+<sc-if value="{{l.holo}}" hint-placeholder-val="{{false}}"><div class="foil"></div><div class="engr"></div><div class="crest"></div><div class="glit"></div></sc-if>
+<sc-if value="{{l.viv}}" hint-placeholder-val="{{false}}"><div class="motes"></div></sc-if>
+</div>
+<sc-if value="{{l.viv}}" hint-placeholder-val="{{false}}"><div class="mv fgm" style="left: {{c.il}}%; top: {{c.it}}%; width: {{c.iw}}%; height: {{c.ih}}%;"><div class="fg" style="background-image: url({{c.art}});"></div></div><div class="rays"></div><div class="light"></div></sc-if>
+<sc-if value="{{l.stain}}" hint-placeholder-val="{{false}}"><div class="stain"></div></sc-if>
+<sc-if value="{{l.sheen}}" hint-placeholder-val="{{false}}"><div class="sheen"></div></sc-if>
+<sc-if value="{{l.sig}}" hint-placeholder-val="{{false}}"><div class="sig" style="--sz: {{c.sz}};">{{c.sig}}</div></sc-if>
+</div>
+<!-- 2. cadre peint d'origine (fenêtre transparente) : jamais animé, jamais recoloré -->
+<img class="frame" src="{{c.frame}}" alt="">
+<sc-if value="{{c.hasNum}}" hint-placeholder-val="{{false}}"><div class="num">{{c.num}}</div></sc-if>
+<!-- 3. matière de la marge : tout le blanc, via marge_<clé>.png -->
+<sc-if value="{{l.ring}}" hint-placeholder-val="{{false}}"><div class="{{ringCls}}"></div></sc-if>
+<sc-if value="{{l.riv}}" hint-placeholder-val="{{false}}"><div class="riv" style="left: 1%; top: .8%;"></div><div class="riv" style="right: 1%; top: .8%;"></div><div class="riv" style="left: 1%; bottom: .8%;"></div><div class="riv" style="right: 1%; bottom: .8%;"></div></sc-if>
+<sc-if value="{{l.serial}}" hint-placeholder-val="{{false}}"><div class="serial">N° {{serial}}</div></sc-if>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"card":{"editor":"text","default":"rosie"},"v":{"editor":"enum","options":["std","patine","etain","holo","vivante","nacre","signee","numero","dos"],"default":"std"},"serial":{"editor":"text","default":"042 / 100"},"w":{"editor":"int","default":150},"tilt":{"editor":"bool","default":false},"still":{"editor":"bool","default":false},"only":{"editor":"enum","options":["","art","frame"],"default":""},"glow":{"editor":"text","default":""},"$preview":{"width":150,"height":214}}'>
+class Component extends DCLogic {
+  state = { mx: 50, my: 30, rx: 0, ry: 0, hover: false };
+  card(id) {
+    var R = {"suit-green": {"f": "/_blob/e511abe34d7f362a300914221169dd61", "a": "/_blob/f1a284a175c267513450066343ff3310", "m": "/_blob/cee4c80acd110696f85411d470d2561c", "fo": "/_blob/4e559b72e6557e6eaa1b15578c28b838", "fd": "/_blob/95d29bd935346516d79c1e2e2a99656a", "w": [16.111, 10.156, 67.5, 78.809], "i": [-4.938, -2.974, 109.877, 105.948], "s": "Barbe-Grise", "sea": false}, "suit-yellow": {"f": "/_blob/e0cc5495578d9786b4d5e68b88db32ea", "a": "/_blob/332d6eeaf396de77d15cb28867c9a502", "m": "/_blob/5ed73d15c67ad699b637ab139803ed9a", "fo": "/_blob/d1102b6a83a07bc47a0b4b04a442a36f", "fd": "/_blob/3e474b5f25a2596ad217a7ba17c3ffc5", "w": [16.111, 10.156, 67.5, 78.809], "i": [-4.938, -2.974, 109.877, 105.948], "s": "Barbe-Grise", "sea": false}, "suit-purple": {"f": "/_blob/3e7fce43d6daaa2be7adad462cbb365f", "a": "/_blob/109380bae122941a733d4916cfea372d", "m": "/_blob/d2bda0ed5517a0ec28a7915a22f0603e", "fo": "/_blob/5e8d8efc876b3ab6b3fe1125bb05ec97", "fd": "/_blob/a3b696103588ad8dcbbb7e6b085ef919", "w": [16.111, 10.156, 67.5, 78.809], "i": [-4.938, -2.974, 109.877, 105.948], "s": "Barbe-Grise", "sea": false}, "suit-black": {"f": "/_blob/ad5e56cdecae16ee9bb5480670d68b40", "a": "/_blob/4b3153beb45556d365e45df95de70bc0", "m": "/_blob/e6cec063cd072b6629c7c779e74aac9f", "fo": "/_blob/cb99e8008601f1961e7b370bf2ea108a", "fd": "/_blob/e7a7c61bc950ac40b602f60f3d2035c2", "w": [16.111, 10.156, 67.5, 78.809], "i": [-4.938, -2.974, 109.877, 105.948], "s": "Barbe-Grise", "sea": false}, "rosie": {"f": "/_blob/cdccb65bb9c6016896df2c524806790c", "a": "/_blob/11e6f676678be03e536311c09f673d17", "m": "/_blob/a76c257f16d462aeeeeedb89ea1ebfd8", "fo": "/_blob/62831f0aed1a3d7c0e15f0ee275eca2c", "fd": "/_blob/7a43110e2817aee93ace67b7449af306", "w": [13.333, 9.57, 73.333, 80.762], "i": [0.0, 0.0, 100.0, 100.0], "s": "Rosie", "sea": false}, "rascal": {"f": "/_blob/93b6e37cf2f4684c6802f6498feeedd0", "a": "/_blob/6e93f6a1a001f1bcb8f917e663418186", "m": "/_blob/dc3b23464a475e16f14c8f32db06bf0c", "fo": "/_blob/8aabb4f24a72c07b5fc4e2e3be45539b", "fd": "/_blob/555b688513aa9868f0526c893993d2f5", "w": [13.333, 9.57, 73.333, 80.762], "i": [0.0, 0.0, 100.0, 100.0], "s": "Rascal", "sea": false}, "juanita": {"f": "/_blob/7bf0afd10e393fc7023ae3390d040feb", "a": "/_blob/74d565bfddda9c0a1a9cf7b52ac7c00d", "m": "/_blob/2fbc7d87f80c2dbe009e6b22ca30c1a0", "fo": "/_blob/96c531e5c0e52327dc5830d74e36faaa", "fd": "/_blob/fbf7d5d51356d813ab41b6ba0d82c6a1", "w": [13.333, 9.57, 73.333, 80.762], "i": [0.0, 0.0, 100.0, 100.0], "s": "Juanita", "sea": false}, "harry": {"f": "/_blob/dc39da4e5bbf535118fcbbde9dfcc114", "a": "/_blob/8fa03459fe8a561b3ec151b1f9760f17", "m": "/_blob/456fd332cd86d2d0566f4333fe134b5d", "fo": "/_blob/e4a0682a2997c5782e28ab29b7043fbc", "fd": "/_blob/42811d5a23cb9b44e7407fc98a53fb9a", "w": [13.333, 9.57, 73.333, 80.762], "i": [0.0, 0.0, 100.0, 100.0], "s": "Harry", "sea": false}, "mary": {"f": "/_blob/80d66a278b7db2df4ee2eeb75c8ea58b", "a": "/_blob/33e500c812ebce4f69c59008d0239861", "m": "/_blob/72a9d91f40a475842d2c413542952efa", "fo": "/_blob/5eb3f44ce53d219615df279885d9aced", "fd": "/_blob/59ce1d4ddf178e0759fa1f58a65d7b37", "w": [13.333, 9.57, 73.333, 80.762], "i": [0.0, 0.0, 100.0, 100.0], "s": "Marie", "sea": false}, "tigress": {"f": "/_blob/9ebdfd35b9534a150f907b2bda9c9939", "a": "/_blob/b588dee41db622c7d24493f893142207", "m": "/_blob/33d9dae006f6965fedb71e205efcf4a7", "fo": "/_blob/d24a02b3327bc9e0f962de18edd4b70c", "fd": "/_blob/3b042a265e85ebd2fd902722e98a7bd8", "w": [13.333, 9.57, 73.333, 80.762], "i": [0.0, 0.0, 100.0, 100.0], "s": "Morgane", "sea": false}, "bahij": {"f": "/_blob/014616de83c30904bccccd3d1c5a814b", "a": "/_blob/ef637735b4de6dec7d8d8832fe01725d", "m": "/_blob/dde9d6525817af63cc8f0ab4bef000e6", "fo": "/_blob/2877b8d2863404889ec0ee801bc48e5a", "fd": "/_blob/87bcac3e5f95375feb42e426699c8ecb", "w": [13.333, 9.57, 73.333, 80.762], "i": [0.0, 0.0, 100.0, 100.0], "s": "Bendt", "sea": false}, "sk": {"f": "/_blob/220096fe8de8a49d3b6c4aeab4b3c0b2", "a": "/_blob/1ae1c120f1270fffc73fbb9516a41a01", "m": "/_blob/091a9c967cbc96799a83d938ecac0320", "fo": "/_blob/a7d091eb27b22e8c105c1ac3783f5b44", "fd": "/_blob/9c088ffb47835ec79aa8937e29f4b98d", "w": [13.333, 9.57, 73.333, 80.762], "i": [0.0, 0.0, 100.0, 100.0], "s": "Le Roi", "sea": true}, "mermaid0": {"f": "/_blob/f606b40a218ab7f64bd6514718449a56", "a": "/_blob/971fd80c4c0524fc2345e0b2c477b76d", "m": "/_blob/46a5af2536dc764494939ac04306421e", "fo": "/_blob/f3227d6a7db788c5b35664dbf0fae4d8", "fd": "/_blob/aec881f2e77f91e0c3ee11783a9b680b", "w": [13.333, 9.57, 73.333, 80.762], "i": [0.0, 0.0, 100.0, 100.0], "s": "Alyra", "sea": true}, "kraken": {"f": "/_blob/2fbbade6f94700013ba36dd434f0ab4c", "a": "/_blob/e25968fa7894f2d79328a16e8549468e", "m": "/_blob/bb5e0ba8d37c934e5821ffd67ff03783", "fo": "/_blob/88c48a2d8d37cb7b80d9b759e360cf84", "fd": "/_blob/67cfafc91cce6f87b830673359cd6458", "w": [18.889, 11.328, 63.611, 75.977], "i": [-5.24, -3.085, 110.48, 106.17], "s": "Barbe-Grise", "sea": true}, "whale": {"f": "/_blob/21207581993c3f48a3d422bb0eded1bf", "a": "/_blob/538ab5136c79dbb0aeba9c17e0a6cab7", "m": "/_blob/8408a1866a098cb5d5169942ced5dc6d", "fo": "/_blob/d4b705124ec5976270a8bef4bc658239", "fd": "/_blob/2fe9636a40a719ad690fcffecbf2db34", "w": [16.389, 15.234, 67.222, 72.852], "i": [-4.959, -3.217, 109.917, 106.434], "s": "Barbe-Grise", "sea": true}, "escape": {"f": "/_blob/fef37e9b5d12cd621cbce585000b20c6", "a": "/_blob/fb755df637bc1d19d7895b4b26de611b", "m": "/_blob/795b798dc010e4a05f2c1603fb731023", "fo": "/_blob/3d9001ecc72d690826b8cd8ad0e115d8", "fd": "/_blob/61d33bf695ec17badc98c6a8f37943b9", "w": [18.889, 11.328, 63.333, 75.977], "i": [-5.263, -3.085, 110.526, 106.17], "s": "Barbe-Grise", "sea": true}};
+    var AL = { morgane: 'tigress', alyra: 'mermaid0', mermaid: 'mermaid0' };
+    var SU = { y: 'suit-yellow', g: 'suit-green', p: 'suit-purple', b: 'suit-black', jaune: 'suit-yellow', vert: 'suit-green', violet: 'suit-purple', noir: 'suit-black' };
+    var m = /^([a-z]+?)(\d+)$/.exec(id || ''), key = AL[id] || id, num = '';
+    if (m && SU[m[1]]) { key = SU[m[1]]; num = m[2]; }
+    var r = R[key] || R.rosie;
+    return { frame: r.f, art: r.a, m: r.m, fo: r.fo, fd: r.fd, sea: r.sea, sz: Math.min(.25, 1.8 / r.s.length).toFixed(3), wl: r.w[0], wt: r.w[1], ww: r.w[2], wh: r.w[3], il: r.i[0], it: r.i[1], iw: r.i[2], ih: r.i[3], sig: r.s, num: num, hasNum: !!num };
+  }
+  renderVals() {
+    var p = this.props, s = this.state, v = p.v || 'std', w = Number(p.w) || 150, c = this.card(p.card);
+    var ring = { patine: 'patine', etain: 'etain', holo: 'prism', nacre: 'nacre', signee: 'signe', numero: 'nacre' }[v];
+    var holo = v === 'holo' || v === 'numero', viv = v === 'vivante' || v === 'numero';
+    var L = { stain: v === 'patine', sheen: v === 'nacre' || v === 'signee', holo: holo, viv: viv, rip: viv && c.sea,
+      sig: v === 'signee' || v === 'numero', ring: !!ring, riv: v === 'etain', serial: v === 'numero' };
+    var vc = { numero: 'vivante numero' }[v] || v;
+    return {
+      cls: 'k4 ' + vc + (p.tilt && s.hover ? '' : ' auto') + (p.still ? ' still' : '') + (p.only ? ' only-' + p.only : ''), w: w, serial: p.serial || '042 / 100',
+      isBack: v === 'dos', glow: p.glow || 'transparent', hasGlow: !!p.glow, isFace: v !== 'dos', l: L, ringCls: 'ring ' + (ring || ''), c: c,
+      mx: s.mx, my: s.my, rx: s.rx, ry: s.ry,
+      move: e => { if (!this.props.tilt) return; var r = e.currentTarget.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        this.setState({ hover: true, mx: Math.round(x * 100), my: Math.round(y * 100), ry: Math.round((x - .5) * 22), rx: Math.round((.5 - y) * 18) }); },
+      leave: () => this.setState({ hover: false, rx: 0, ry: 0, mx: 50, my: 30 })
+    };
+  }
+}
+</script>
+</body>
+</html>

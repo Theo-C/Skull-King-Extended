@@ -3,7 +3,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { sb, callGame, inviteLink } from '../api';
 import { $, esc, toast, copyText } from '../util';
 import { optionsHTML, readOptions, wireOptions } from '../options';
-import { TableView } from '../table';
+import { TableView, variantMap } from '../table';
 import { Jukebox } from '../music/jukebox';
 import { skipNeed } from '@shared/music.ts';
 import { fromProfile, withItem, type Look } from '../avatar';
@@ -139,6 +139,8 @@ export async function gamePage(root: HTMLElement, id: string, uid: string) {
       // cartes animées possédées par chaque joueur (posséder suffit : pas d'interrupteur)
       const { data: ca } = await sb.rpc('cartes_animees', { p_users: ids });
       if (ca) table.setAnimCards(seats.map(s => new Set((ca as any[]).filter(r => r.user_id === s.user_id).map(r => r.carte as string))));
+      // variantes de cartes jouées par chaque joueur (collection) : visibles de tous quand la carte est posée
+      sb.rpc('card_choices', { p_users: ids }).then(({ data: cv }) => { if (cv?.length) table?.setVariants(seats.map(s => variantMap((cv as any[]).filter(r => r.user_id === s.user_id)))); });
     }
     // juke-box partagé (A19) : seulement pendant la partie, pour les joueurs assis
     if (mine && g.status === 'playing') {

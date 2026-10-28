@@ -4,3 +4,5 @@ dist
 android
 supabase/.temp
 supabase/.branches
+tests/visual/.resultats/
+tests/visual/tmp/

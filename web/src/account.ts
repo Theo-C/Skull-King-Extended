@@ -38,7 +38,7 @@ export function applyPrefs(p: Pick<Profile, 'sounds' | 'notify_turn'>) {
   try { localStorage.setItem('pli-notify', p.notify_turn === false ? '0' : '1'); } catch { /* stockage indisponible */ }
 }
 
-const NAV: [string, string, string][] = [['home', 'Accueil', '#/'], ['lb', 'Classement', '#/classement'], ['hist', 'Historique', '#/historique'], ['casier', 'Casier', '#/casier'], ['shop', 'Boutique', '#/boutique'], ['rules', 'Règles', '#/regles']];
+const NAV: [string, string, string][] = [['home', 'Accueil', '#/'], ['lb', 'Classement', '#/classement'], ['hist', 'Historique', '#/historique'], ['casier', 'Casier', '#/casier'], ['coll', 'Collection', '#/collection'], ['shop', 'Boutique', '#/boutique'], ['rules', 'Règles', '#/regles']];
 const TABS: [string, string, string, string][] = [
   ['home', 'Accueil', '#/', 'M4 11l8-7 8 7v9h-5v-6H9v6H4z'],
   ['lb', 'Classement', '#/classement', 'M5 20V12h4v8M10 20V6h4v14M15 20v-5h4v5'],

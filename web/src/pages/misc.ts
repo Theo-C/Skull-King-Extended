@@ -1,7 +1,7 @@
 // Entraînement hors ligne.
 import { $, esc } from '../util';
 import * as E from '@engine';
-import { TableView } from '../table';
+import { TableView, variantMap } from '../table';
 import { optionsHTML, readOptions, wireOptions, paintRanked } from '../options';
 import { go, setCleanup } from '../main';
 import { sb, callGame } from '../api';
@@ -33,6 +33,9 @@ export function practicePage(root: HTMLElement) {
       const u = data.session?.user.id; if (!u) return;
       const { data: ca } = await sb.rpc('cartes_animees', { p_users: [u] });
       if (ca?.length) view.setAnimCards([new Set((ca as any[]).map(r => r.carte as string))]);
+      // vos variantes de cartes (collection) aussi
+      const { data: cv } = await sb.rpc('card_choices', { p_users: [u] });
+      if (cv?.length) view.setVariants([variantMap(cv as any[])]);
     }).catch(() => { /* hors ligne : images fixes */ });
     // accès de débogage (tests de bout en bout) : en développement, ou si localStorage « pli-debug » vaut « 1 »
     let dbg = import.meta.env.DEV; try { dbg ||= localStorage.getItem('pli-debug') === '1'; } catch { /* stockage indisponible */ }

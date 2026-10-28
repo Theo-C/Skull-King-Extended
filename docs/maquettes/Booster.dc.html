@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Ouverture de booster</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800;900&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible{outline:2px solid #ead08a;outline-offset:2px}
+.bx{position:relative;width:1440px;height:1120px;overflow:hidden;font-family:'Alegreya Sans',sans-serif;color:#efe6d2;background:radial-gradient(ellipse at 50% 38%,#18303a,#0b1419 55%,#06090b)}
+.bx .caus{position:absolute;inset:-20%;background:radial-gradient(ellipse 30% 12% at 30% 30%,rgba(120,220,255,.07),transparent 70%),radial-gradient(ellipse 25% 10% at 70% 55%,rgba(120,220,255,.06),transparent 70%),radial-gradient(ellipse 20% 9% at 45% 80%,rgba(120,220,255,.05),transparent 70%);animation:caus 14s ease-in-out infinite alternate;pointer-events:none}
+@keyframes caus{to{transform:translate(4%,-3%) rotate(3deg)}}
+.btn{min-height:44px;padding:0 20px;border-radius:12px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.35);color:#f2e7cd;font-weight:800;font-size:15px;cursor:pointer}
+.btn.gold{border:0;background:linear-gradient(180deg,#f0cf72,#b78c33);color:#2b2117;box-shadow:0 6px 18px rgba(183,140,51,.35)}
+.btn.ghost{border-color:transparent;background:transparent;color:#a8b8bf}
+.panel{border-radius:14px;background:rgba(10,16,20,.72);border:1px solid rgba(234,208,138,.14);box-sizing:border-box;padding:14px 16px}
+.lbl{font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#8fa3ab;margin-bottom:8px}
+.chip{height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font-weight:800;font-size:13px;cursor:pointer}
+.chip.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.step{display:flex;gap:10px;align-items:center;padding:7px 0;color:#7f9098;font-weight:800;font-size:14.5px}
+.step i{font-style:normal;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1.5px solid currentColor;font-size:12px}
+.step.on{color:#ead08a}.step.on i{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.step.done{color:#8fbf7a}
+
+/* ---------- sachet ---------- */
+.car{position:absolute;left:0;top:0;width:680px;height:620px;perspective:1100px}
+.pw{position:absolute;left:230px;top:70px;width:220px;height:360px;transition:transform .55s cubic-bezier(.3,1.1,.4,1),opacity .4s,filter .4s;transform-style:preserve-3d;cursor:pointer}
+.pw.off{pointer-events:none}
+.pack{position:absolute;inset:0;border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.65);background:#222;overflow:hidden}
+.pack .art{position:absolute;inset:0;background-size:cover;background-position:50% 35%}
+.pack .foil{position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.4) 45%,rgba(160,220,255,.3) 50%,transparent 65%);background-size:250% 100%;animation:foil 3.4s ease-in-out infinite;mix-blend-mode:screen}
+@keyframes foil{0%{background-position:130% 0}70%,100%{background-position:-60% 0}}
+.pack .crimp{position:absolute;left:0;right:0;height:16px;background:repeating-linear-gradient(90deg,rgba(0,0,0,.35) 0 4px,rgba(255,255,255,.16) 4px 8px)}
+.pack .band{position:absolute;left:0;right:0;bottom:15%;padding:9px 0;text-align:center;background:linear-gradient(180deg,rgba(6,10,12,.1),rgba(6,10,12,.85) 30%,rgba(6,10,12,.85) 70%,rgba(6,10,12,.1))}
+.pack .seal{position:absolute;left:50%;top:12%;width:46px;height:46px;margin-left:-23px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f3d27a,#b8892e 55%,#6b4c14);box-shadow:0 0 0 2px #3a2508,0 4px 10px rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;color:#3a2508;font-size:22px}
+.float{animation:fl 3.2s ease-in-out infinite}
+@keyframes fl{0%,100%{translate:0 0;rotate:-1deg}50%{translate:0 -10px;rotate:1deg}}
+.shadow{position:absolute;left:250px;top:452px;width:180px;height:22px;border-radius:50%;background:radial-gradient(rgba(0,0,0,.55),transparent 70%);transition:opacity .4s}
+
+/* bande à couper */
+.lid{position:absolute;left:0;right:0;top:0;height:34px;overflow:hidden;border-radius:12px 12px 0 0}
+.lid .art{height:360px}
+.cutzone{position:absolute;left:-30px;right:-30px;top:-22px;height:80px;cursor:crosshair;touch-action:none;z-index:4}
+.dots{position:absolute;left:10px;right:10px;top:33px;border-top:2px dashed rgba(255,244,214,.85);filter:drop-shadow(0 0 3px rgba(0,0,0,.8))}
+.cutline{position:absolute;left:0;top:31px;height:5px;border-radius:3px;background:linear-gradient(90deg,rgba(255,255,255,.2),#fff);box-shadow:0 0 12px 3px var(--glow,#fff6c9),0 0 30px 6px var(--glow,#ffd36e)}
+.tip{position:absolute;top:22px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle,#fff,rgba(255,240,190,.7) 40%,transparent 70%);animation:tw .25s linear infinite alternate}
+@keyframes tw{to{transform:scale(1.4)}}
+.runner{position:absolute;top:24px;left:10px;width:46px;height:18px;margin-left:-23px;border-radius:50%;background:radial-gradient(ellipse,#fff 0,rgba(255,236,170,.9) 25%,rgba(255,210,110,.35) 55%,transparent 72%);mix-blend-mode:screen;pointer-events:none;animation:run 2s cubic-bezier(.5,0,.5,1) infinite}
+@keyframes run{0%{left:10px;opacity:0}12%{opacity:1}80%{left:210px;opacity:1}100%{left:210px;opacity:0}}
+.chev{position:absolute;right:-30px;top:16px;font:900 22px/1 'Alegreya Sans',sans-serif;letter-spacing:-2px;color:#ffe9b0;text-shadow:0 0 8px rgba(255,210,110,.9);animation:chv 1s ease-in-out infinite alternate;pointer-events:none}
+@keyframes chv{from{opacity:.35;transform:translateX(-4px)}to{opacity:1;transform:translateX(3px)}}
+.scis{position:absolute;left:-26px;top:20px;font-size:22px;color:#fff4d6;filter:drop-shadow(0 1px 2px #000)}
+
+/* ouverture */
+.opening .lid{animation:lidoff .55s cubic-bezier(.4,0,.8,.6) forwards}
+@keyframes lidoff{to{transform:translate(260px,-180px) rotate(38deg);opacity:0}}
+.opening .pbody,.opening .leak,.opening .lrays{animation-fill-mode:forwards}
+.opening .pbody{clip-path:polygon(0.0% 9.4%,4.5% 8.8%,9.1% 9.6%,13.6% 9.1%,18.2% 9.7%,22.7% 9.7%,27.3% 8.4%,31.8% 8.3%,36.4% 10.3%,40.9% 8.9%,45.5% 8.8%,50.0% 10.6%,54.5% 9.4%,59.1% 10.3%,63.6% 9.4%,68.2% 9.8%,72.7% 8.6%,77.3% 9.8%,81.8% 10.3%,86.4% 9.5%,90.9% 10.0%,95.5% 9.9%,100.0% 9.4%,100% 100%,0% 100%)}
+.opening{animation:pdrop .6s ease-in 1.05s forwards}
+@keyframes pdrop{to{transform:translateY(560px);opacity:0}}
+.leak{position:absolute;left:-60px;right:-60px;top:-160px;height:220px;pointer-events:none;opacity:0;background:radial-gradient(ellipse 50% 60% at 50% 100%,var(--glow),transparent 70%);mix-blend-mode:screen}
+.opening .leak{animation:leak 1.1s ease-out .2s forwards}
+@keyframes leak{0%{opacity:0;transform:scaleY(.2)}35%{opacity:1;transform:scaleY(1.2)}100%{opacity:0;transform:scaleY(1.6)}}
+.lrays{position:absolute;left:50%;top:0;width:700px;height:700px;margin:-350px 0 0 -350px;border-radius:50%;opacity:0;pointer-events:none;background:repeating-conic-gradient(var(--glow) 0 4deg,transparent 4deg 15deg);-webkit-mask:radial-gradient(circle,#000 5%,transparent 60%);mask:radial-gradient(circle,#000 5%,transparent 60%);mix-blend-mode:screen}
+.opening .lrays{animation:lr 1.3s ease-out .25s forwards}
+@keyframes lr{0%{opacity:0;transform:rotate(0) scale(.3)}30%{opacity:.9}100%{opacity:0;transform:rotate(40deg) scale(1.2)}}
+.gsp{position:absolute;top:30px;width:5px;height:5px;border-radius:50%;background:#fff6d0;box-shadow:0 0 6px 2px rgba(255,214,120,.9);opacity:0;pointer-events:none;animation:gsp 1.6s ease-out both}
+@keyframes gsp{0%{opacity:0;transform:translateY(0)}20%{opacity:1}100%{opacity:0;transform:translateY(-150px) translateX(12px)}}
+.pdots.dv span{border-radius:0;width:12px;height:12px;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+.pdots.dv span.on,.pdots.dv span.cur{background:#ffd977}
+.divb{font-family:'IM Fell English SC',serif;font-size:20px;color:#ffd977;letter-spacing:.06em;text-shadow:0 0 12px rgba(255,200,90,.6)}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:30}
+.flash.fa{animation:flA .5s ease-out}.flash.fb{animation:flB .5s ease-out}
+@keyframes flA{0%{opacity:.75}100%{opacity:0}}@keyframes flB{0%{opacity:.75}100%{opacity:0}}
+
+/* ---------- pile de cartes ---------- */
+.stk{position:absolute;left:200px;top:90px;width:280px;height:398px}
+.rise{animation:rise 1.35s cubic-bezier(.35,.1,.25,1) .5s both}
+@keyframes rise{0%{transform:translateY(0) scale(.82);z-index:1}45%{transform:translateY(-175px) scale(.82);z-index:1}58%{z-index:9}100%{transform:none;z-index:9}}
+.peek{position:absolute;inset:0;transform:translate(14px,12px) rotate(3deg) scale(.965);filter:brightness(.55);transition:transform .35s}
+.peek2{position:absolute;inset:0;transform:translate(26px,22px) rotate(6deg) scale(.93);filter:brightness(.35)}
+.top{position:absolute;inset:0;touch-action:none;cursor:grab;transition:transform .25s cubic-bezier(.3,1.3,.5,1)}
+.top.drag{transition:none;cursor:grabbing}
+.pa{animation:popA .45s cubic-bezier(.3,1.4,.5,1)}.pb{animation:popB .45s cubic-bezier(.3,1.4,.5,1)}
+@keyframes popA{from{scale:.9}to{scale:1}}@keyframes popB{from{scale:.9}to{scale:1}}
+.flipw{position:absolute;inset:0;perspective:1200px}
+.flip{position:absolute;inset:0;transform-style:preserve-3d;transition:transform 1.1s cubic-bezier(.3,1.25,.45,1)}
+.flipw.up .flip{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.face.front{transform:rotateY(180deg)}
+.hid:not(.up){cursor:pointer}
+.hid:not(.up) .flip{animation:breath 2.4s ease-in-out infinite}
+.hid:not(.up) .face.back{animation:bglow 2.4s ease-in-out infinite}
+@keyframes breath{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes bglow{0%,100%{filter:drop-shadow(0 0 10px rgba(255,233,176,.35))}50%{filter:drop-shadow(0 0 22px rgba(255,233,176,.6))}}
+.odds{width:100%;border-collapse:collapse;font-size:13px}
+.odds td{padding:3px 0;color:#c9d6db}.odds td+td{text-align:right;font-weight:800;color:#efe6d2;width:62px}
+.odds tr.h td{font-size:11.5px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:#8fa3ab}
+@keyframes wob{0%,100%{transform:rotate(0)}25%{transform:rotate(-2.4deg)}75%{transform:rotate(2.4deg)}}
+.fly{position:absolute;inset:0;pointer-events:none}
+.fly.l{animation:flyl .45s cubic-bezier(.5,0,.9,.5) forwards}.fly.r{animation:flyr .45s cubic-bezier(.5,0,.9,.5) forwards}
+@keyframes flyl{to{transform:translate(-620px,60px) rotate(-28deg);opacity:0}}
+@keyframes flyr{to{transform:translate(620px,60px) rotate(28deg);opacity:0}}
+/* éclat de rareté à l'apparition */
+.burst{position:absolute;left:50%;top:50%;width:620px;height:620px;margin:-310px 0 0 -310px;border-radius:50%;pointer-events:none;opacity:0}
+.burst.r{background:radial-gradient(circle,rgba(79,168,255,.55),transparent 55%)}
+.burst.e{background:radial-gradient(circle,rgba(183,125,255,.65),transparent 55%)}
+.burst.l{background:radial-gradient(circle,rgba(255,201,74,.8),transparent 58%)}
+.burst.m{background:conic-gradient(from 0deg,rgba(255,120,160,.6),rgba(255,230,120,.6),rgba(120,255,180,.6),rgba(120,200,255,.6),rgba(200,140,255,.6),rgba(255,120,160,.6));-webkit-mask:radial-gradient(circle,#000 10%,transparent 58%);mask:radial-gradient(circle,#000 10%,transparent 58%)}
+.burst.ba{animation:bA .9s ease-out}.burst.bb{animation:bB .9s ease-out}
+@keyframes bA{0%{opacity:0;transform:scale(.3)}25%{opacity:1}100%{opacity:0;transform:scale(1.3)}}
+@keyframes bB{0%{opacity:0;transform:scale(.3)}25%{opacity:1}100%{opacity:0;transform:scale(1.3)}}
+.ring{position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;border:3px solid var(--rc);pointer-events:none;opacity:0}
+.ring.ba{animation:rgA .8s ease-out}.ring.bb{animation:rgB .8s ease-out}
+@keyframes rgA{0%{opacity:1;transform:scale(.6)}100%{opacity:0;transform:scale(2)}}
+@keyframes rgB{0%{opacity:1;transform:scale(.6)}100%{opacity:0;transform:scale(2)}}
+.spark{position:absolute;width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 8px 2px var(--rc);left:50%;top:50%;opacity:0;pointer-events:none}
+.spark.ba{animation:spA 1s ease-out var(--d) both}.spark.bb{animation:spB 1s ease-out var(--d) both}
+@keyframes spA{0%{opacity:1;transform:translate(0,0)}100%{opacity:0;transform:translate(var(--x),var(--y))}}
+@keyframes spB{0%{opacity:1;transform:translate(0,0)}100%{opacity:0;transform:translate(var(--x),var(--y))}}
+/* moment Signée / Numérotée */
+.dim{position:absolute;left:-380px;top:-80px;width:1440px;height:1120px;background:rgba(2,3,4,.82);z-index:8;animation:fi .5s both;pointer-events:none}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+.grays{position:absolute;left:50%;top:50%;width:900px;height:900px;margin:-450px 0 0 -450px;border-radius:50%;background:repeating-conic-gradient(rgba(255,215,120,.32) 0 6deg,transparent 6deg 18deg);animation:spin 14s linear infinite,fi .6s both;-webkit-mask:radial-gradient(circle,#000 12%,transparent 60%);mask:radial-gradient(circle,#000 12%,transparent 60%);pointer-events:none}
+.grays.m{background:repeating-conic-gradient(rgba(231,198,255,.38) 0 6deg,rgba(155,231,255,.22) 6deg 11deg,transparent 11deg 20deg)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ban{position:absolute;left:-200px;right:-200px;top:-74px;white-space:nowrap;text-align:center;font-family:'Pirata One',cursive;font-size:46px;line-height:1;color:#ffd977;text-shadow:0 0 18px rgba(255,200,90,.8),0 3px 0 #5a3c0e;animation:banin .6s cubic-bezier(.3,1.5,.5,1) .5s both;pointer-events:none}
+.ban.m{color:#f4e6ff;text-shadow:0 0 18px rgba(200,160,255,.9),0 3px 0 #3b2a5a}
+@keyframes banin{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+.info{position:absolute;left:0;right:0;top:420px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.tag{font-size:12.5px;font-weight:900;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.pdots{display:flex;gap:8px;margin-top:6px}
+.pdots span{width:9px;height:9px;border-radius:50%;background:rgba(234,208,138,.22)}
+.pdots span.on{background:#ead08a}
+.pdots span.cur{background:#fff;box-shadow:0 0 8px #ead08a}
+
+/* ---------- récapitulatif ---------- */
+.grid{position:absolute;left:0;right:0;top:96px;display:flex;flex-wrap:wrap;justify-content:center;gap:22px 26px;padding:0 40px}
+.gc{display:flex;flex-direction:column;align-items:center;gap:8px;width:170px;animation:gin .5s cubic-bezier(.3,1.4,.5,1) both}
+@keyframes gin{from{transform:translateY(40px) scale(.7);opacity:0}to{transform:none;opacity:1}}
+.bar{height:10px;border-radius:5px;background:rgba(234,208,138,.12);overflow:hidden;width:380px}
+.bar>div{height:100%;background:linear-gradient(90deg,#b78c33,#f0cf72);animation:barg 1.4s cubic-bezier(.3,1,.4,1) .9s both}
+@keyframes barg{from{width:var(--a)}to{width:var(--b)}}
+.fi{animation:fi .4s ease-out both}
+@media (prefers-reduced-motion: reduce){.float,.pack .foil,.caus,.grays,.hid .flip,.hid .face.back,.runner,.chev{animation:none!important}}
+</style>
+</helmet>
+<div class="bx">
+<div class="caus"></div>
+<!-- barre -->
+<div style="position: absolute; left: 0; top: 0; width: 1440px; height: 60px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid rgba(234,208,138,.14); background: rgba(5,8,10,.85); z-index: 40;">
+<div style="font-family: 'Pirata One', cursive; font-size: 30px; color: #ead08a;">Boosters</div><div style="font-size: 14px; color: #c9d6db;">Série 1 · <b>Les Sept Mers</b></div>
+<div style="margin-left: auto; display: flex; gap: 16px; font-size: 14px; font-weight: 800;"><span>🪙 {{coins}}</span><span style="color: #9fe3ff;">◆ {{eclats}} éclats</span></div>
+</div>
+
+<!-- colonne gauche -->
+<div style="position: absolute; left: 24px; top: 84px; width: 320px; display: flex; flex-direction: column; gap: 14px; z-index: 5;">
+<div class="panel"><div class="lbl">Ouverture</div>
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="4"><div class="{{s.cls}}"><i>{{s.n}}</i>{{s.t}}</div></sc-for>
+</div>
+<div class="panel"><div class="lbl">Booster gratuit</div>
+<div style="display: flex; align-items: center; gap: 12px;"><div style="font-size: 26px;">⏳</div><div style="flex: 1;"><b style="font-size: 15px;">Après ta 1re partie du jour</b><div class="bar" style="width: 100%; height: 7px; margin-top: 6px;"><div style="--a: 64%; --b: 64%; width: 64%;"></div></div></div></div>
+<div style="font-size: 12.5px; color: #8fa3ab; margin-top: 8px;">1 booster gratuit par jour où tu joues. Une victoire en donne un aussi.</div>
+</div>
+<div class="panel"><div class="lbl">Chances par carte</div>
+<div style="font-size: 12.5px; color: #8fa3ab; margin-bottom: 6px;">Cartes 1 à 3 : toujours Patinée ou Bord d’étain.</div>
+<table class="odds"><tr class="h"><td>Variante</td><td>Carte 4</td><td>Carte 5</td></tr><sc-for list="{{odds}}" as="o" hint-placeholder-count="4"><tr><td style="color: {{o.c}};">{{o.l}}</td><td>{{o.a}}</td><td>{{o.b}}</td></tr></sc-for></table>
+<div style="font-size: 12.5px; color: #8fa3ab; margin-top: 8px;">Booster divin : 1 sur 2 000, 5 cartes Signées ou Numérotées.</div>
+</div>
+<div class="panel"><div class="lbl">Démo : forcer le contenu</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{forces}}" as="f" hint-placeholder-count="4"><button class="{{f.cls}}" onClick="{{f.pick}}">{{f.label}}</button></sc-for></div>
+</div>
+</div>
+
+<!-- scène -->
+<div style="position: absolute; left: 380px; top: 80px; width: 680px; height: 1020px; z-index: 6;">
+
+<sc-if value="{{showCar}}" hint-placeholder-val="{{true}}">
+<div class="car" style="z-index: 5;">
+<sc-for list="{{packs}}" as="p" hint-placeholder-count="3">
+<div class="{{p.cls}}" style="transform: {{p.tf}}; opacity: {{p.op}}; filter: {{p.fl}}; z-index: {{p.z}}; --glow: {{glow}};" onClick="{{p.pick}}">
+<div class="{{p.inner}}" style="position: absolute; inset: 0;">
+<div class="lrays" style="top: 34px;"></div>
+<div class="pbody" style="position: absolute; inset: 0;">
+<div class="pack"><div class="art" style="background-image: url({{p.img}});"></div><div class="foil"></div><div class="crimp" style="bottom: 0;"></div><div class="band"><div style="font-family: 'Pirata One', cursive; font-size: 30px; color: #ead08a; line-height: 1;">{{p.name}}</div><div style="font-size: 11.5px; font-weight: 800; letter-spacing: .1em; color: #f2e7cd;">LES SEPT MERS · 5 CARTES</div></div>
+</div>
+</div>
+<div class="lid pack" style="height: 34px; box-shadow: none;"><div class="art" style="background-image: url({{p.img}});"></div><div class="crimp" style="top: 0;"></div></div>
+<div class="leak"></div>
+<sc-if value="{{divinFx}}" hint-placeholder-val="{{false}}"><sc-for list="{{gsp}}" as="g" hint-placeholder-count="0"><div class="gsp" style="left: {{g.x}}%; animation-delay: {{g.d}}s;"></div></sc-for></sc-if>
+<sc-if value="{{p.cuttable}}" hint-placeholder-val="{{false}}">
+<div class="dots"></div><div class="scis">✂</div>
+<div class="cutline" style="width: {{cutW}}px;"></div>
+<sc-if value="{{cutting}}" hint-placeholder-val="{{false}}"><div class="tip" style="left: {{cutW}}px;"></div></sc-if>
+<sc-if value="{{showGhost}}" hint-placeholder-val="{{true}}"><div class="runner"></div><div class="chev">›››</div></sc-if>
+<div class="cutzone" onPointerDown="{{cutDown}}" onPointerMove="{{cutMove}}" onPointerUp="{{cutUp}}" onPointerCancel="{{cutUp}}" aria-label="Glisser pour ouvrir"></div>
+</sc-if>
+</div>
+</div>
+</sc-for>
+<div class="shadow" style="opacity: {{shadowOp}};"></div>
+</div>
+</sc-if>
+
+<!-- sous le sachet : choix -->
+<sc-if value="{{isChoose}}" hint-placeholder-val="{{true}}">
+<div class="fi" style="position: absolute; left: 0; right: 0; top: 500px; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+<div style="display: flex; align-items: center; gap: 16px;"><button class="btn ghost" onClick="{{prev}}" aria-label="Booster précédent" style="font-size: 24px;">‹</button><div style="font-family: 'Pirata One', cursive; font-size: 34px; color: #ead08a; min-width: 300px; text-align: center;">{{cur.name}}</div><button class="btn ghost" onClick="{{next}}" aria-label="Booster suivant" style="font-size: 24px;">›</button></div>
+<div style="font-size: 14px; color: #c9d6db;">{{cur.desc}}</div>
+<div style="display: flex; gap: 10px; align-items: flex-end; margin: 6px 0 4px;">
+<sc-for list="{{cur.feat}}" as="f" hint-placeholder-count="3"><div style="display: flex; flex-direction: column; align-items: center; gap: 4px;"><dc-import name="CarteVar" card="{{f.id}}" v="holo" w="{{78}}" hint-size="78px,111px"></dc-import><span style="font-size: 11.5px; font-weight: 800; color: #9fe3ff;">×3</span></div></sc-for>
+</div>
+<div style="display: flex; gap: 10px;"><button class="btn gold" onClick="{{choose}}" style="min-height: 50px; font-size: 17px;">Ouvrir · 50 🪙</button><button class="btn" style="min-height: 50px;" disabled="true">Gratuit · après 1 partie</button></div>
+</div>
+</sc-if>
+
+<!-- sous le sachet : couper -->
+<sc-if value="{{isFocus}}" hint-placeholder-val="{{false}}">
+<div class="fi" style="position: absolute; left: 0; right: 0; top: 560px; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+<div style="font-family: 'IM Fell English SC', serif; font-size: 24px; color: #ead08a;">Glissez le long des pointillés pour ouvrir</div>
+<div style="font-size: 13.5px; color: #8fa3ab;">De gauche à droite, d’un seul geste. Au clavier : Entrée.</div>
+<div style="display: flex; gap: 10px; margin-top: 6px;"><button class="btn ghost" onClick="{{back}}">Changer de booster</button><button class="btn" onClick="{{autoCut}}">Ouvrir sans glisser</button></div>
+</div>
+</sc-if>
+
+<!-- pile -->
+<sc-if value="{{showStack}}" hint-placeholder-val="{{false}}">
+<sc-if value="{{bigMoment}}" hint-placeholder-val="{{false}}"><div class="dim"></div></sc-if>
+<div class="{{stkCls}}" style="z-index: {{stkZ}};">
+<sc-if value="{{bigMoment}}" hint-placeholder-val="{{false}}"><div class="{{graysCls}}"></div><div class="{{banCls}}">{{banTxt}}</div></sc-if>
+<div class="{{burstCls}}"></div>
+<div class="{{ringCls}}" style="--rc: {{rc}};"></div>
+<sc-for list="{{sparks}}" as="k" hint-placeholder-count="0"><div class="{{k.cls}}" style="--rc: {{rc}}; --x: {{k.x}}px; --y: {{k.y}}px; --d: {{k.d}}s;"></div></sc-for>
+<sc-if value="{{hasPeek2}}" hint-placeholder-val="{{true}}"><div class="peek2"><dc-import name="CarteVar" v="dos" w="{{280}}" still="{{true}}" hint-size="280px,398px"></dc-import></div></sc-if>
+<sc-if value="{{hasPeek}}" hint-placeholder-val="{{true}}"><div class="peek"><dc-import name="CarteVar" card="{{peek.id}}" v="{{peek.v}}" w="{{280}}" still="{{true}}" hint-size="280px,398px"></dc-import></div></sc-if>
+<sc-if value="{{hasTop}}" hint-placeholder-val="{{true}}">
+<div class="{{topCls}}" style="transform: translateX({{dx}}px) rotate({{rot}}deg);" onPointerDown="{{tDown}}" onPointerMove="{{tMove}}" onPointerUp="{{tUp}}" onPointerCancel="{{tUp}}">
+<div class="{{flipCls}}"><div class="flip">
+<div class="face back"><dc-import name="CarteVar" v="dos" w="{{280}}" hint-size="280px,398px"></dc-import></div>
+<div class="face front"><dc-import name="CarteVar" card="{{top.id}}" v="{{top.v}}" serial="{{top.serial}}" w="{{280}}" tilt="{{true}}" hint-size="280px,398px"></dc-import></div>
+</div></div>
+</div>
+</sc-if>
+<sc-if value="{{hasFly}}" hint-placeholder-val="{{false}}"><div class="{{flyCls}}"><dc-import name="CarteVar" card="{{fly.id}}" v="{{fly.v}}" serial="{{fly.serial}}" w="{{280}}" still="{{true}}" hint-size="280px,398px"></dc-import></div></sc-if>
+<sc-if value="{{showInfo}}" hint-placeholder-val="{{true}}"><div class="info" style="z-index: 10;">
+<sc-if value="{{topShown}}" hint-placeholder-val="{{true}}"><b style="font-size: 17px;">{{top.name}}</b><sc-if value="{{isNum}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; font-weight: 900; letter-spacing: .12em; color: #e7c6ff;">EXEMPLAIRE N° {{top.serial}}</span></sc-if><span style="font-size: 14px; font-weight: 900; color: {{top.rc}};">{{top.stars}} {{top.vname}}</span><span class="tag" style="background: {{top.tagBg}}; color: {{top.tagInk}};">{{top.tag}}</span></sc-if>
+<sc-if value="{{topHidden}}" hint-placeholder-val="{{false}}"><b style="font-size: 17px; color: #ead08a;">Carte de chance</b><span style="font-size: 13.5px; color: #8fa3ab;">Touchez pour la retourner</span></sc-if>
+<div class="{{dotsCls}}"><sc-for list="{{dots}}" as="d" hint-placeholder-count="5"><span class="{{d}}"></span></sc-for></div>
+<div style="font-size: 13px; color: #8fa3ab; margin-top: 4px;">{{hint}}</div>
+</div></sc-if>
+</div>
+<div style="position: absolute; right: 0; top: 0; z-index: 12;"><button class="btn ghost" onClick="{{skip}}">Tout voir ⏭</button></div>
+</sc-if>
+
+<!-- récapitulatif -->
+<sc-if value="{{isRecap}}" hint-placeholder-val="{{false}}">
+<div class="fi" style="position: absolute; left: 0; right: 0; top: 10px; text-align: center; font-family: 'Pirata One', cursive; font-size: 40px; color: #ead08a;">Votre butin</div>
+<sc-if value="{{isDivin}}" hint-placeholder-val="{{false}}"><div class="fi divb" style="position: absolute; left: 0; right: 0; top: 56px; text-align: center; animation-delay: .8s;">✦ Booster divin · 1 sur 2 000 ✦</div></sc-if>
+<div class="grid">
+<sc-for list="{{recap}}" as="c" hint-placeholder-count="5">
+<div class="gc" style="animation-delay: {{c.dl}}s;">
+<dc-import name="CarteVar" card="{{c.id}}" v="{{c.v}}" serial="{{c.serial}}" w="{{150}}" tilt="{{true}}" hint-size="150px,213px"></dc-import>
+<b style="font-size: 13.5px; text-align: center;">{{c.name}}</b><span style="font-size: 12.5px; font-weight: 900; color: {{c.rc}};">{{c.stars}} {{c.vname}}</span><span class="tag" style="background: {{c.tagBg}}; color: {{c.tagInk}};">{{c.tag}}</span>
+</div>
+</sc-for>
+</div>
+<div class="fi" style="position: absolute; left: 0; right: 0; top: 730px; display: flex; flex-direction: column; align-items: center; gap: 10px; animation-delay: .7s;">
+<div style="display: flex; gap: 22px; font-size: 15px; font-weight: 800;"><span style="color: #8fbf7a;">+{{newN}} nouvelles variantes</span><span style="color: #9fe3ff;">+{{gain}} ◆ éclats</span></div>
+<div style="display: flex; justify-content: space-between; width: 380px; font-size: 13px; color: #c9d6db;"><span>Collection · Série 1</span><b>{{collTxt}}</b></div>
+<div class="bar"><div style="--a: {{collA}}%; --b: {{collB}}%;"></div></div>
+<div style="display: flex; gap: 10px; margin-top: 10px;"><button class="btn gold" onClick="{{again}}" style="min-height: 50px; font-size: 17px;">Ouvrir un autre · 50 🪙</button><button class="btn" style="min-height: 50px;">Voir la collection</button><button class="btn ghost" onClick="{{toShop}}">Changer de booster</button></div>
+</div>
+</sc-if>
+<div class="{{flashCls}}"></div>
+</div>
+
+<!-- colonne droite : notes -->
+<div style="position: absolute; left: 1090px; top: 84px; width: 326px; display: flex; flex-direction: column; gap: 12px; z-index: 5;">
+<div class="panel"><div style="font-family: 'IM Fell English SC', serif; font-size: 21px; color: #ead08a; line-height: 1.2;">Ouvrir un booster doit être un petit rituel</div><div style="font-size: 13.5px; color: #c9d6db; line-height: 1.45; margin-top: 6px;">Inspiré des meilleures ouvertures mobiles : on coupe le sachet du doigt, la lumière qui s’échappe trahit la meilleure carte, puis on fait défiler la pile une carte à la fois.</div></div>
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="5">
+<div class="panel" style="display: flex; gap: 12px;"><span style="flex: none; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;">{{n.i}}</span><div><b style="color: #f2e7cd; font-size: 14.5px;">{{n.t}}</b><div style="font-size: 13px; color: #c9d6db; line-height: 1.45; margin-top: 3px;">{{n.d}}</div></div></div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1120}}'>
+class Component extends DCLogic {
+  state = { sel: 0, phase: 'choose', cards: [], force: null, coins: 1240, eclats: 85, divin: false, k: 0, cut: 0, cutting: false, touched: false, top: 0, dx: 0, drag: false, fly: null, flyDir: 1, coll: 63, collOld: 63, flash: 0, boom: 0 };
+  componentWillUnmount() { (this.t || []).forEach(clearTimeout); }
+  later(ms, f) { var k = this.state.k; (this.t = this.t || []).push(setTimeout(() => { if (this.state.k === k) f(); }, ms)); }
+  keys() { return ['kraken', 'sirenes', 'roi']; }
+  packs() {
+    var B = id => '/_blob/' + id;
+    return {
+      kraken: { name: 'Profondeurs', img: B('37c9f571b4b0887791c18ec62766df86'), feat: ['kraken', 'whale', 'b14'], desc: 'Kraken, Baleine blanche et 14 noir trois fois plus fréquents.' },
+      sirenes: { name: 'Chant des sirènes', img: B('6ab498a5dfcaa5cc662ff4f2cc91431a'), feat: ['alyra', 'juanita', 'mary'], desc: 'Alyra, Juanita et Marie trois fois plus fréquentes.' },
+      roi: { name: 'Couronne du roi', img: B('79bcb352d8461025c558da4b2d03c1c5'), feat: ['sk', 'rosie', 'rascal'], desc: 'Skull King, Rosie et Rascal trois fois plus fréquents.' }
+    };
+  }
+  pool() {
+    var C = [['rosie', 'Rosie la douce'], ['rascal', 'Rascal le Flambeur'], ['juanita', 'Juanita Jade'], ['harry', 'Harry le géant'], ['mary', 'Marie Thorne'], ['morgane', 'Morgane la Louve'], ['bahij', 'Bendt le Ripate'],
+      ['sk', 'Skull King'], ['kraken', 'Kraken'], ['alyra', 'Alyra, sirène'], ['whale', 'Baleine blanche'], ['escape', 'Fuite']];
+    [['y', 'jaune'], ['g', 'vert'], ['p', 'violet'], ['b', 'noir']].forEach(s => [1, 3, 5, 7, 9, 11, 12, 13, 14].forEach(n => C.push([s[0] + n, n + ' ' + s[1]])));
+    return C;
+  }
+  roll() {
+    var s = this.state, C = this.pool(), PK = this.packs()[this.keys()[s.sel]], f = s.force;
+    var pickCard = () => { var w = C.map(c => PK.feat.indexOf(c[0]) >= 0 ? 3 : 1), tot = w.reduce((a, b) => a + b, 0), r = Math.random() * tot; for (var i = 0; i < C.length; i++) { r -= w[i]; if (r < 0) return C[i]; } return C[0]; };
+    var wpick = tbl => { var r = Math.random() * 100, a = 0; for (var i = 0; i < tbl.length; i++) { a += tbl[i][1]; if (r < a) return tbl[i][0]; } return tbl[0][0]; };
+    // échelle de Pokémon TCG Pocket : 1◆ = Commune, 2◆ = Holo, 3-4◆ = Épique, 1-3★ = Signée, ★ brillantes + couronne = Numérotée
+    var O = this.odds(), vs = [];
+    for (var i = 0; i < 3; i++) vs.push(Math.random() < .5 ? 'patine' : 'etain');
+    var tier = col => { var r = Math.random() * 100, a = 0; for (var j = 0; j < O.length; j++) { a += O[j][col]; if (r < a) return O[j][0]; } return 'holo'; };
+    var vOf = t => t === 'epique' ? (Math.random() < .5 ? 'nacre' : 'vivante') : t;
+    vs.push(vOf(tier(2))); vs.push(vOf(tier(3)));
+    if (f === 'epique') vs[4] = 'vivante';
+    if (f === 'signee') vs[4] = 'signee';
+    if (f === 'numero') vs[4] = 'numero';
+    this.divin = f === 'divin' || (f == null && Math.random() < .0005);
+    if (this.divin) vs = vs.map(() => Math.random() < .9 ? 'signee' : 'numero');
+    var used = {};
+    return vs.map((v, i) => { var c; do { c = pickCard(); } while (used[c[0]]); used[c[0]] = 1;
+      var dup = Math.random() < { patine: .55, etain: .5, holo: .3, nacre: .1, vivante: .1, signee: .03, numero: 0 }[v];
+      var rk = this.rank(v);
+      return { id: c[0], name: c[1], v: v, rk: rk, dup: dup, up: i < 4, serial: String(1 + Math.floor(Math.random() * 100)).padStart(3, '0') + ' / 100' }; });
+  }
+  rank(v) { return { patine: 'c', etain: 'c', holo: 'r', nacre: 'e', vivante: 'e', signee: 'l', numero: 'm' }[v]; }
+  gainOf(c) { return c.dup ? { patine: 5, etain: 5, holo: 20, nacre: 60, vivante: 60, signee: 200, numero: 0 }[c.v] : 0; }
+  odds() { return [['holo', 'Holographique', 92, 66], ['epique', 'Nacre ou Vivante', 5, 21], ['signee', 'Signée', 2.3, 10], ['numero', 'Numérotée', 0.7, 3]]; }
+  glowOf(rk) { return { c: 'rgba(255,244,214,.9)', r: '#4fa8ff', e: '#b77dff', l: '#ffc94a', m: '#e7c6ff' }[rk]; }
+  best(cards) { var b = 'c'; (cards || []).forEach(c => { if ('crelm'.indexOf(c.rk) > 'crelm'.indexOf(b)) b = c.rk; }); return b; }
+  focus() { if (this.state.phase !== 'choose') return; this.setState({ phase: 'focus', cut: 0, cutting: false, touched: false, cards: this.roll(), divin: !!this.divin }); }
+  doCut() {
+    var s = this.state, cards = s.cards, k = s.k + 1;
+    if (s.phase !== 'focus' || this.cutK === s.k) return; this.cutK = s.k;
+    this.setState({ phase: 'opening', k: k, cut: 1, cutting: false, flashOn: true, coins: s.coins - 50, top: 0, dx: 0, fly: null, flash: s.flash + 1,
+ });
+    this.later(550, () => this.setState({ flashOn: false }));
+    this.later(1950, () => this.setState({ phase: 'stack', boom: this.state.boom + 1 }));
+  }
+  advance(dir) {
+    var s = this.state; if (s.phase !== 'stack' || s.top >= s.cards.length || this.advT === s.top) return;
+    var c = s.cards[s.top]; if (!c.up) return this.reveal();
+    var nt = s.top + 1; this.advT = s.top;
+    this.setState({ fly: { i: s.top }, flyDir: dir, top: nt, dx: 0, drag: false, boom: this.state.boom + 1 });
+    this.later(460, () => this.setState({ fly: null }));
+    if (nt >= s.cards.length) this.later(420, () => this.finish());
+  }
+  reveal() {
+    var s = this.state, cs = s.cards.slice(), c = cs[s.top]; if (c.up) return;
+    cs[s.top] = Object.assign({}, c, { up: true });
+    this.setState({ cards: cs });
+    var big = 'lm'.indexOf(c.rk) >= 0;
+    this.later(650, () => this.setState({ boom: this.state.boom + 1, flash: this.state.flash + (big ? 1 : 0), flashOn: big }));
+    if (big) this.later(1200, () => this.setState({ flashOn: false }));
+  }
+  finish() {
+    var s = this.state, cards = s.cards.map(c => Object.assign({}, c, { up: true }));
+    var gain = cards.reduce((a, c) => a + this.gainOf(c), 0), nw = cards.filter(c => !c.dup).length;
+    this.setState({ phase: 'recap', cards: cards, top: cards.length, fly: null, eclats: s.eclats + gain, collOld: s.coll, coll: s.coll + nw });
+  }
+  renderVals() {
+    var s = this.state, K = this.keys(), PK = this.packs(), cur = PK[K[s.sel]], ph = s.phase;
+    var VN = { patine: ['Patinée', '#c9d3dc', '◆'], etain: ['Bord d’étain', '#c9d3dc', '◆'], holo: ['Holographique', '#6cb8ff', '◆◆'], nacre: ['Nacre', '#c79bff', '◆◆◆'], vivante: ['Vivante', '#c79bff', '◆◆◆'], signee: ['Signée', '#ffc94a', '★'], numero: ['Numérotée', '#e7c6ff', '★★'] };
+    var deco = c => { var vn = VN[c.v], g = this.gainOf(c); return { id: c.id, v: c.v, serial: c.serial, name: c.name, vname: vn[0], rc: vn[1], stars: vn[2],
+      tag: c.dup ? 'Doublon · +' + g + ' ◆' : 'Nouveau', tagBg: c.dup ? 'rgba(159,227,255,.15)' : '#8fbf7a', tagInk: c.dup ? '#9fe3ff' : '#14240f' }; };
+    var best = this.best(s.cards), glow = 'rgba(255,236,190,.95)';
+    var cards = s.cards, n = cards.length, topC = (ph === 'stack' || ph === 'opening') && s.top < n ? cards[s.top] : null;
+    var par = s.boom % 2 ? 'ba' : 'bb';
+    var topRk = topC ? topC.rk : 'c', topUp = topC && topC.up, big = ph === 'stack' && topUp && (topRk === 'l' || topRk === 'm');
+    var stepI = { choose: 0, focus: 1, opening: 1, stack: 2, recap: 3 }[ph];
+    var sparks = [];
+    if (ph === 'stack' && topUp && topRk !== 'c') for (var i = 0; i < { r: 10, e: 16, l: 26, m: 32 }[topRk]; i++) { var a = i / 7.3 * Math.PI * 2 + i, d = 160 + (i * 37) % 140; sparks.push({ cls: 'spark ' + par, x: Math.round(Math.cos(a) * d), y: Math.round(Math.sin(a) * d), d: ((i % 6) * .04).toFixed(2) }); }
+    var pos = (i) => { var o = ((i - s.sel) % 3 + 3) % 3; return o === 2 ? -1 : o; };
+    var inFocus = ph === 'focus' || ph === 'opening';
+    return {
+      coins: s.coins.toLocaleString('fr-FR'), eclats: s.eclats,
+      steps: ['Choisir le booster', 'Couper le sachet', 'Faire défiler la pile', 'Le butin'].map((t, i) => ({ n: i + 1, t: t, cls: 'step' + (i === stepI ? ' on' : i < stepI ? ' done' : '') })),
+      odds: this.odds().map(o => ({ l: o[1], c: { holo: '#6cb8ff', epique: '#c79bff', signee: '#ffc94a', numero: '#e7c6ff' }[o[0]], a: String(o[2]).replace('.', ',').replace(/(,\d\d)\d+/, '$1') + ' %', b: String(o[3]).replace('.', ',').replace(/(,\d\d)\d+/, '$1') + ' %' })),
+      forces: [[null, 'Au hasard'], ['epique', 'Épique'], ['signee', 'Signée'], ['numero', 'Numérotée'], ['divin', 'Booster divin']].map(f => ({ label: f[1], cls: 'chip' + (s.force === f[0] ? ' on' : ''), pick: () => this.setState({ force: f[0] }) })),
+      showCar: ph === 'choose' || inFocus, glow: glow, shadowOp: ph === 'choose' ? 1 : 0,
+      packs: K.map((k, i) => { var o = pos(i), P = PK[k], isCur = o === 0;
+        var tf = inFocus ? (isCur ? 'translateY(40px) scale(1.22)' : 'translateX(' + (o * 420) + 'px) scale(.6)') : 'translateX(' + (o * 240) + 'px) translateZ(' + (isCur ? 0 : -160) + 'px) rotateY(' + (o * -32) + 'deg) scale(' + (isCur ? 1 : .82) + ')';
+        return { name: P.name, img: P.img, cls: 'pw' + (inFocus && !isCur ? ' off' : ''), inner: isCur ? (ph === 'opening' ? 'opening' : ph === 'choose' ? 'float' : '') : '', tf: tf,
+          op: inFocus && !isCur ? 0 : isCur ? 1 : .55, fl: isCur ? 'none' : 'brightness(.6) saturate(.8)', z: isCur ? 3 : 1, cuttable: isCur && ph === 'focus',
+          pick: () => { if (this.state.phase !== 'choose') return; if (isCur) this.focus(); else this.setState({ sel: i }); } }; }),
+      cutW: Math.round(s.cut * 220), cutting: s.cutting, showGhost: ph === 'focus' && !s.touched,
+      cutDown: e => { if (this.state.phase !== 'focus') return; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {} var r = e.currentTarget.getBoundingClientRect(), p = (e.clientX - r.left - 30 * r.width / 280) / (220 * r.width / 280);
+        this.setState({ cutting: true, touched: true, cut: Math.max(0, Math.min(1, p < .35 ? p : 0)) }); },
+      cutMove: e => { if (!this.state.cutting) return; var r = e.currentTarget.getBoundingClientRect(), p = (e.clientX - r.left - 30 * r.width / 280) / (220 * r.width / 280);
+        p = Math.max(this.state.cut, Math.min(1, p)); if (p - this.state.cut > .015) this.setState({ cut: p }); if (p >= .92) this.doCut(); },
+      cutUp: () => { if (this.state.phase === 'focus') this.setState({ cutting: false, cut: 0 }); },
+      autoCut: () => { if (this.state.phase !== 'focus') return; this.setState({ touched: true }); [.25, .5, .75, 1].forEach((p, j) => this.later(90 * (j + 1), () => p < 1 ? this.setState({ cut: p }) : this.doCut())); },
+      isChoose: ph === 'choose', isFocus: ph === 'focus',
+      cur: { name: cur.name, desc: cur.desc, feat: cur.feat.map(id => ({ id: id })) },
+      prev: () => this.setState({ sel: (this.state.sel + 2) % 3 }), next: () => this.setState({ sel: (this.state.sel + 1) % 3 }),
+      choose: () => this.focus(), back: () => this.setState({ phase: 'choose', cut: 0 }),
+      showInfo: ph === 'stack', divinFx: !!s.divin && ph === 'opening', gsp: [8, 22, 35, 47, 58, 70, 83, 93].map((x, i) => ({ x: x, d: (0.35 + (i * 0.37) % 1.1).toFixed(2) })), dotsCls: 'pdots' + (s.divin ? ' dv' : ''), isDivin: !!s.divin && ph === 'recap', showStack: ph === 'opening' || ph === 'stack', stkZ: ph === 'opening' ? 1 : 9, stkCls: 'stk' + (ph === 'opening' ? ' rise' : ''),
+      bigMoment: big, graysCls: 'grays' + (topRk === 'm' ? ' m' : ''), banCls: 'ban' + (topRk === 'm' ? ' m' : ''), banTxt: topRk === 'm' ? 'Numérotée !' : 'Signée !',
+      burstCls: 'burst ' + (topUp && ph === 'stack' && topRk !== 'c' ? topRk + ' ' + par : ''), ringCls: 'ring ' + (topUp && ph === 'stack' && topRk !== 'c' ? par : ''), rc: this.glowOf(topRk), sparks: sparks,
+      hasPeek2: s.top + 2 < n, hasPeek: s.top + 1 < n,
+      peek: s.top + 1 < n ? (cards[s.top + 1].up ? { id: cards[s.top + 1].id, v: cards[s.top + 1].v } : { id: '', v: 'dos' }) : { id: '', v: 'dos' },
+      isNum: !!topC && topC.v === 'numero' && topUp, hasTop: !!topC, top: topC ? deco(topC) : {}, topShown: !!topUp, topHidden: !!topC && !topUp,
+      topCls: 'top ' + (s.drag ? 'drag ' : '') + (s.top % 2 ? 'pa' : 'pb'), dx: s.dx, rot: (s.dx / 18).toFixed(1),
+      flipCls: 'flipw' + (topC && topC.up ? ' up' : '') + (topC && !topC.up ? ' hid' : ''),
+      tDown: e => { if (this.state.phase !== 'stack') return; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {} this.x0 = e.clientX; this.moved = false; this.setState({ drag: true }); },
+      tMove: e => { if (!this.state.drag) return; var d = e.clientX - this.x0; if (Math.abs(d) > 6) this.moved = true; if (Math.abs(d - this.state.dx) > 3) this.setState({ dx: d }); },
+      tUp: () => { if (!this.state.drag) return; var d = this.state.dx; this.setState({ drag: false });
+        if (Math.abs(d) > 90) this.advance(d < 0 ? -1 : 1); else if (!this.moved) this.advance(-1); else this.setState({ dx: 0 }); },
+      hasFly: !!s.fly && s.fly.i < n, fly: s.fly && s.fly.i < n ? deco(cards[s.fly.i]) : {}, flyCls: 'fly ' + (s.flyDir < 0 ? 'l' : 'r'),
+      dots: cards.map((c, i) => i < s.top ? 'on' : i === s.top ? 'cur' : ''),
+      hint: topC && !topC.up ? '' : s.top === n - 1 ? 'Dernière carte : touchez pour voir le butin' : 'Glissez la carte sur le côté, ou touchez-la',
+      skip: () => this.finish(),
+      isRecap: ph === 'recap',
+      recap: cards.map((c, i) => Object.assign(deco(c), { dl: (0.08 + i * .1).toFixed(2) })),
+      newN: cards.filter(c => !c.dup).length, gain: cards.reduce((a, c) => a + this.gainOf(c), 0),
+      collTxt: s.coll + ' / 224 variantes', collA: (s.collOld / 224 * 100).toFixed(1), collB: (s.coll / 224 * 100).toFixed(1),
+      again: () => { var c = this.roll(); this.setState({ phase: 'focus', cards: c, divin: !!this.divin, cut: 0, cutting: false, touched: false, top: 0, fly: null, k: this.state.k + 1 }); },
+      toShop: () => this.setState({ phase: 'choose', cards: [], top: 0, k: this.state.k + 1 }),
+      flashCls: 'flash' + (s.flashOn ? (s.flash % 2 ? ' fa' : ' fb') : ''),
+      notes: [
+        { i: 1, t: 'Choisir dans un carrousel', d: 'les 3 boosters de la saison tournent en 3D ; ceux d’à côté sont assombris. Les cartes vedettes (×3) sont montrées en dessous, en Holo.' },
+        { i: 2, t: 'Couper du doigt', d: 'on glisse le long des pointillés : une ligne de lumière suit le doigt (vibration légère tous les 10 %). À 92 %, la bande s’envole. Bouton « Ouvrir sans glisser » pour l’accessibilité.' },
+        { i: 3, t: 'Booster à 50 pièces, chances à la Pocket un peu réduites', d: 'cartes 1 à 3 toujours communes ; la 4e surprend parfois (8 % de rare ou mieux), la 5e est la carte de chance (34 %). Environ 1 booster par partie jouée. Booster divin : 1 sur 2 000.' },
+        { i: 4, t: 'Rien n’est dévoilé avant', d: 'la lumière du sachet est toujours la même. Les cartes 1 à 4 défilent face visible ; seule la 5e arrive face cachée, avec un dos neutre, même si ce n’est qu’une Holo. Signée et Numérotée : écran assombri, rayons, bannière.' },
+        { i: 5, t: 'Le butin et la collection', d: 'grille des 5 cartes, nouveautés et doublons convertis en éclats, la barre de collection qui avance. « Ouvrir un autre » repart directement au découpage.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

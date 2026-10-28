@@ -168,13 +168,18 @@ ok('règlement rejoué : « already »', await settleFinished(store, G, S_end!, 
 const xpAfter = (await db.query<any>('select xp from profiles where id = any($1::uuid[])', [users])).rows.map((x: any) => x.xp);
 ok('règlement rejoué : XP inchangée', xpAfter.sort().join() === xpBefore.split(',').sort().join());
 
-// Porte-monnaie : 1 coffre au vainqueur ; pièces : +10 partie, +30 victoire, +15 toutes ses mises tenues, +50 par haut fait ; pas de double application
+// Porte-monnaie : 1 booster au vainqueur, 1 booster du jour à chacun, 1 coffre par niveau ; pièces : +10 partie, +30 victoire, +15 toutes ses mises tenues, +50 par haut fait ; pas de double application
 const winnerUid = res[0].user_id as string;
 const winnerBids = Number((await db.query<any>('select bids_made from game_results where game_id=$1 and user_id=$2', [G, winnerUid])).rows[0].bids_made);
 const wWin = await store.wallet(winnerUid);
 const winnerXp = Number((await db.query<any>('select xp from profiles where id=$1', [winnerUid])).rows[0].xp);
 const winnerLevelUps = Math.max(0, levelFor(winnerXp).level - 1);
-ok('porte-monnaie : coffres au vainqueur (1 victoire + 1 par niveau franchi)', wWin.chests === 1 + winnerLevelUps, { wWin, winnerXp, winnerLevelUps });
+ok('porte-monnaie : coffres au vainqueur (1 par niveau franchi, plus rien pour la victoire)', wWin.chests === winnerLevelUps, { wWin, winnerXp, winnerLevelUps });
+const boostersOf = async (u: string) => (await db.query<any>('select boosters, free_booster_at from user_wallet where user_id=$1', [u])).rows[0];
+for (const r of res) {
+  const b = await boostersOf(r.user_id);
+  ok(`boosters : place ${r.place} → ${r.place === 1 ? '1 de victoire + ' : ''}1 du jour`, b.boosters === (r.place === 1 ? 2 : 1) && b.free_booster_at != null, { place: r.place, b });
+}
 for (const r of res) {
   const w = await store.wallet(r.user_id), gr = (await db.query<any>('select bids_made, rounds from game_results where game_id=$1 and user_id=$2', [G, r.user_id])).rows[0];
   const achs = Number((await db.query<any>('select count(*)::int as n from user_achievements where game_id=$1 and user_id=$2', [G, r.user_id])).rows[0].n);
@@ -182,15 +187,15 @@ for (const r of res) {
   ok(`porte-monnaie : place ${r.place} → ${want} pièces (partie, victoire, mises, hauts faits)`, w.coins === want, { place: r.place, w, gr, achs });
 }
 void winnerBids;
-// coffre acheté à l'échoppe : 100 pièces
-await db.exec(`update user_wallet set coins = 120, chests = 0 where user_id = '${winnerUid}'`);
+// coffre acheté à l'échoppe : 50 pièces (personnalisation du profil seulement)
+await db.exec(`update user_wallet set coins = 70, chests = 0 where user_id = '${winnerUid}'`);
 const cb = await handle(store, winnerUid, { action: 'chest.buy' });
-ok('coffre : acheté 100 pièces', cb?.ok && cb.coins === 20 && cb.chests === 1, cb);
+ok('coffre : acheté 50 pièces', cb?.ok && cb.coins === 20 && cb.chests === 1, cb);
 await expectErr('coffre : pas assez de pièces → refus', handle(store, winnerUid, { action: 'chest.buy' }), 400);
 await db.exec(`update user_wallet set coins = ${wWin.coins}, chests = ${wWin.chests} where user_id = '${winnerUid}'`);
 await settleFinished(store, G, S_end!, await store.seats(G));
 const wWin2 = await store.wallet(winnerUid);
-ok('porte-monnaie : règlement rejoué n’ajoute rien', wWin2.coins === wWin.coins && wWin2.chests === wWin.chests, { wWin, wWin2 });
+ok('porte-monnaie : règlement rejoué n’ajoute rien', wWin2.coins === wWin.coins && wWin2.chests === wWin.chests && (await boostersOf(winnerUid)).boosters === 2, { wWin, wWin2 });
 
 // ---------- Historique, détail, revanche, profil ----------
 const hist = await handle(store, U.alice, { action: 'history.list' });
@@ -334,11 +339,11 @@ for (let i = 0; i < 500; i++) {
   const r = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 1_000_000 + i * 2017 });
   if (r?.rarity === 'c') cC++; else if (r?.rarity === 'r') cR++; else if (r?.rarity === 'e') cE++; else if (r?.rarity === 'l') cL++;
 }
-ok('coffre : fréquence commune autour de 61 %', Math.abs(cC - 305) <= 60, { cC, cR, cE, cL });
+ok('coffre : fréquence commune autour de 62 %', Math.abs(cC - 310) <= 60, { cC, cR, cE, cL });
 ok('coffre : fréquence rare autour de 26 %', Math.abs(cR - 130) <= 50, { cC, cR, cE, cL });
 ok('coffre : fréquence épique autour de 9 %', Math.abs(cE - 45) <= 30, { cC, cR, cE, cL });
 
-// Légendaire (le Poulpe est le seul légendaire du coffre) : environ 3 fois sur 100 ; Mythique (cartes animées) : environ 1 fois sur 100
+// Légendaire (le Poulpe est le seul légendaire du coffre) : environ 3 fois sur 100 ; plus aucune Mythique (cartes animées) au coffre
 let leg = 0, myth = 0;
 for (let i = 0; i < 1000; i++) {
   await db.exec(`update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
@@ -346,14 +351,12 @@ for (let i = 0; i < 1000; i++) {
   if (r?.rarity === 'l') leg++; else if (r?.rarity === 'm') { myth++; if (r.slot !== 'card_anim') myth = -999; }
 }
 ok('coffre : fréquence légendaire autour de 3 %', leg >= 15 && leg <= 50, { leg, myth });
-ok('coffre : fréquence mythique autour de 1 %, toujours une carte animée', myth >= 3 && myth <= 22, { leg, myth });
-// graine 9950 : tirage 0,995 → Mythique, première carte par ordre d'identifiant (carte:baleine)
-await db.exec(`delete from user_cosmetics where user_id = '${nobodyUid}' and cosmetic_id like 'carte:%'; update user_wallet set chests = 2 where user_id = '${nobodyUid}'`);
-const m1 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 9950 }), m2 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 9950 });
-ok('coffre : Mythique → carte animée, doublon à 400 pièces', m1?.rarity === 'm' && m1.cosmetic_id === 'carte:baleine' && !m1.duplicate && m2?.duplicate && m2.coins_gained === 400, { m1, m2 });
-await db.exec(`insert into user_cosmetics (user_id, cosmetic_id, source) select '${nobodyUid}', id, 'test' from cosmetics where slot = 'card_anim' on conflict do nothing; update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
-const m3 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 9950 });
-ok('coffre : les 6 cartes possédées → la Mythique devient une Légendaire', m3?.rarity === 'l', m3);
+ok('coffre : plus de Mythique (cartes animées)', myth === 0, { leg, myth });
+// graine 9950 : tirage 0,995 → Légendaire, jamais une carte animée
+await db.exec(`delete from user_cosmetics where user_id = '${nobodyUid}' and cosmetic_id like 'carte:%'; update user_wallet set chests = 1 where user_id = '${nobodyUid}'`);
+const m1 = await store.rpc('chest_open', { p_user: nobodyUid, p_seed: 9950 });
+ok('coffre : le haut du tirage donne une Légendaire, pas une carte animée', m1?.rarity === 'l' && m1.slot !== 'card_anim', m1);
+await db.exec(`insert into user_cosmetics (user_id, cosmetic_id, source) select '${nobodyUid}', id, 'test' from cosmetics where slot = 'card_anim' on conflict do nothing`);
 const ca = (await db.query<any>('select * from cartes_animees($1::uuid[])', [[nobodyUid, U.alice]])).rows;
 ok('cartes animées : lecture de qui possède quoi', ca.length === 6 && ca.every((r: any) => r.user_id === nobodyUid), ca);
 await db.exec(`delete from user_cosmetics where user_id = '${nobodyUid}' and cosmetic_id like 'carte:%'`);
@@ -378,7 +381,7 @@ ok('échoppe : même sélection pour tout le monde', JSON.stringify(w1) === JSON
 ok('échoppe : change le lundi suivant', JSON.stringify(w1) !== JSON.stringify(w2), { w1, w2 });
 ok('échoppe : jamais de Légendaire ni de Mythique', !/[lm]/.test(await rar(w2)));
 const sl0 = await handle(store, nobodyUid, { action: 'shop.list' }), sl1 = await handle(store, U.bob, { action: 'shop.list' });
-ok('boutique : shop.list (prix, échoppe, fin de la semaine)', sl0.prices.chest === 100 && sl0.prices.chest3 === 270 && sl0.prices.joker === 150 && sl0.week.items.length === 6 && sl0.week.items.every((x: any) => typeof x.price === 'number') && !!sl0.week.ends_at && JSON.stringify(sl0.week) === JSON.stringify(sl1.week), sl0.week);
+ok('boutique : shop.list (prix, échoppe, fin de la semaine)', sl0.prices.chest === 50 && sl0.prices.chest3 === 135 && sl0.prices.joker === 150 && sl0.prices.booster === 50 && sl0.week.items.length === 6 && sl0.week.items.every((x: any) => typeof x.price === 'number') && !!sl0.week.ends_at && JSON.stringify(sl0.week) === JSON.stringify(sl1.week), sl0.week);
 await expectErr('boutique : objet pas à l\'échoppe cette semaine → refus', handle(store, nobodyUid, { action: 'shop.buy', itemId: 'hat:couronne' }), 400);
 const weekItem = sl0.week.items.find((x: any) => !sl0.owned.includes(x.id));
 await db.exec(`update user_wallet set coins = ${weekItem.price - 1} where user_id = '${nobodyUid}'`);
@@ -388,7 +391,7 @@ const buy = await handle(store, nobodyUid, { action: 'shop.buy', itemId: weekIte
 ok('boutique : achat d\'un objet de l\'échoppe à son prix', !!buy?.ok && buy.coins === 1000 - weekItem.price, buy);
 await expectErr('boutique : objet déjà possédé → refus', handle(store, nobodyUid, { action: 'shop.buy', itemId: weekItem.id }), 400);
 const b3 = await handle(store, nobodyUid, { action: 'shop.buy', itemId: 'chest3' }), b1 = await handle(store, nobodyUid, { action: 'shop.buy', itemId: 'chest' });
-ok('boutique : 3 coffres 270, 1 coffre 100', b3.chests === 3 && b1.chests === 4 && b1.coins === 1000 - weekItem.price - 370, { b3, b1 });
+ok('boutique : 3 coffres 135, 1 coffre 50', b3.chests === 3 && b1.chests === 4 && b1.coins === 1000 - weekItem.price - 185, { b3, b1 });
 
 // Apparence (look) : un objet non possédé est refusé, un objet libre + couleur hex passent
 await expectErr('look : objet non possédé → refus', handle(store, U.alice, { action: 'profile.update', look: { hat: 'bicorne' } }), 400);

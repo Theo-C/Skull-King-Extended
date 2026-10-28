@@ -9,14 +9,28 @@ import { profilePage } from './pages/profile';
 import { playerPage } from './pages/player';
 import { casierPage } from './pages/casier';
 import { boutiquePage } from './pages/boutique';
+import { collectionPage } from './pages/collection';
+import { boosterPage } from './booster';
+import { listenAnnouncements } from './announce';
 import { historyPage } from './pages/history';
 import { leaderboardPage } from './pages/leaderboard';
 import { salonByCode } from './pages/salon';
 import { rulesPage } from './pages/rules';
-import { installArtFallback } from './cards';
+import { installArtFallback, setLayered } from './cards';
+import { installVariantFx } from './variantFx';
 
 // une illustration de carte qui ne se charge pas laisse place à l'ancienne face, sur toutes les pages
 installArtFallback();
+// reflets des variantes qui suivent la souris ou l'inclinaison, plafond de cartes animées
+installVariantFx();
+// cartes en couches (réglage serveur cards_layered, activé par défaut) : la dernière valeur connue s'applique tout de
+// suite, la nouvelle au prochain affichage
+const K_LAYERED = 'pli.cardsLayered';
+try { if (localStorage.getItem(K_LAYERED) === '0') setLayered(false); } catch { /* stockage indisponible */ }
+if (configured) sb.from('app_settings').select('value').eq('key', 'cards_layered').maybeSingle().then(({ data }) => {
+  if (!data) return; const on = data.value !== false; setLayered(on);
+  try { localStorage.setItem(K_LAYERED, on ? '1' : '0'); } catch { /* ignoré */ }
+}, () => { /* réglage indisponible : on garde la valeur connue */ });
 import { homePage } from './pages/home';
 import { joinPage } from './pages/join';
 import { gamePage } from './pages/game';
@@ -41,6 +55,7 @@ async function route() {
     return;
   }
   const user = configured ? await currentUser() : null;
+  if (user) listenAnnouncements(user.id);
   const needAuth = (note?: string) => { remember(location.hash || '#/'); shell(null, 'login'); loginPage(view, note); };
   window.scrollTo(0, 0);
   switch (page) {
@@ -60,6 +75,8 @@ async function route() {
     case 'profil': if (!user) return needAuth(); shell(user, 'profile'); return profilePage(view, user.id, user.email ?? '');
     case 'casier': if (!user) return needAuth(); shell(user, 'casier'); return casierPage(view, user.id, new URLSearchParams(query));
     case 'boutique': if (!user) return needAuth(); shell(user, 'shop'); return boutiquePage(view, user.id);
+    case 'collection': if (!user) return needAuth(); shell(user, 'coll'); return collectionPage(view, new URLSearchParams(query));
+    case 'boosters': if (!user) return needAuth(); shell(user, 'shop'); return boosterPage(view, new URLSearchParams(query));
     case 'joueur': if (!user) return needAuth(); if (!/^[0-9a-f-]{36}$/.test(parts[1] || '') || parts[1] === user.id) return go('#/profil'); shell(user, ''); return playerPage(view, parts[1]);
     default: if (!user) return needAuth(); shell(user, 'home'); return homePage(view, user.id);
   }

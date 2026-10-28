@@ -54,3 +54,10 @@
   .bq-ess{grid-template-columns:minmax(0,1fr)}.bq-shop{grid-template-columns:repeat(2,minmax(0,1fr))}.bq-soon{grid-template-columns:repeat(2,minmax(0,1fr))}
   .bq .chip{min-height:34px;padding:0 12px;font-size:13px}
 }
+/* boosters de cartes (D14) : les 3 sachets de la saison */
+.bq-packs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.bq-pack{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 10px;border-radius:14px;background:#1b1510;border:1px solid rgba(234,208,138,.2);color:#efe6d2;text-decoration:none;text-align:center}
+.bq-pack:hover,.bq-pack:focus-visible{border-color:#ead08a}
+.bq-pack img{width:120px;height:auto;filter:drop-shadow(0 8px 14px rgba(0,0,0,.55));transition:transform .2s}
+.bq-pack:hover img{transform:translateY(-4px) rotate(-2deg)}
+@media (max-width:720px){.bq-packs{grid-template-columns:1fr 1fr 1fr;gap:8px}.bq-pack img{width:80px}.bq-pack .lbl{display:none}}
