@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Carte en couches</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800;900&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+.btn{min-height:38px;padding:0 14px;border-radius:9px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.35);color:#f2e7cd;font-weight:800;font-size:14px;cursor:pointer}
+.btn.on{background:rgba(234,208,138,.18);border-color:#ead08a;color:#ead08a}
+.h{font-family:'IM Fell English SC',serif;font-size:21px;color:#ead08a}
+.lab{font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+/* avant : l'image entière (cadre peint compris) est animée */
+.old{position:relative;width:190px;height:270px;border-radius:12px;overflow:hidden;box-shadow:0 8px 22px rgba(0,0,0,.55)}
+.old .im{position:absolute;inset:0;background-size:cover;background-position:center}
+.old .win{position:absolute;left:10%;top:8%;right:10%;bottom:30%;overflow:hidden}
+.old .win .full{position:absolute;left:-12.5%;top:-12.7%;width:125%;height:164%;background-size:cover;background-position:center;animation:kb 3.5s ease-in-out infinite alternate;transform-origin:50% 45%}
+@keyframes kb{0%{transform:scale(1.04)}100%{transform:scale(1.22) translate(-3%,2.5%)}}
+/* vue éclatée */
+.stack{position:relative;width:240px;height:342px;transform-style:preserve-3d;transition:transform .8s cubic-bezier(.3,1.2,.5,1)}
+.stack.ex{transform:rotateX(52deg) rotateZ(-28deg)}
+.lay{position:absolute;left:0;top:0;transition:transform .8s cubic-bezier(.3,1.2,.5,1)}
+.stack.ex .l1{transform:translateZ(0)}
+.stack.ex .l2{transform:translateZ(110px)}
+.tagl{position:absolute;white-space:nowrap;font-size:13px;font-weight:800;padding:4px 10px;border-radius:8px;background:rgba(10,7,5,.85);border:1px solid rgba(234,208,138,.35);opacity:0;transition:opacity .4s}
+.stack.ex ~ .tagl{opacity:1}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 1060px; overflow: hidden; font-family: 'Alegreya Sans', sans-serif; background: #120c08; color: #efe6d2;">
+<div style="position: absolute; left: 40px; top: 26px;"><div style="font-family: 'Pirata One', cursive; font-size: 34px; color: #ead08a;">La carte refaite en couches</div><div style="font-size: 15px; color: #d9cdb6; margin-top: 2px; max-width: 900px;">Les cadres peints d'origine sont conservés, mais découpés en calque : fenêtre transparente, posés par-dessus l'illustration seule. Au repos, la carte est identique à l'originale ; quand on l'anime, seul le fond bouge.</div></div>
+
+<!-- avant / après -->
+<div style="position: absolute; left: 40px; top: 120px; width: 470px; padding: 18px; border-radius: 14px; background: rgba(0,0,0,.25); border: 1px solid rgba(234,208,138,.15);">
+<div class="h">Variante « Vivante » : avant / après</div>
+<div style="display: flex; gap: 30px; margin-top: 16px;">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+<div class="old"><div class="im" style="background-image: url(/_blob/ff39722f03278f1e6498792ff8a63a68);"></div><div class="win"><div class="full" style="background-image: url(/_blob/ff39722f03278f1e6498792ff8a63a68);"></div></div></div>
+<span class="lab" style="color: #f0a093;">Avant : le cadre peint glisse et se casse</span>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+<dc-import name="CarteVar" card="rosie" v="vivante" w="{{190}}" hint-size="190px,270px"></dc-import>
+<span class="lab" style="color: #8fbf7a;">Après : seul le fond bouge</span>
+</div>
+</div>
+<div style="font-size: 13px; color: #a8987f; margin-top: 12px; line-height: 1.45;">Avant, l'illustration et le cadre étaient la même image : zoomer l'une déplaçait des morceaux de l'autre. Après, l'illustration bouge sous le cadre d'origine, qui reste net et immobile.</div>
+</div>
+
+<!-- vue éclatée -->
+<div style="position: absolute; left: 540px; top: 120px; width: 420px; height: 560px; padding: 18px; box-sizing: border-box; border-radius: 14px; background: rgba(0,0,0,.25); border: 1px solid rgba(234,208,138,.15);">
+<div style="display: flex; align-items: center; justify-content: space-between;"><span class="h">Les couches</span><button class="{{exCls}}" onClick="{{toggle}}">{{exLbl}}</button></div>
+<div style="position: absolute; left: 90px; top: 110px; perspective: 1200px;">
+<div class="{{stackCls}}">
+<div class="lay l1"><dc-import name="CarteVar" card="{{card}}" v="vivante" only="art" w="{{240}}" hint-size="240px,342px"></dc-import></div>
+<div class="lay l2"><dc-import name="CarteVar" card="{{card}}" v="std" only="frame" w="{{240}}" hint-size="240px,342px"></dc-import></div>
+</div>
+</div>
+<sc-if value="{{ex}}" hint-placeholder-val="{{false}}">
+<div class="tagl" style="left: 18px; top: 455px; opacity: 1;">① Illustration seule : bouge, reçoit reflets et signature</div>
+<div class="tagl" style="left: 160px; top: 82px; opacity: 1;">② Cadre peint d'origine, fenêtre transparente : fixe</div>
+</sc-if>
+<div style="position: absolute; left: 18px; right: 18px; bottom: 16px; display: flex; gap: 6px; flex-wrap: wrap;"><sc-for list="{{pick}}" as="k" hint-placeholder-count="5"><button class="{{k.cls}}" onClick="{{k.go}}" style="min-height: 30px; font-size: 12.5px;">{{k.label}}</button></sc-for></div>
+</div>
+
+<!-- familles -->
+<div style="position: absolute; left: 990px; top: 120px; width: 410px; padding: 18px; box-sizing: border-box; border-radius: 14px; background: rgba(0,0,0,.25); border: 1px solid rgba(234,208,138,.15);">
+<div class="h">Toutes les familles, cadres d’origine</div>
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px;">
+<sc-for list="{{fams}}" as="f" hint-placeholder-count="12"><div style="display: flex; flex-direction: column; align-items: center; gap: 4px;"><dc-import name="CarteVar" card="{{f.id}}" v="std" w="{{84}}" still="{{true}}" hint-size="84px,119px"></dc-import><span style="font-size: 11.5px; color: #cfc3ab;">{{f.l}}</span></div></sc-for>
+</div>
+</div>
+
+<!-- test petite taille -->
+<div style="position: absolute; left: 40px; top: 700px; width: 1360px; padding: 16px 18px; box-sizing: border-box; border-radius: 14px; background: rgba(0,0,0,.25); border: 1px solid rgba(234,208,138,.15);">
+<div class="lab" style="color: #a8987f; margin-bottom: 10px;">Lisibilité à la taille de la main mobile : chaque famille dans ses 8 variantes</div>
+<div style="display: flex; gap: 18px; flex-wrap: wrap;"><sc-for list="{{rows}}" as="r" hint-placeholder-count="6"><div style="display: flex; gap: 3px;"><sc-for list="{{r.vs}}" as="v" hint-placeholder-count="8"><dc-import name="CarteVar" card="{{r.id}}" v="{{v}}" w="{{38}}" still="{{true}}" hint-size="38px,54px"></dc-import></sc-for></div></sc-for></div>
+</div>
+
+<!-- notes -->
+<div style="position: absolute; left: 0; top: 860px; width: 1440px; height: 200px; box-sizing: border-box; padding: 20px 40px; background: #0b0805; display: flex; gap: 24px;">
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<div style="flex: 1; display: flex; flex-direction: column; gap: 6px;"><span style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;">{{n.i}}</span><b style="color: #f2e7cd; font-size: 15px;">{{n.t}}</b><span style="font-size: 13px; color: #cfc3ab; line-height: 1.45;">{{n.d}}</span></div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1060}}'>
+class Component extends DCLogic {
+  state = { ex: true, card: 'rosie' };
+  renderVals() {
+    var s = this.state, V = ['std', 'patine', 'etain', 'holo', 'vivante', 'nacre', 'signee', 'numero'];
+    return {
+      ex: s.ex, stackCls: 'stack' + (s.ex ? ' ex' : ''), exCls: 'btn' + (s.ex ? ' on' : ''), exLbl: s.ex ? 'Assembler' : 'Éclater', toggle: () => this.setState({ ex: !this.state.ex }), card: s.card,
+      pick: [['rosie', 'Rosie'], ['sk', 'Skull King'], ['kraken', 'Kraken'], ['g12', '12 vert'], ['noir14', '14 noir']].map(k => ({ label: k[1], cls: 'btn' + (s.card === k[0] ? ' on' : ''), go: () => this.setState({ card: k[0] }) })),
+      fams: [['y7', 'Jaune'], ['g12', 'Vert'], ['p3', 'Violet'], ['b14', 'Noir'], ['rosie', 'Pirate'], ['harry', 'Pirate'], ['alyra', 'Sirène'], ['sk', 'Skull King'], ['kraken', 'Kraken'], ['whale', 'Baleine'], ['escape', 'Fuite'], ['bahij', 'Pirate']].map(f => ({ id: f[0], l: f[1] })),
+      rows: ['y7', 'g12', 'p3', 'b14', 'rosie', 'kraken'].map(id => ({ id: id, vs: V })),
+      notes: [
+        { i: 1, t: 'Deux calques alignés au pixel', d: 'cadre_<carte>.webp : la carte d’origine dont la fenêtre d’illustration est rendue transparente (cadre, médaillons, volutes intacts). illu_<carte>.jpg : l’illustration seule, posée dessous.' },
+        { i: 2, t: 'Personnages sans bandeau', d: 'pirates, sirènes et Skull King perdent le parchemin du nom : l’illustration descend jusqu’au bas du cadre, le médaillon du bas est conservé. Le nom s’affiche au survol et dans les infobulles.' },
+        { i: 3, t: 'Marge : tout le blanc', d: 'marge_<carte>.png est le masque exact de la bordure blanche. Patinée, Étain, Nacre, Holo et Signée la colorent entièrement, sans toucher au cadre.' },
+        { i: 4, t: 'Holo texturé, fond seulement', d: 'foil_<carte>.png isole le fond (ciel, mer, jungle) du personnage : arc-en-ciel, gravure en vagues concentriques et reflets sur les crêtes. Le cadre reste mat.' },
+        { i: 5, t: 'Vivante en 2 plans', d: 'fond et personnage bougent en sens opposés (parallaxe, zoom de 2 à 3,5 % seulement : même taille que la Standard), la mer ondule (cartes marines), rayons de lumière et particules dans le fond.' },
+        { i: 6, t: 'Signée : dorure à chaud', d: 'signature manuscrite or miroir en bas de l’illustration, gaufrage léger et reflet qui glisse.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

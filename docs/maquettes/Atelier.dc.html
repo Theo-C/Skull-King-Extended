@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Atelier de fabrication</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800;900&display=swap">
+<style>
+body{margin:0}
+button{font-family:'Alegreya Sans',sans-serif}
+button:focus-visible{outline:2px solid #ead08a;outline-offset:2px}
+.at{position:relative;width:1440px;height:820px;overflow:hidden;font-family:'Alegreya Sans',sans-serif;color:#efe6d2;background:radial-gradient(ellipse at 56% 40%,#2a1b10,#120c08 65%)}
+.btn{min-height:42px;padding:0 18px;border-radius:11px;border:1px solid rgba(234,208,138,.45);background:rgba(0,0,0,.35);color:#f2e7cd;font-weight:800;font-size:15px;cursor:pointer}
+.btn.gold{border:0;background:linear-gradient(180deg,#f0cf72,#b78c33);color:#2b2117;box-shadow:0 6px 18px rgba(183,140,51,.3)}
+.btn.blue{border:0;background:linear-gradient(180deg,#8fe0ff,#3a9fcf);color:#08202c;box-shadow:0 6px 18px rgba(58,159,207,.35)}
+.btn[aria-disabled="true"]{opacity:.38;cursor:default;box-shadow:none}
+.panel{border-radius:14px;background:linear-gradient(180deg,#221912,#17110c);border:1px solid rgba(234,208,138,.16);box-sizing:border-box}
+.lbl{font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#a8987f}
+.h{font-family:'IM Fell English SC',serif;font-size:21px;color:#ead08a}
+.tab{height:40px;padding:0 18px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font-weight:900;font-size:14.5px;cursor:pointer}
+.tab.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.chip{height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(234,208,138,.3);background:transparent;color:#d9cdb6;font-weight:800;font-size:13px;cursor:pointer}
+.chip.on{background:#ead08a;color:#2b2117;border-color:#ead08a}
+.tier{display:flex;gap:14px;align-items:center;width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid rgba(234,208,138,.14);background:rgba(0,0,0,.22);color:#efe6d2;cursor:pointer;text-align:left}
+.tier.on{border-color:var(--c);background:rgba(255,255,255,.04);box-shadow:0 0 0 1px var(--c) inset}
+.tier.off{opacity:.45}
+.gem{flex:none;width:46px;height:46px;border-radius:12px;transform:rotate(45deg);background:radial-gradient(circle at 35% 30%,#fff,var(--c) 55%,#0006);box-shadow:0 0 14px var(--c)}
+.ct{position:relative;padding:3px;border:2px solid transparent;border-radius:9px;background:none;cursor:pointer}
+.ct.on{border-color:#ead08a;background:rgba(234,208,138,.08)}
+.vchip{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 8px;border-radius:10px;border:1.5px solid transparent;background:none;color:#efe6d2;cursor:pointer;font-size:12px;font-weight:800}
+.vchip.on{border-color:rgba(234,208,138,.6);background:rgba(234,208,138,.08)}
+.vchip.own{opacity:.45}
+.price{font-family:'Pirata One',cursive;font-size:30px;color:#9fe3ff;text-shadow:0 0 12px rgba(159,227,255,.4)}
+.x4{font-size:12px;font-weight:900;padding:2px 8px;border-radius:999px;background:rgba(159,227,255,.15);color:#9fe3ff}
+/* forge */
+.forge{position:absolute;left:0;top:0;width:520px;height:720px;display:flex;align-items:center;justify-content:center}
+.anvil{position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;background:radial-gradient(circle,rgba(159,227,255,.16),transparent 62%);box-shadow:inset 0 0 0 2px rgba(159,227,255,.18)}
+.anvil::after{content:'';position:absolute;inset:26px;border-radius:50%;border:1.5px dashed rgba(159,227,255,.28);animation:rot 30s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.mote{position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px;border-radius:2px;transform:rotate(45deg);background:#bff0ff;box-shadow:0 0 8px #6fd3ff;opacity:0}
+.forging .mote{animation:suck 1.1s cubic-bezier(.6,0,.9,.6) var(--d) both}
+@keyframes suck{0%{opacity:0;transform:translate(var(--x),var(--y)) rotate(45deg) scale(1.2)}20%{opacity:1}100%{opacity:0;transform:translate(0,0) rotate(225deg) scale(.3)}}
+.core{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px;border-radius:50%;background:radial-gradient(circle,#fff,var(--c) 40%,transparent 70%);opacity:0}
+.forging .core{animation:core 1.4s ease-in both}
+@keyframes core{0%{opacity:0;transform:scale(.2)}70%{opacity:1;transform:scale(3)}85%{opacity:1;transform:scale(9)}100%{opacity:0;transform:scale(14)}}
+.flipw{position:relative;width:240px;height:341px;perspective:1100px}
+.flip{position:absolute;inset:0;transform-style:preserve-3d;transition:transform 1s cubic-bezier(.3,1.25,.45,1)}
+.flipw.up .flip{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.face.front{transform:rotateY(180deg)}
+.appear{animation:app .5s cubic-bezier(.3,1.4,.5,1) both}
+@keyframes app{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
+.ring{position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px;border-radius:50%;border:3px solid var(--c);opacity:0;pointer-events:none}
+.ring.go{animation:rg .9s ease-out .9s both}
+@keyframes rg{0%{opacity:1;transform:scale(.5)}100%{opacity:0;transform:scale(2.2)}}
+.grey{filter:grayscale(1) brightness(.55)}
+.fi{animation:fi .4s ease-out both}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+.num{font-variant-numeric:tabular-nums}
+.dl{display:flex;justify-content:space-between;font-size:13.5px;padding:4px 0;border-bottom:1px solid rgba(234,208,138,.08)}
+@media (prefers-reduced-motion: reduce){.anvil::after,.forging .mote,.forging .core{animation:none!important}}
+</style>
+</helmet>
+<div class="at">
+<!-- barre -->
+<div style="position: absolute; left: 0; top: 0; width: 1440px; height: 60px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid rgba(234,208,138,.14); background: #0f0a07;">
+<div style="font-family: 'Pirata One', cursive; font-size: 30px; color: #ead08a;">Atelier</div><div style="font-size: 14px; color: #d9cdb6;">Fabriquer des cartes avec les éclats</div>
+<div style="margin-left: auto; display: flex; gap: 16px; align-items: center; font-weight: 800;"><span style="font-size: 14px;">🪙 1 240</span><span class="num" style="font-size: 18px; color: #9fe3ff;">◆ {{eclats}} éclats</span></div>
+</div>
+
+<!-- colonne gauche : recycler -->
+<div class="panel" style="position: absolute; left: 24px; top: 80px; width: 330px; padding: 16px 18px;">
+<div class="h">Recycler les doublons</div>
+<div style="font-size: 13.5px; color: #cfc3ab; line-height: 1.45; margin: 6px 0 12px;">On garde toujours 1 exemplaire de chaque variante. Les doublons des boosters sont déjà recyclés à l’ouverture ; ici, ceux gagnés autrement (récompenses, défis).</div>
+<sc-for list="{{dups}}" as="d" hint-placeholder-count="4"><div class="dl"><span><b>{{d.n}} ×</b> {{d.label}}</span><span style="color: #9fe3ff; font-weight: 800;">+{{d.g}} ◆</span></div></sc-for>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;"><b>Total</b><span class="num" style="color: #9fe3ff; font-weight: 900; font-size: 17px;">+{{dupTotal}} ◆</span></div>
+<button class="btn blue" onClick="{{recycleAll}}" aria-disabled="{{recDis}}" style="width: 100%; margin-top: 12px;">{{recLbl}}</button>
+<div class="lbl" style="margin-top: 22px;">Valeur d’un doublon</div>
+<sc-for list="{{tiersInfo}}" as="t" hint-placeholder-count="4"><div class="dl"><span style="color: {{t.c}}; font-weight: 800;">{{t.name}}</span><span>{{t.rec}} ◆</span></div></sc-for>
+<div style="font-size: 12.5px; color: #8f8270; margin-top: 8px;">Numérotée : jamais en doublon, ni recyclable ni fabricable.</div>
+</div>
+
+<!-- centre -->
+<div style="position: absolute; left: 378px; top: 80px; width: 640px;">
+<div style="display: flex; gap: 8px; margin-bottom: 14px;"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="2"><button class="{{t.cls}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div>
+
+<!-- mode hasard -->
+<sc-if value="{{isRand}}" hint-placeholder-val="{{true}}">
+<div class="fi" style="display: flex; gap: 18px;">
+<div style="width: 300px; display: flex; flex-direction: column; gap: 10px;">
+<div style="font-size: 13.5px; color: #cfc3ab; line-height: 1.45;">Choisissez une rareté : vous recevez <b>une variante que vous n’avez pas encore</b>, carte au hasard. Le prix de base.</div>
+<sc-for list="{{tiers}}" as="t" hint-placeholder-count="4">
+<button class="{{t.cls}}" style="--c: {{t.c}};" onClick="{{t.pick}}">
+<div class="gem"></div>
+<div style="flex: 1;"><b style="font-size: 16px; color: {{t.c}};">{{t.name}}</b><div style="font-size: 12.5px; color: #a8987f;">{{t.vars}} · {{t.missing}}</div></div>
+<div class="price" style="font-size: 24px;">{{t.cost}}</div>
+</button>
+</sc-for>
+</div>
+<div style="flex: 1; position: relative; height: 640px;">
+<div class="{{forgeCls}}" style="width: 322px; height: 560px; --c: {{tc}};">
+<div class="anvil"></div>
+<sc-for list="{{motes}}" as="m" hint-placeholder-count="0"><div class="mote" style="--x: {{m.x}}px; --y: {{m.y}}px; --d: {{m.d}}s;"></div></sc-for>
+<div class="core"></div>
+<div class="{{ringCls}}"></div>
+<sc-if value="{{showCard}}" hint-placeholder-val="{{false}}"><div class="{{flipCls}} appear" style="animation-delay: .95s;"><div class="flip">
+<div class="face back"><dc-import name="CarteVar" v="dos" w="{{240}}" hint-size="240px,341px"></dc-import></div>
+<div class="face front"><dc-import name="CarteVar" card="{{res.id}}" v="{{res.v}}" w="{{240}}" tilt="{{true}}" hint-size="240px,341px"></dc-import></div>
+</div></div></sc-if>
+<sc-if value="{{idleRand}}" hint-placeholder-val="{{true}}"><div style="position: absolute; left: 0; right: 0; top: 50%; margin-top: -30px; text-align: center; color: #a8987f; font-size: 14px;">Les éclats se rassemblent ici</div></sc-if>
+</div>
+<div style="position: absolute; left: 0; right: 0; top: 566px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+<sc-if value="{{resShown}}" hint-placeholder-val="{{false}}"><div class="fi" style="text-align: center;"><b style="font-size: 16px;">{{res.name}}</b> · <span style="color: {{res.c}}; font-weight: 900;">{{res.vname}}</span> <span style="font-size: 12px; font-weight: 900; padding: 2px 9px; border-radius: 999px; background: #8fbf7a; color: #14240f;">Nouveau</span></div></sc-if>
+<button class="btn blue" onClick="{{forgeRand}}" aria-disabled="{{randDis}}" style="min-height: 48px; font-size: 16px;">{{randLbl}}</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+<!-- mode au choix -->
+<sc-if value="{{isPick}}" hint-placeholder-val="{{false}}">
+<div class="fi" style="display: flex; gap: 18px;">
+<div style="width: 330px;">
+<div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;"><sc-for list="{{fams}}" as="f" hint-placeholder-count="5"><button class="{{f.cls}}" onClick="{{f.pick}}">{{f.label}}</button></sc-for></div>
+<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px;">
+<sc-for list="{{grid}}" as="c" hint-placeholder-count="15"><button class="{{c.cls}}" onClick="{{c.pick}}" aria-label="{{c.name}}"><dc-import name="CarteVar" card="{{c.id}}" v="std" w="{{56}}" still="{{true}}" hint-size="56px,80px"></dc-import></button></sc-for>
+</div>
+</div>
+<div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; position: relative;">
+<div class="{{forgeCls2}}" style="position: relative; width: 292px; height: 360px; display: flex; align-items: center; justify-content: center; --c: {{pc}};">
+<sc-for list="{{motes}}" as="m" hint-placeholder-count="0"><div class="mote" style="--x: {{m.x}}px; --y: {{m.y}}px; --d: {{m.d}}s;"></div></sc-for>
+<div class="core"></div><div class="{{ringCls}}"></div>
+<div class="{{prevCls}}"><dc-import name="CarteVar" card="{{pk.id}}" v="{{pv}}" w="{{240}}" tilt="{{true}}" hint-size="240px,341px"></dc-import></div>
+</div>
+<b style="font-size: 17px;">{{pk.name}}</b>
+<div style="display: flex; gap: 2px; flex-wrap: wrap; justify-content: center;"><sc-for list="{{pvars}}" as="v" hint-placeholder-count="6"><button class="{{v.cls}}" onClick="{{v.pick}}"><span style="color: {{v.c}};">{{v.name}}</span><span style="font-size: 11px; color: #a8987f;">{{v.state}}</span></button></sc-for></div>
+<div style="display: flex; align-items: center; gap: 10px;"><span class="price">{{pCost}} ◆</span><span class="x4">×4 · au hasard : {{pBase}} ◆</span></div>
+<button class="btn gold" onClick="{{forgePick}}" aria-disabled="{{pickDis}}" style="min-height: 48px; font-size: 16px;">{{pickLbl}}</button>
+</div>
+</div>
+</sc-if>
+</div>
+
+<!-- droite : notes -->
+<div style="position: absolute; left: 1040px; top: 80px; width: 376px; display: flex; flex-direction: column; gap: 12px;">
+<div class="panel" style="padding: 14px 16px;"><div class="lbl">Prix</div>
+<div style="display: grid; grid-template-columns: 1fr auto auto; gap: 6px 14px; font-size: 13.5px; margin-top: 4px;">
+<span class="lbl" style="margin: 0;">Rareté</span><span class="lbl" style="margin: 0;">Hasard</span><span class="lbl" style="margin: 0;">Au choix</span>
+<sc-for list="{{tiersInfo}}" as="t" hint-placeholder-count="4"><span style="color: {{t.c}}; font-weight: 800;">{{t.name}}</span><span>{{t.cost}} ◆</span><span style="font-weight: 800;">{{t.cost4}} ◆</span></sc-for>
+</div>
+<div style="font-size: 12.5px; color: #8f8270; margin-top: 8px;">Environ 400 à 500 éclats par semaine à mi-saison, avec ~9 boosters par semaine.</div>
+</div>
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<div class="panel" style="padding: 12px 14px; display: flex; gap: 12px;"><span style="flex: none; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #ead08a; color: #2b2117; font-size: 12px; font-weight: 800;">{{n.i}}</span><div><b style="color: #f2e7cd; font-size: 14.5px;">{{n.t}}</b><div style="font-size: 13px; color: #cfc3ab; line-height: 1.45; margin-top: 3px;">{{n.d}}</div></div></div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":820}}'>
+class Component extends DCLogic {
+  state = { mode: 'rand', tier: 'r', eclats: 1180, extra: {}, phase: 'idle', res: null, k: 0, fam: 'all', sel: 'rosie', pv: 'vivante', recycled: false };
+  componentWillUnmount() { (this.t || []).forEach(clearTimeout); }
+  later(ms, f) { var k = this.state.k; (this.t = this.t || []).push(setTimeout(() => { if (this.state.k === k) f(); }, ms)); }
+  cards() {
+    return [['rosie', 'Rosie la douce', 'pir'], ['rascal', 'Rascal le Flambeur', 'pir'], ['juanita', 'Juanita Jade', 'pir'], ['harry', 'Harry le géant', 'pir'], ['mary', 'Marie Thorne', 'pir'], ['morgane', 'Morgane la Louve', 'pir'],
+      ['bahij', 'Bendt le Ripate', 'pir'], ['sk', 'Skull King', 'cre'], ['alyra', 'Alyra, sirène', 'cre'], ['kraken', 'Kraken', 'cre'], ['whale', 'Baleine blanche', 'cre'], ['escape', 'Fuite', 'cre'],
+      ['y7', '7 jaune', 'suit'], ['y14', '14 jaune', 'suit'], ['g12', '12 vert', 'suit'], ['g3', '3 vert', 'suit'], ['p1', '1 violet', 'suit'], ['p9', '9 violet', 'suit'], ['b14', '14 noir', 'suit'], ['b10', '10 noir', 'suit']];
+  }
+  T() { return { c: { name: 'Commune', c: '#c9d3dc', vars: ['patine', 'etain'], vl: 'Patinée, Étain', cost: 20, rec: 5 }, r: { name: 'Holographique', c: '#6cb8ff', vars: ['holo'], vl: 'Holo', cost: 80, rec: 20 },
+    e: { name: 'Épique', c: '#c79bff', vars: ['nacre', 'vivante'], vl: 'Nacre, Vivante', cost: 240, rec: 60 }, l: { name: 'Signée', c: '#ffc94a', vars: ['signee'], vl: 'Signée', cost: 800, rec: 200 } }; }
+  VN() { return { patine: ['Patinée', 'c'], etain: ['Bord d’étain', 'c'], holo: ['Holographique', 'r'], nacre: ['Nacre', 'e'], vivante: ['Vivante', 'e'], signee: ['Signée', 'l'] }; }
+  owned(id, v) { var k = id + ':' + v; if (this.state.extra[k] != null) return this.state.extra[k]; var h = 7; for (var i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) % 9973; h %= 100;
+    var t = { patine: 75, etain: 68, holo: 52, nacre: 20, vivante: 16, signee: id === 'rosie' ? 100 : 6 }[v]; return h < t ? 1 : 0; }
+  missing(tk) { var T = this.T()[tk], out = []; this.cards().forEach(c => T.vars.forEach(v => { if (!this.owned(c[0], v)) out.push([c[0], v, c[1]]); })); return out; }
+  give(id, v) { var x = Object.assign({}, this.state.extra); x[id + ':' + v] = 1; return x; }
+  forgeRand() {
+    var s = this.state; if (s.phase === 'forging') return; var T = this.T()[s.tier], miss = this.missing(s.tier); if (!miss.length || s.eclats < T.cost) return;
+    var pick = miss[Math.floor(Math.random() * miss.length)], k = s.k + 1;
+    this.setState({ k: k, phase: 'forging', res: { id: pick[0], v: pick[1], name: pick[2], up: false }, eclats: s.eclats - T.cost });
+    this.later(1500, () => this.setState({ phase: 'reveal', res: Object.assign({}, this.state.res, { up: true }), extra: this.give(pick[0], pick[1]) }));
+  }
+  forgePick() {
+    var s = this.state; if (s.phase === 'forging') return; var VN = this.VN(), tk = VN[s.pv][1], cost = this.T()[tk].cost * 4;
+    if (this.owned(s.sel, s.pv) || s.eclats < cost) return; var k = s.k + 1;
+    this.setState({ k: k, phase: 'forging', eclats: s.eclats - cost });
+    this.later(1500, () => this.setState({ phase: 'made', extra: this.give(s.sel, s.pv) }));
+  }
+  renderVals() {
+    var s = this.state, T = this.T(), VN = this.VN(), C = this.cards();
+    var dupsRaw = [['Holographique', 3, 20], ['Patinée / Étain', 7, 5], ['Nacre / Vivante', 1, 60]], dupTotal = s.recycled ? 0 : dupsRaw.reduce((a, d) => a + d[1] * d[2], 0);
+    var motes = []; for (var i = 0; i < 26; i++) { var a = i * 2.4, d = 170 + (i * 53) % 120; motes.push({ x: Math.round(Math.cos(a) * d), y: Math.round(Math.sin(a) * d), d: ((i % 9) * .05).toFixed(2) }); }
+    var tier = T[s.tier], miss = this.missing(s.tier), canR = miss.length > 0 && s.eclats >= tier.cost && s.phase !== 'forging';
+    var sel = C.find(c => c[0] === s.sel), pvT = T[VN[s.pv][1]], pOwn = this.owned(s.sel, s.pv), pCost = pvT.cost * 4, canP = !pOwn && s.eclats >= pCost && s.phase !== 'forging';
+    var forging = s.phase === 'forging';
+    return {
+      eclats: s.eclats.toLocaleString('fr-FR'),
+      dups: s.recycled ? [] : dupsRaw.map(d => ({ label: d[0], n: d[1], g: d[1] * d[2] })), dupTotal: dupTotal,
+      recLbl: s.recycled ? 'Plus aucun doublon' : 'Tout recycler · +' + dupTotal + ' ◆', recDis: String(!!s.recycled),
+      recycleAll: () => { if (this.state.recycled) return; this.setState({ recycled: true, eclats: this.state.eclats + dupTotal }); },
+      tiersInfo: ['c', 'r', 'e', 'l'].map(k => ({ name: T[k].name, c: T[k].c, rec: T[k].rec, cost: T[k].cost, cost4: (T[k].cost * 4).toLocaleString('fr-FR') })),
+      tabs: [['rand', 'Au hasard'], ['pick', 'Au choix (×4)']].map(t => ({ label: t[1], cls: 'tab' + (s.mode === t[0] ? ' on' : ''), pick: () => { if (this.state.phase !== 'forging') this.setState({ mode: t[0], phase: 'idle', res: null }); } })),
+      isRand: s.mode === 'rand', isPick: s.mode === 'pick',
+      tiers: ['c', 'r', 'e', 'l'].map(k => { var m = this.missing(k).length; return { name: T[k].name, c: T[k].c, vars: T[k].vl, cost: T[k].cost, missing: m ? m + ' à découvrir' : 'tout est à vous',
+        cls: 'tier' + (s.tier === k ? ' on' : '') + (m ? '' : ' off'), pick: () => { if (this.state.phase !== 'forging') this.setState({ tier: k, phase: 'idle', res: null }); } }; }),
+      tc: tier.c, motes: forging ? motes : [], forgeCls: 'forge' + (forging ? ' forging' : ''), ringCls: 'ring' + (forging ? ' go' : ''),
+      showCard: s.mode === 'rand' && !!s.res, flipCls: 'flipw' + (s.res && s.res.up ? ' up' : ''), idleRand: !s.res,
+      res: s.res ? { id: s.res.id, v: s.res.v, name: s.res.name, vname: VN[s.res.v][0], c: T[VN[s.res.v][1]].c } : {}, resShown: s.phase === 'reveal',
+      forgeRand: () => this.forgeRand(), randDis: String(!canR),
+      randLbl: !miss.length ? 'Toutes les variantes ' + tier.name + ' sont à vous' : s.eclats < tier.cost ? 'Il manque ' + (tier.cost - s.eclats) + ' ◆' : (s.phase === 'reveal' ? 'Encore une · ' : 'Forger une ' + tier.name + ' · ') + tier.cost + ' ◆',
+      fams: [['all', 'Toutes'], ['pir', 'Pirates'], ['cre', 'Créatures'], ['suit', 'Couleurs']].map(f => ({ label: f[1], cls: 'chip' + (s.fam === f[0] ? ' on' : ''), pick: () => this.setState({ fam: f[0] }) })),
+      grid: C.filter(c => s.fam === 'all' || c[2] === s.fam).map(c => ({ id: c[0], name: c[1], cls: 'ct' + (s.sel === c[0] ? ' on' : ''), pick: () => { if (this.state.phase !== 'forging') this.setState({ sel: c[0], phase: 'idle' }); } })),
+      pk: { id: sel[0], name: sel[1] }, pv: s.pv, pc: pvT.c, forgeCls2: forging && s.mode === 'pick' ? 'forging' : '',
+      prevCls: (pOwn || s.phase === 'made' ? '' : 'grey') + (s.phase === 'made' ? ' appear' : ''),
+      pvars: ['patine', 'etain', 'holo', 'nacre', 'vivante', 'signee'].map(v => { var o = this.owned(s.sel, v); return { name: VN[v][0], c: T[VN[v][1]].c, state: o ? 'possédée' : (T[VN[v][1]].cost * 4) + ' ◆',
+        cls: 'vchip' + (s.pv === v ? ' on' : '') + (o ? ' own' : ''), pick: () => { if (this.state.phase !== 'forging') this.setState({ pv: v, phase: 'idle' }); } }; }),
+      pCost: pCost.toLocaleString('fr-FR'), pBase: pvT.cost, forgePick: () => this.forgePick(), pickDis: String(!canP),
+      pickLbl: s.phase === 'made' ? 'Fabriquée ✓ · utilisable en partie' : pOwn ? 'Déjà dans votre collection' : s.eclats < pCost ? 'Il manque ' + (pCost - s.eclats).toLocaleString('fr-FR') + ' ◆' : 'Fabriquer · ' + pCost.toLocaleString('fr-FR') + ' ◆',
+      notes: [
+        { i: 1, t: 'Hasard ou choix', d: 'au hasard : prix de base, une variante que vous n’avez pas encore dans la rareté choisie (comme les points de booster de Pokémon TCG Pocket ou les jokers de Magic Arena, mais avec la surprise). Au choix : la carte et la variante exactes, 4 fois plus cher.' },
+        { i: 2, t: 'Jamais de doublon fabriqué', d: 'le tirage au hasard ne pioche que dans ce qui vous manque. Quand tout est complété dans une rareté, le bouton se désactive.' },
+        { i: 3, t: 'Rapport 1 pour 4', d: 'un doublon rapporte un quart du prix au hasard, comme la poussière arcanique de Hearthstone (une légendaire recyclée = 400, fabriquée = 1 600). Le prix au choix vaut donc 16 doublons de la même rareté.' },
+        { i: 4, t: 'Hors d’atteinte', d: 'les Numérotées ne se fabriquent jamais (ni au hasard, ni au choix) : elles restent la vraie chance des boosters.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
