@@ -10,7 +10,7 @@ import { esc, toast } from './util';
 import { cardHTML, RIP_SVG } from './cards';
 import { sfx } from './sfx';
 import type { CallGame } from './pages/collection';
-import { boosterReduced } from './locker';
+import { boosterReduced, cardsStill } from './locker';
 import { PACKS, PACK_BY_ID, CARD_BY_ID, VARIANT_INFO, BOOSTER_PRICE, ODDS, SERIES, TIER_OF, NUMBERED_MAX, serialLabel, drawBooster, type Variant } from '@shared/collection.ts';
 
 /** Comptes qui voient le bouton « Essai gratuit » (aussi en développement, ou avec localStorage pli-debug = 1 sur l'appareil). */
@@ -80,7 +80,7 @@ function renderCard(c: Partial<CompCard> & { id: string; variant?: Variant }, { 
   host.className = 'pli-card'; host.style.cssText = 'position:relative;display:block';
   const sr = host.attachShadow({ mode: 'open' }); sr.adoptedStyleSheets = [cardStyles()];
   // filtre SVG de la mer qui ondule (Vivante) embarqué : url(#k4rip) ne voit pas au-delà de la racine fantôme
-  sr.innerHTML = def ? `${RIP_SVG}<div style="display:flex;justify-content:center;width:100%;height:100%">${cardHTML({ id: 0, ...def.card }, null, '', `style="--s:${(width / 252).toFixed(4)}"`, { variant: c.variant ?? 'std', serial: c.n ?? null, still: still || boosterReduced() })}</div>` : '';
+  sr.innerHTML = def ? `${RIP_SVG}<div style="display:flex;justify-content:center;width:100%;height:100%">${cardHTML({ id: 0, ...def.card }, null, '', `style="--s:${(width / 252).toFixed(4)}"`, { variant: c.variant ?? 'std', serial: c.n ?? null, still: still || boosterReduced() || cardsStill() })}</div>` : '';
   return host;
 }
 

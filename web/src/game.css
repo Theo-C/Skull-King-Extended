@@ -246,7 +246,9 @@ html.tilt .art.layered:not(.live){--mx:var(--tmx,50%);--my:var(--tmy,30%)}
 html.tilt .art.auto .foil,html.tilt .art.auto .crest,html.tilt .art.auto .sheen,html.tilt .art.auto .ring{animation:none}
 /* immobile : « Animations des autres » coupé, mouvement réduit, ou plus de 8 cartes animées à l'écran (capped) */
 .art.still *,.art.still,.art.capped *,.art.capped{animation:none!important}
-@media (prefers-reduced-motion: reduce){.art.layered *{animation:none!important}}
+/* variantes figées : option du Casier « Cartes figées » (classe sur <html>) ; le réglage système est ignoré (animations de Windows
+   coupées = Holo et Vivante immobiles sans le vouloir) */
+html.cartes-figees .art.layered *{animation:none!important}
 /* personnages sans bandeau : le nom s'affiche au survol (le zoom, l'infobulle et aria-label le donnent aussi) */
 .card .cname{position:absolute;left:50%;bottom:6%;transform:translateX(-50%);z-index:3;max-width:92%;padding:.15em .6em;border-radius:999px;background:rgba(20,14,9,.88);box-shadow:0 0 0 1px rgba(234,208,138,.55);
   color:#f3e2b4;font:400 max(11px,calc(252px * var(--s) * .075))/1.1 'Pirata One','Pirata One Fallback',serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;opacity:0;transition:opacity .15s}

@@ -58,4 +58,12 @@ const K_BOOST = 'pli.booster.reduit';
 /** « Ouverture des boosters réduite » : simple fondu, sans mouvement. L'écran Booster ignore le réglage du système
  *  (animations de Windows coupées = ouverture escamotée) : c'est ce réglage du jeu qui décide (sur cet appareil). */
 export function boosterReduced(): boolean { try { return localStorage.getItem(K_BOOST) === '1'; } catch { return false; } }
+const K_FIG = 'pli.cartes.figees';
+/** « Cartes figées » : les variantes (Holo, Vivante…) ne bougent plus, à la table comme ailleurs. Remplace le réglage du
+ *  système, ignoré : classe cartes-figees sur <html> (game.css). Sur cet appareil. */
+export function cardsStill(): boolean { try { return localStorage.getItem(K_FIG) === '1'; } catch { return false; } }
+export function setCardsStill(on: boolean) {
+  try { localStorage.setItem(K_FIG, on ? '1' : '0'); } catch { /* stockage indisponible */ }
+  document.documentElement.classList.toggle('cartes-figees', on);
+}
 export function setBoosterReduced(on: boolean) { try { localStorage.setItem(K_BOOST, on ? '1' : '0'); } catch { /* stockage indisponible */ } }

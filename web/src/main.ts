@@ -19,11 +19,14 @@ import { salonByCode } from './pages/salon';
 import { rulesPage } from './pages/rules';
 import { installArtFallback, setLayered } from './cards';
 import { installVariantFx } from './variantFx';
+import { cardsStill } from './locker';
 
 // une illustration de carte qui ne se charge pas laisse place à l'ancienne face, sur toutes les pages
 installArtFallback();
 // reflets des variantes qui suivent la souris ou l'inclinaison, plafond de cartes animées
 installVariantFx();
+// « Cartes figées » (Casier) : seule l'option du jeu fige les variantes, pas le réglage du système
+document.documentElement.classList.toggle('cartes-figees', cardsStill());
 // cartes en couches (réglage serveur cards_layered, activé par défaut) : la dernière valeur connue s'applique tout de
 // suite, la nouvelle au prochain affichage
 const K_LAYERED = 'pli.cardsLayered';

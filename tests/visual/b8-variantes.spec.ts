@@ -80,3 +80,13 @@ test('planche « 8 variantes × chaque famille » à 56 et 40 px (et deutéranop
   await p.nth(1).screenshot({ path: 'docs/captures/planche-variantes-40.png' });
   await p.nth(2).screenshot({ path: 'docs/captures/planche-variantes-56-deuteranopie.png' });
 });
+
+test('réglage système « réduire les animations » ignoré : seule l’option « Cartes figées » fige les variantes', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openBanc(page);
+  await page.evaluate(() => (window as any).banc.render({ keys: ['rosie'], variant: 'vivante' }));
+  const bg = page.locator('.cell[data-k="rosie"] .art.vivante .bg').first();
+  expect(await bg.evaluate(e => getComputedStyle(e).animationName), 'Vivante animée malgré le réglage système').toBe('k4bb');
+  await page.evaluate(() => document.documentElement.classList.add('cartes-figees'));
+  expect(await bg.evaluate(e => getComputedStyle(e).animationName), 'Cartes figées : immobile').toBe('none');
+});
