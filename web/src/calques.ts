@@ -14,7 +14,11 @@ export const CALQUES_VERSION = 1;
 const url = (f: string) => `cards/calques/${f}?v=${CALQUES_VERSION}`;
 export const cadreUrl = (k: string) => url(`cadre_${k}.webp`);
 export const illuUrl = (k: string) => url(`illu_${k}.jpg`);
-export const masks = (k: string) => ({ marge: url(`marge_${k}.png`), foil: url(`foil_${k}.png`), fond: url(`fond_${k}.png`) });
+// URL absolue : les masques passent par des variables CSS (--mk…), dont les url() relatives seraient résolues contre la
+// feuille /assets/*.css et non contre le document
+const abs = (u: string) => typeof document === 'undefined' ? u : new URL(u, document.baseURI).href;
+/** Masques d'effets (B8) : marge_ (toute la bordure blanche, sur la carte), foil_ (fond seul) et fond_ (sur l'illustration). */
+export const masks = (k: string) => ({ marge: abs(url(`marge_${k}.png`)), foil: abs(url(`foil_${k}.png`)), fond: abs(url(`fond_${k}.png`)) });
 
 /** Rectangle en % : left, top, width, height. */
 export interface Box { l: number; t: number; w: number; h: number }
@@ -47,5 +51,9 @@ export function fullCardInWindow(k: string): Box {
   return box(-sx * s / W * 100, -SB.Y0 * s / H * 100, IMG_W * s / W * 100, IMG_H * s / H * 100);
 }
 
+/** Signée : les personnages signent leur carte, Barbe-Grise le cartographe signe les autres. */
+const SIGNE: Record<string, string> = { rosie: 'Rosie', rascal: 'Rascal', juanita: 'Juanita', harry: 'Harry', mary: 'Marie', tigress: 'Morgane',
+  bahij: 'Bendt', con: 'Con', sk: 'Le Roi', mermaid0: 'Alyra', mermaid1: 'Circé' };
+export const signer = (k: string) => SIGNE[k] ?? 'Barbe-Grise';
 /** Cartes marines : la mer ondule en variante Vivante (B8). */
 export const MER = new Set(['sk', 'mermaid0', 'mermaid1', 'kraken', 'whale', 'escape', 'davy', 'stingray', 'volley']);

@@ -5,7 +5,8 @@
 import { ALT2, ALT2B, NUM2 } from './cardsdata';
 import { cname, DESC, PIRATES, type Card, type Entry } from '@engine';
 import { esc } from './util';
-import { CALQUES, cadreUrl, illuUrl, illuBox, windowBox } from './calques';
+import { CALQUES, MER, cadreUrl, illuUrl, illuBox, masks, signer, windowBox } from './calques';
+import type { Variant } from '@shared/collection.ts';
 
 const wrapF = (b: number, h: string) => `<div class="fb${b}">${h}</div>`;
 const A = ALT2 as Record<string, string>, AB = ALT2B as Record<string, number>, NUM = NUM2 as Record<string, any>;
@@ -66,23 +67,67 @@ const boxStyle = (b: { l: number; t: number; w: number; h: number }) => `left:${
 /** Calques de bas en haut : fenêtre (overflow:hidden) avec l'illustration, puis cadre d'origine (inset:0).
  *  .lay reprend le rognage de l'image unique (720 × 1024 posée sur 252 × 352 : 3,2 px en haut et en bas), pour que
  *  les chiffres et les sceaux, placés en % de la face, ne bougent pas. */
-function layers(key: string): string {
-  return `<div class="lay"><div class="win" style="${boxStyle(windowBox(key))}"><div class="mv bg" style="${boxStyle(illuBox(key))}">`
-    + `<img class="illu" src="${illuUrl(key)}" alt="" decoding="async" draggable="false"></div></div>`
-    + `<img class="cadre" src="${cadreUrl(key)}" alt="" decoding="async" draggable="false"></div>`;
+/** Variante visuelle (B8, D14) : n'a aucun effet sur le jeu. still = sans animation. */
+export interface Look { variant?: Variant; serial?: number | null; still?: boolean }
+const RING: Partial<Record<Variant, string>> = { patine: 'patine', etain: 'etain', holo: 'prism', nacre: 'nacre', signee: 'signe', numero: 'nacre' };
+function layers(key: string, v: Variant, serial?: number | null): string {
+  const holo = v === 'holo' || v === 'numero', viv = v === 'vivante' || v === 'numero', sig = v === 'signee' || v === 'numero';
+  const ib = boxStyle(illuBox(key)), src = illuUrl(key), bgImg = `style="background-image:url(${src})"`;
+  // 1. fenêtre d'illustration : seule zone animée (fond, personnage en parallaxe, reflets, signature)
+  let bg = `<img class="illu" src="${src}" alt="" decoding="async" draggable="false">`;
+  if (viv && MER.has(key)) { bg += `<div class="rip" ${bgImg}></div>`; ensureRipFilter(); }
+  if (holo) bg += '<div class="foil"></div><div class="engr"></div><div class="crest"></div><div class="glit"></div>';
+  if (viv) bg += '<div class="motes"></div>';
+  let win = `<div class="mv bg" style="${ib}">${bg}</div>`;
+  if (viv) win += `<div class="mv fgm" style="${ib}"><div class="fg" ${bgImg}></div></div><div class="rays"></div><div class="light"></div>`;
+  if (v === 'patine') win += '<div class="stain"></div>';
+  if (v === 'nacre' || v === 'signee') win += '<div class="sheen"></div>';
+  if (sig) { const s = signer(key); win += `<div class="sig" style="--sz:${Math.min(.25, 1.8 / s.length).toFixed(3)}">${esc(s)}</div>`; }
+  // 2. cadre d'origine (fenêtre transparente) : jamais animé, jamais recoloré ; 3. matière de toute la marge, ajouts
+  let top = RING[v] ? `<div class="ring ${RING[v]}"></div>` : '';
+  if (v === 'etain') top += '<div class="riv" style="left:1%;top:.8%"></div><div class="riv" style="right:1%;top:.8%"></div><div class="riv" style="left:1%;bottom:.8%"></div><div class="riv" style="right:1%;bottom:.8%"></div>';
+  if (v === 'numero' && serial) top += `<div class="serial">N° ${String(serial).padStart(3, '0')} / 100</div>`;
+  return `<div class="lay"><div class="win" style="${boxStyle(windowBox(key))}">${win}</div>`
+    + `<img class="cadre" src="${cadreUrl(key)}" alt="" decoding="async" draggable="false">${top}</div>`;
+}
+/** Filtre SVG de l'ondulation de la mer (Vivante des cartes marines), ajouté une seule fois dans la page. */
+function ensureRipFilter() {
+  if (typeof document === 'undefined' || document.getElementById('k4rip')) return;
+  const add = () => {
+    if (document.getElementById('k4rip')) return;
+    const d = document.createElement('div');
+    d.innerHTML = '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="k4rip" x="-5%" y="-5%" width="110%" height="110%" primitiveUnits="objectBoundingBox"><feTurbulence type="fractalNoise" baseFrequency="1.6 9" numOctaves="1" seed="4" result="n"><animate attributeName="baseFrequency" dur="8s" values="1.6 9;1.9 11;1.6 9" repeatCount="indefinite"/></feTurbulence><feOffset in="n" dx="0" dy="0" result="m"><animate attributeName="dy" dur="8s" values="0;.04;0" repeatCount="indefinite"/></feOffset><feDisplacementMap in="SourceGraphic" in2="m" scale=".022" xChannelSelector="R" yChannelSelector="G"/></filter></svg>';
+    document.body.append(d.firstChild!);
+  };
+  document.body ? add() : addEventListener('DOMContentLoaded', add);
+}
+/** Masques d'une carte déjà demandés (préchargés une seule fois). */
+const maskLoaded = new Set<string>();
+function preloadMasks(key: string) {
+  if (maskLoaded.has(key) || typeof Image === 'undefined') return; maskLoaded.add(key);
+  for (const u of Object.values(masks(key))) { try { const i = new Image(); i.src = u; } catch { /* ignoré */ } }
 }
 const cardData = (c: Partial<Card>) => esc(JSON.stringify({ kind: c.kind, suit: c.suit, rank: c.rank, pid: c.pid, v: c.v, zf: c.zf, wild: c.wild, exp: c.exp }));
 /** Face illustrée (calques ou image unique, + médaillon chiffre + sceau) ; data-c permet de revenir en arrière. */
-function artFace(c: Partial<Card>, key: string, flat = !layered): string {
+function artFace(c: Partial<Card>, key: string, flat = !layered, look: Look = {}): string {
   const overlays = c.kind === 'num' && !c.wild ? medallion(c) : '';
-  if (!flat && CALQUES[key]) return `<div class="art layered" data-c="${cardData(c)}" data-k="${key}">${layers(key)}${overlays}</div>`;
+  if (!flat && CALQUES[key]) {
+    const v = look.variant && look.variant !== 'std' ? look.variant : 'std';
+    let cls = 'art layered', style = '';
+    if (v !== 'std') {
+      const m = masks(key); preloadMasks(key);
+      cls += ` fx ${v === 'numero' ? 'vivante numero' : v}${look.still ? ' still' : ' auto'}`;
+      style = ` style="--mk:url(${m.marge});--fo:url(${m.foil});--fd:url(${m.fond})"`;
+    }
+    return `<div class="${cls}" data-c="${cardData(c)}" data-k="${key}"${style}>${layers(key, v, look.serial)}${overlays}</div>`;
+  }
   return `<div class="art" data-c="${cardData(c)}"><img src="${ART[key]}" alt="" decoding="async" draggable="false">${overlays}</div>`;
 }
 
 export function faceOf(key: string) { return wrapF(AB[key], A[key]); }
-export function faceHTML(c: Partial<Card>): string {
+export function faceHTML(c: Partial<Card>, look?: Look): string {
   const key = cardKey(c);
-  return ART[key] ? artFace(c, key) : oldFace(c);
+  return ART[key] ? artFace(c, key, !layered, look) : oldFace(c);
 }
 /** Règle en toutes lettres pour la fiche du zoom (les illustrations n'ont plus de texte), sans répéter le nom. */
 function ruleOf(c: Partial<Card>): string {
@@ -98,7 +143,7 @@ function ruleOf(c: Partial<Card>): string {
   const t = DESC[c.wild ? 'wild' : c.kind as string] || '', n = cname(c as Card), i = t.indexOf(' : '), pre = t.slice(0, i);
   return i > 0 && i < 45 && (pre.startsWith(n) || n.startsWith(pre) || pre.startsWith(n.replace(/^(Le|La) /, ''))) ? t.charAt(i + 3).toUpperCase() + t.slice(i + 4) : t;
 }
-export function cardHTML(c: Partial<Card>, e?: Partial<Entry> | null, extra = '', attrs = '') {
+export function cardHTML(c: Partial<Card>, e?: Partial<Entry> | null, extra = '', attrs = '', look?: Look) {
   const k = c.kind; let cl = 'card k-' + (c.wild ? 'wild' : k);
   if (k === 'num' && !c.wild) cl += ' s-' + c.suit;
   let tag = '';
@@ -108,14 +153,17 @@ export function cardHTML(c: Partial<Card>, e?: Partial<Entry> | null, extra = ''
   if (e && c.wild && e.ws) cl += ' ws-' + e.ws;
   // données pour le zoom au survol long : nom affichable (noms officiels du moteur) + règle en français
   const key = cardKey(c);
-  let dataAttrs = '';
+  let dataAttrs = '', nameTag = '';
   if (ART[key]) {
     const name = c.kind === 'pirate' && c.pid ? PIRATES[c.pid].n : cname(c as Card), rule = ruleOf(c);
     dataAttrs = ` data-art-name="${esc(name)}"${rule ? ` data-art-rule="${esc(rule)}"` : ''}`;
+    // personnages sans bandeau (B8) : le nom n'est plus peint, il s'affiche au survol
+    if (layered && CALQUES[key]?.sans_bandeau) nameTag = `<span class="cname" aria-hidden="true">${esc(name)}</span>`;
   }
+  if (look?.variant && look.variant !== 'std') dataAttrs += ` data-variant="${look.variant}"`;
   // nom accessible pour les lecteurs d'écran ; pas d'attribut title (l'info-bulle native fait doublon avec la fiche de zoom) ;
   // la main remplace role et libellé quand la carte devient jouable
-  return `<div class="${cl} ${extra}" data-id="${c.id}" role="img" aria-label="${esc(cname(c as Card, e ?? undefined))}"${dataAttrs} ${attrs}><div class="face">${faceHTML(c)}</div>${tag ? `<span class="tag">${tag}</span>` : ''}</div>`;
+  return `<div class="${cl} ${extra}" data-id="${c.id}" role="img" aria-label="${esc(cname(c as Card, e ?? undefined))}"${dataAttrs} ${attrs}><div class="face">${faceHTML(c, look)}</div>${nameTag}${tag ? `<span class="tag">${tag}</span>` : ''}</div>`;
 }
 export const backFace = () => `<div class="face">${faceOf('back')}</div>`;
 

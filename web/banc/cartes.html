@@ -11,6 +11,11 @@
     .cell{display:flex;flex-direction:column;gap:4px;align-items:center}
     .cell .card{box-shadow:none}
     .lbl{font-size:11px;opacity:.7}
+    .rowlbl{width:70px;font-size:11px}
+    .planche{display:inline-flex;flex-direction:column;gap:6px;padding:10px;background:#1b1510}
+    .prow{display:grid;grid-template-columns:76px repeat(8,var(--cw,56px));gap:8px;align-items:center;font-size:11px}
+    .prow.head span{text-align:center;opacity:.8}
+    .planche .card{box-shadow:0 1px 3px rgba(0,0,0,.6)}
   </style>
 </head>
 <body>

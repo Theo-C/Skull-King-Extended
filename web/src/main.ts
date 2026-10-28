@@ -14,9 +14,12 @@ import { leaderboardPage } from './pages/leaderboard';
 import { salonByCode } from './pages/salon';
 import { rulesPage } from './pages/rules';
 import { installArtFallback, setLayered } from './cards';
+import { installVariantFx } from './variantFx';
 
 // une illustration de carte qui ne se charge pas laisse place à l'ancienne face, sur toutes les pages
 installArtFallback();
+// reflets des variantes qui suivent la souris ou l'inclinaison, plafond de cartes animées
+installVariantFx();
 // cartes en couches (réglage serveur cards_layered, activé par défaut) : la dernière valeur connue s'applique tout de
 // suite, la nouvelle au prochain affichage
 const K_LAYERED = 'pli.cardsLayered';

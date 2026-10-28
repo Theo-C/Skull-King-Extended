@@ -38,11 +38,12 @@ export function strictDiff(a: Img, b: Img): number {
   for (let i = 0; i < a.data.length; i += 4) if (a.data[i] !== b.data[i] || a.data[i + 1] !== b.data[i + 1] || a.data[i + 2] !== b.data[i + 2]) n++;
   return n;
 }
-export interface Banc { keys: string[]; calques: Record<string, { sans_bandeau?: boolean }>; windows: Record<string, { l: number; t: number; w: number; h: number }> }
+type Box = { l: number; t: number; w: number; h: number };
+export interface Banc { keys: string[]; calques: Record<string, { sans_bandeau?: boolean }>; windows: Record<string, Box>; illus: Record<string, Box>; masks: Record<string, { marge: string; foil: string; fond: string }> }
 export async function openBanc(page: Page): Promise<Banc> {
   await page.goto('/banc/cartes.html');
   await page.waitForFunction(() => !!(window as any).banc);
-  return page.evaluate(() => { const b = (window as any).banc; return { keys: b.keys, calques: b.calques, windows: b.windows }; });
+  return page.evaluate(() => { const b = (window as any).banc; return { keys: b.keys, calques: b.calques, windows: b.windows, illus: b.illus, masks: b.masks }; });
 }
 const FACE_W = 252, LAY_H = 358.4, LAY_TOP = -3.2;
 /** Fenêtre d'une carte en pixels de la face (s = 1), agrandie de m px de chaque côté (bord adouci du cadre). */
