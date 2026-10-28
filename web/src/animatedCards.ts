@@ -5,6 +5,7 @@
 // par vidéo, pause quand l'onglet est masqué. Le réglage utilisateur prime : prefers-reduced-motion et saveData ne
 // coupent plus les cartes animées (seul « aucune » les désactive), le poster sert de repli si la vidéo ne peut pas lire.
 import { ART } from './cards';
+import { CALQUES, fullCardInWindow } from './calques';
 
 /** Clé de carte du moteur (cardKey) → fichier dans web/public/cards/anim/ et couleur du halo d'arrivée. */
 export const ANIM: Record<string, { file: string; halo: string }> = {
@@ -47,22 +48,31 @@ function watchVisibility() {
   });
 }
 
-/** Ajoute la vidéo et le cadre sur une carte (élément .card avec une face illustrée), puis lance la lecture. */
+/** Ajoute la vidéo sur une carte (élément .card avec une face illustrée), puis lance la lecture.
+ *  Carte en couches (B7) : la vidéo, qui montre la carte entière (720 × 1024), est placée dans la fenêtre
+ *  d'illustration avec la même découpe que illu_<clé>.jpg ; le cadre du calque reste par-dessus, net et immobile.
+ *  Image unique : vidéo masquée par l'image, et cadre seul <fichier>-cadre.webp par-dessus. */
 export function attachAnim(cardEl: HTMLElement, key: string): boolean {
-  const a = ANIM[key], art = cardEl.querySelector('.art'), img = art?.querySelector(':scope>img');
-  if (!a || !art || !img) return false;
+  const a = ANIM[key], art = cardEl.querySelector('.art'), win = art?.querySelector<HTMLElement>('.win'), img = art?.querySelector(':scope>img');
+  if (!a || !art || (!win && !img)) return false;
   if (art.querySelector('video.anim')) return true;
   watchVisibility();
   const v = document.createElement('video');
   v.className = 'anim'; v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'none'; v.poster = ART[key];
   v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('aria-hidden', 'true');
-  // mask posé en inline (pas via --mask) pour que l'URL soit résolue contre le document, pas contre la feuille /assets/*.css
-  const maskUrl = `url("${ART[key]}")`;
-  v.style.webkitMaskImage = maskUrl; v.style.maskImage = maskUrl;
   v.innerHTML = `<source src="cards/anim/${a.file}.webm" type="video/webm"><source src="cards/anim/${a.file}.mp4" type="video/mp4">`;
-  const frame = document.createElement('img');
-  frame.className = 'cadre'; frame.alt = ''; frame.draggable = false; frame.src = `cards/anim/${a.file}-cadre.webp`;
-  img.after(v, frame);
+  if (win && CALQUES[key]) {
+    const b = fullCardInWindow(key);
+    Object.assign(v.style, { left: b.l + '%', top: b.t + '%', width: b.w + '%', height: b.h + '%' });
+    win.append(v);
+  } else {
+    // mask posé en inline (pas via --mask) pour que l'URL soit résolue contre le document, pas contre la feuille /assets/*.css
+    const maskUrl = `url("${ART[key]}")`;
+    v.style.webkitMaskImage = maskUrl; v.style.maskImage = maskUrl;
+    const frame = document.createElement('img');
+    frame.className = 'acadre'; frame.alt = ''; frame.draggable = false; frame.src = `cards/anim/${a.file}-cadre.webp`;
+    img!.after(v, frame);
+  }
   cardEl.classList.add('animated'); cardEl.dataset.anim = key;
   const s = (stacks.get(a.file) || []).filter(x => x.isConnected);
   s[s.length - 1]?.pause(); s.push(v); stacks.set(a.file, s);
@@ -72,7 +82,7 @@ export function attachAnim(cardEl: HTMLElement, key: string): boolean {
 /** Arrête et retire la vidéo et le cadre (la carte retrouve son image fixe). */
 export function detachAnim(cardEl: HTMLElement) {
   const v = cardEl.querySelector('video.anim') as HTMLVideoElement | null;
-  cardEl.querySelector('img.cadre')?.remove();
+  cardEl.querySelector('img.acadre')?.remove();
   cardEl.classList.remove('animated'); delete cardEl.dataset.anim;
   if (!v) return;
   v.pause(); v.remove();

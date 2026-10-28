@@ -1,9 +1,11 @@
 // Rendu des cartes : illustrations Cartes-v3 (web/public/cards/*.webp, docs/cartes-v3/PROMPT-claude-code.md, Prompt A)
 // pour toutes les cartes ; seul le dos garde la face « Mers Sauvages », qui sert aussi de repli si une image ne se charge pas.
 // Le médaillon du coin haut-droit des cartes numérotées est vide dans l'image : c'est le code qui écrit le chiffre.
+// Depuis B7, chaque face est en deux calques (docs/cartes-couches/) : cadre d'origine par-dessus l'illustration seule.
 import { ALT2, ALT2B, NUM2 } from './cardsdata';
 import { cname, DESC, PIRATES, type Card, type Entry } from '@engine';
 import { esc } from './util';
+import { CALQUES, cadreUrl, illuUrl, illuBox, windowBox } from './calques';
 
 const wrapF = (b: number, h: string) => `<div class="fb${b}">${h}</div>`;
 const A = ALT2 as Record<string, string>, AB = ALT2B as Record<string, number>, NUM = NUM2 as Record<string, any>;
@@ -54,12 +56,27 @@ function oldFace(c: Partial<Card>): string {
   const k = c.kind === 'pirate' ? c.pid! : c.kind === 'mermaid' ? 'mermaid' + (c.v || 0) : c.kind as string;
   return wrapF(AB[k], A[k]);
 }
-/** Face illustrée (image + médaillon chiffre + sceau) ; data-c permet de revenir à l'ancienne face. */
-function artFace(c: Partial<Card>, key: string): string {
-  let overlays = '';
-  if (c.kind === 'num' && !c.wild) overlays += medallion(c);
-  const d = esc(JSON.stringify({ kind: c.kind, suit: c.suit, rank: c.rank, pid: c.pid, v: c.v, zf: c.zf, wild: c.wild, exp: c.exp }));
-  return `<div class="art" data-c="${d}"><img src="${ART[key]}" alt="" decoding="async" draggable="false">${overlays}</div>`;
+/** Cartes en couches : réglage serveur cards_layered (table app_settings), activé par défaut. Coupé, chaque face
+ *  revient à l'image unique cards/<fichier>.webp. */
+let layered = true;
+export const isLayered = () => layered;
+export function setLayered(v: boolean) { layered = v; }
+const pc = (n: number) => n + '%';
+const boxStyle = (b: { l: number; t: number; w: number; h: number }) => `left:${pc(b.l)};top:${pc(b.t)};width:${pc(b.w)};height:${pc(b.h)}`;
+/** Calques de bas en haut : fenêtre (overflow:hidden) avec l'illustration, puis cadre d'origine (inset:0).
+ *  .lay reprend le rognage de l'image unique (720 × 1024 posée sur 252 × 352 : 3,2 px en haut et en bas), pour que
+ *  les chiffres et les sceaux, placés en % de la face, ne bougent pas. */
+function layers(key: string): string {
+  return `<div class="lay"><div class="win" style="${boxStyle(windowBox(key))}"><div class="mv bg" style="${boxStyle(illuBox(key))}">`
+    + `<img class="illu" src="${illuUrl(key)}" alt="" decoding="async" draggable="false"></div></div>`
+    + `<img class="cadre" src="${cadreUrl(key)}" alt="" decoding="async" draggable="false"></div>`;
+}
+const cardData = (c: Partial<Card>) => esc(JSON.stringify({ kind: c.kind, suit: c.suit, rank: c.rank, pid: c.pid, v: c.v, zf: c.zf, wild: c.wild, exp: c.exp }));
+/** Face illustrée (calques ou image unique, + médaillon chiffre + sceau) ; data-c permet de revenir en arrière. */
+function artFace(c: Partial<Card>, key: string, flat = !layered): string {
+  const overlays = c.kind === 'num' && !c.wild ? medallion(c) : '';
+  if (!flat && CALQUES[key]) return `<div class="art layered" data-c="${cardData(c)}" data-k="${key}">${layers(key)}${overlays}</div>`;
+  return `<div class="art" data-c="${cardData(c)}"><img src="${ART[key]}" alt="" decoding="async" draggable="false">${overlays}</div>`;
 }
 
 export function faceOf(key: string) { return wrapF(AB[key], A[key]); }
@@ -106,15 +123,20 @@ export const backFace = () => `<div class="face">${faceOf('back')}</div>`;
 let preloaded = false;
 export function preloadArt() {
   if (preloaded) return; preloaded = true;
-  for (const k of Object.keys(ART)) { try { const img = new Image(); img.decoding = 'async'; img.src = ART[k]; } catch { /* navigateur très ancien : tant pis */ } }
+  const urls = layered ? Object.keys(CALQUES).flatMap(k => [cadreUrl(k), illuUrl(k)]) : Object.values(ART);
+  for (const u of urls) { try { const img = new Image(); img.decoding = 'async'; img.src = u; } catch { /* navigateur très ancien : tant pis */ } }
 }
-/** Une illustration qui ne se charge pas est remplacée par l'ancienne face (toutes les pages). */
+/** Une image de carte qui ne se charge pas : les calques laissent place à l'image unique, et l'image unique à
+ *  l'ancienne face (toutes les pages). */
 let fallback = false;
 export function installArtFallback() {
   if (fallback) return; fallback = true;
   document.addEventListener('error', ev => {
     const img = ev.target as HTMLElement; if (img?.tagName !== 'IMG') return;
-    const art = img.parentElement; if (!art?.classList.contains('art')) return;
-    try { art.outerHTML = oldFace(JSON.parse(art.dataset.c || '{}')); } catch { /* face laissée telle quelle */ }
+    const art = img.closest('.art') as HTMLElement | null; if (!art) return;
+    try {
+      const c = JSON.parse(art.dataset.c || '{}');
+      art.outerHTML = art.classList.contains('layered') ? artFace(c, cardKey(c), true) : oldFace(c);
+    } catch { /* face laissée telle quelle */ }
   }, true);
 }

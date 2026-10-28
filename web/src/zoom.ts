@@ -26,7 +26,7 @@ export function installCardZoom() {
     pv.classList.toggle('with-info', !!info);
     // carte animée : la copie ne garde que l'image ; la vidéo est relancée en grand (l'originale attend en pause)
     const zc = pv.querySelector('.zc') as HTMLElement;
-    zc.querySelectorAll('video.anim, img.cadre').forEach(x => x.remove());
+    zc.querySelectorAll('video.anim, img.acadre').forEach(x => x.remove());
     if (anim) attachAnim(zc, anim);
     pv.hidden = false; shownFor = card;
     const r = card.getBoundingClientRect(), w = pv.offsetWidth, h = pv.offsetHeight, m = 10;

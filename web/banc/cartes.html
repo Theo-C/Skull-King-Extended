@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <base href="/">
+  <title>Banc d'essai des cartes</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Pirata+One&family=Mrs+Saint+Delafield&family=Alegreya+Sans:wght@400;700;800;900&display=swap">
+  <style>
+    body{margin:0;padding:16px;background:#14100c;color:#ead08a;font:13px 'Alegreya Sans',sans-serif}
+    .row{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap}
+    .cell{display:flex;flex-direction:column;gap:4px;align-items:center}
+    .cell .card{box-shadow:none}
+    .lbl{font-size:11px;opacity:.7}
+  </style>
+</head>
+<body>
+  <!-- Page de développement (hors build) pour les tests visuels Playwright : tests/visual/*.spec.ts -->
+  <div id="banc"></div>
+  <script type="module" src="/banc/cartes.ts"></script>
+</body>
+</html>

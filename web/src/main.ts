@@ -13,10 +13,18 @@ import { historyPage } from './pages/history';
 import { leaderboardPage } from './pages/leaderboard';
 import { salonByCode } from './pages/salon';
 import { rulesPage } from './pages/rules';
-import { installArtFallback } from './cards';
+import { installArtFallback, setLayered } from './cards';
 
 // une illustration de carte qui ne se charge pas laisse place à l'ancienne face, sur toutes les pages
 installArtFallback();
+// cartes en couches (réglage serveur cards_layered, activé par défaut) : la dernière valeur connue s'applique tout de
+// suite, la nouvelle au prochain affichage
+const K_LAYERED = 'pli.cardsLayered';
+try { if (localStorage.getItem(K_LAYERED) === '0') setLayered(false); } catch { /* stockage indisponible */ }
+if (configured) sb.from('app_settings').select('value').eq('key', 'cards_layered').maybeSingle().then(({ data }) => {
+  if (!data) return; const on = data.value !== false; setLayered(on);
+  try { localStorage.setItem(K_LAYERED, on ? '1' : '0'); } catch { /* ignoré */ }
+}, () => { /* réglage indisponible : on garde la valeur connue */ });
 import { homePage } from './pages/home';
 import { joinPage } from './pages/join';
 import { gamePage } from './pages/game';

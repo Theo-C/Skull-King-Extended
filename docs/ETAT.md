@@ -12,7 +12,7 @@ Légende :
 | Section | Fait | Partiel | À faire |
 |---|---|---|---|
 | A. Table | A1 à A10, A13, A19 | A12 | A11 |
-| B. Cartes | B1 à B6 | – | – |
+| B. Cartes | B1 à B7 | – | – |
 | C. Compte | C1 à C5 | – | – |
 | D. Garde-robe et coffre | D1, D2, D5 à D12 | D3, D4 | — |
 
@@ -45,6 +45,7 @@ Légende :
 | B4 | **Fait** | – Coins de 13 px et ombre ; si l'image ne se charge pas, l'ancienne face prend le relais (vérifié) ; le dos est inchangé. | `web/src/cards.ts`, `web/src/main.ts` |
 | B5 | **Fait** | – Aucun chiffre n'est ajouté sur le Grand Quinze. | `web/src/cards.ts` |
 | B6 | **Fait** | – Noms officiels partout ; derniers restes corrigés au lot 2 : la question de Con (« Con le belliqueux : quel pouvoir volez-vous ? ») et les descriptions des hauts faits Fil-de-Soie (Marie Thorne) et La Sirène et le Roi (Skull King), dans `settle.ts` et en base (migration `20261008000000_noms_officiels.sql`). Le nom du haut fait « Fil-de-Soie » est conservé. | `web/src/table.ts`, `supabase/functions/_shared/settle.ts`, migration |
+| B7 | **Fait** | Cartes en couches (`docs/cartes-couches/`). Chaque face illustrée est rendue en deux calques alignés : fenêtre (`overflow:hidden`) avec `illu_<clé>.jpg`, puis le cadre d'origine `cadre_<clé>.webp` par-dessus, puis chiffre et sceaux ; positions en % calculées depuis `calques.json` (`web/src/calques.ts`). Les 56 cartes de couleur utilisent le calque de leur couleur. Repli : réglage serveur `cards_layered` (table `app_settings`, activé par défaut, mémorisé sur l'appareil) → image unique `cards/*.webp` ; une image de calque qui ne charge pas → image unique → ancienne face. **Cartes animées** : la vidéo (720 × 1024) est placée dans la fenêtre avec la même découpe que l'illustration (CSS, sans réencodage ffmpeg ; Skull King et la sirène suivent le recadrage de `sans_bandeau.py`), le cadre du calque remplace `<fichier>-cadre.webp`. **Tests** (`npm run test:visual`, Playwright, banc `web/banc/cartes.html`) : au repos, moins de 1 % de pixels différents de l'image d'origine (0,65 % au plus) ; en mouvement (Vivante et vidéos), aucun pixel hors fenêtre modifié entre 0 s et 4 s. **Écart** : les calques des 11 personnages viennent d'illustrations plus récentes que `cards/<personnage>.webp` du dépôt (mêmes que les vidéos) ; ils sont comparés à leur propre cadre, et le repli image unique montre l'ancienne version. | `web/src/calques.ts`, `web/src/cards.ts`, `web/src/animatedCards.ts`, `web/src/game.css`, migration `20261019000000_cartes_couches.sql`, `tests/visual/` |
 
 ## C. Compte et progression
 
