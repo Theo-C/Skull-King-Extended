@@ -20,7 +20,9 @@ const st = { coins: 1240, shards: 1180, boosters: 2, choices: { rosie: 'signee',
 const total = C.COLLECTION_SIZE;
 let serial = 3; // premier tirage : N° 04 / 10
 
+let lastPack = '';
 function open(pack: string) {
+  lastPack = pack;
   if (st.boosters > 0) st.boosters--; else if (st.coins >= 50) st.coins -= 50; else throw new Error('Il vous manque des pièces.');
   const d = C.drawBooster(pack, R);
   if (force === 'divin') { d.divine = true; d.cards.forEach((c, i) => c.variant = i === 2 ? 'numero' : 'signee'); }
@@ -77,4 +79,4 @@ export async function fakeApi<T = any>(action: string, p: Record<string, any> = 
 installVariantFx();
 const view = document.getElementById('view')!, ecran = q.get('ecran') ?? 'collection';
 const ready = ecran === 'boosters' ? boosterPage(view, q, fakeApi, q.get('testeur') === '1') : ecran === 'atelier' ? atelierPage(view, q, fakeApi) : collectionPage(view, q, fakeApi);
-(window as any).banc = { ready, fakeApi, ownedAtStart: owned.size };
+(window as any).banc = { ready, fakeApi, ownedAtStart: owned.size, get lastPack() { return lastPack; } };

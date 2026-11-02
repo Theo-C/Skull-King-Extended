@@ -182,3 +182,38 @@ test('mode essai : ouvertures gratuites et illimitées, sans effet sur la collec
   const owned = await page.evaluate(async () => (await (window as any).banc.fakeApi('collection.list')).owned.length);
   expect(owned, 'collection inchangée').toBe(await page.evaluate(() => (window as any).banc.ownedAtStart));
 });
+
+test('paiement : booster offert d’abord, puis exactement 50 pièces ; on ouvre le sachet choisi', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openGame(page, '');   // faux serveur : 1 240 pièces, 2 boosters offerts (mêmes règles que booster_apply)
+  const go = page.locator('booster-opening .go');
+  const wallet = () => page.evaluate(async () => { const s = await (window as any).banc.fakeApi('collection.list'); return { coins: s.coins as number, boosters: s.boosters as number }; });
+  const openOnce = async () => {
+    await go.click(); await page.waitForTimeout(500);
+    await page.locator('booster-opening .auto').click(); await page.waitForTimeout(2600);
+    await page.locator('booster-opening .skip button').click(); await page.waitForTimeout(1200);
+    await expect(page.locator('booster-opening .grid .gc')).toHaveCount(5);
+    await page.locator('booster-opening .close').click(); await page.waitForTimeout(700);   // « Changer de booster »
+  };
+  await expect(go).toContainText('Ouvrir · offert');
+  await expect(page.locator('booster-opening .ui button[disabled]'), 'pas de bouton « Gratuit » grisé quand un booster est offert').toHaveCount(0);
+  // choix du sachet : flèche suivante → Chant des sirènes
+  await page.locator('booster-opening .next').click(); await page.waitForTimeout(700);
+  await expect(page.locator('booster-opening .title')).toHaveText('Chant des sirènes');
+  const w0 = await wallet();
+  await openOnce();
+  expect(await page.evaluate(() => (window as any).banc.lastPack), 'le sachet choisi est celui ouvert').toBe('sirenes');
+  let w = await wallet();
+  expect(w, '1er booster : offert, aucune pièce').toEqual({ coins: w0.coins, boosters: w0.boosters - 1 });
+  await expect(go).toContainText('Ouvrir · offert');
+  await openOnce();
+  w = await wallet();
+  expect(w, '2e booster : offert, aucune pièce').toEqual({ coins: w0.coins, boosters: 0 });
+  await expect(go).toContainText('Ouvrir · 50');
+  await openOnce();
+  w = await wallet();
+  expect(w, '3e booster : 50 pièces exactement').toEqual({ coins: w0.coins - 50, boosters: 0 });
+  // le porte-monnaie de la page affiche les pièces restantes (même format que la page : toLocaleString fr-FR)
+  const shown = await page.evaluate(n => n.toLocaleString('fr-FR'), w0.coins - 50);
+  await expect(page.locator('#boW')).toContainText(shown);
+});

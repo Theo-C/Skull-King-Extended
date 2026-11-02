@@ -161,6 +161,8 @@ class BoosterOpening extends HTMLElement {
     this.sel = 0; this.phase = 'choose'; this.timers = [];
     this.root = this.attachShadow({ mode: 'open' });
   }
+  // prix affiché (intégration au jeu) : un nombre = pièces ; un texte (« offert ») = affiché tel quel
+  priceLabel() { return typeof this.price === 'number' ? `${this.price} 🪙` : this.price; }
   get packs() { return this._packs; }
   set packs(v) { this._packs = v || []; this.sel = Math.min(this.sel || 0, Math.max(0, this._packs.length - 1)); if (this.fit && this.phase === 'choose') this.renderChoose(); }
   connectedCallback() {
@@ -237,7 +239,7 @@ class BoosterOpening extends HTMLElement {
     const p = this.packs[this.sel] || {}, ui = this.uiChoose;
     ui.innerHTML = `<div style="display:flex;align-items:center;gap:16px"><button class="btn ghost prev" aria-label="Booster précédent" style="font-size:24px">‹</button><div class="title" style="min-width:300px">${p.name || ''}</div><button class="btn ghost next" aria-label="Booster suivant" style="font-size:24px">›</button></div>
       <div style="font-size:14px;color:#c9d6db">${p.desc || ''}</div><div class="feat" style="display:flex;gap:10px;margin:6px 0 4px"></div>
-      <div style="display:flex;gap:10px"><button class="btn gold go" style="min-height:50px;font-size:17px">Ouvrir · ${this.price} 🪙</button>${this.freeLabel ? `<button class="btn" disabled style="min-height:50px">Gratuit · ${this.freeLabel}</button>` : ''}</div>`;
+      <div style="display:flex;gap:10px"><button class="btn gold go" style="min-height:50px;font-size:17px">Ouvrir · ${this.priceLabel()}</button>${this.freeLabel ? `<button class="btn" disabled style="min-height:50px">Gratuit · ${this.freeLabel}</button>` : ''}</div>`;
     const feat = ui.querySelector('.feat');
     (p.featured || []).forEach(id => { const f = h('div'); f.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px'; f.appendChild(this.card({ id, variant: 'holo' }, 78, true)); f.appendChild(h('span', '', '<b style="font-size:11.5px;color:#9fe3ff">×3</b>')); feat.appendChild(f); });
     ui.querySelector('.prev').onclick = () => this.step(-1); ui.querySelector('.next').onclick = () => this.step(1);
@@ -251,6 +253,10 @@ class BoosterOpening extends HTMLElement {
   async focusPack() {
     if (this.phase !== 'choose' || !this.open) return;
     this.phase = 'focus'; this.clear(); this.placePacks(); this.uiChoose.remove();
+    // net en mode coupe (intégration au jeu) : pendant le zoom, le navigateur étire l'image calculée au début (0,82) et, dans
+    // la scène 3D du carrousel, ne la recalcule pas ensuite. Le zoom fini (.55 s), le sachet n'a plus rien de 3D : on sort de
+    // la scène 3D (rien ne change à l'écran) et son image est recalculée à sa vraie taille
+    this.later(600, () => { if (this.phase !== 'focus' && this.phase !== 'opening') return; this.car.style.perspective = 'none'; this.pws.forEach(pw => { pw.style.transformStyle = 'flat'; }); });
     this.result = null; this.pending = this.open(this.packs[this.sel].id).then(r => (this.result = r)).catch(err => { this.dispatchEvent(new CustomEvent('booster-error', { detail: err })); this.renderChoose(); });
     const pw = this.pws[this.sel], inn = pw.firstChild;
     const cut = h('div'); cut.innerHTML = `<div class="dots"></div><div class="scis">✂</div><div class="cutline"></div><div class="tip"></div><div class="runner"></div><div class="chev">›››</div><div class="cutzone" aria-label="Glisser pour ouvrir"></div>`;
@@ -389,7 +395,7 @@ class BoosterOpening extends HTMLElement {
     ui.innerHTML = `<div style="display:flex;gap:22px;font-size:15px;font-weight:800"><span style="color:#8fbf7a">+${newN} nouvelles variantes</span><span style="color:#9fe3ff">+${gain} ◆ éclats</span></div>
       <div style="display:flex;justify-content:space-between;width:380px;font-size:13px;color:#c9d6db"><span>Collection</span><b>${col.after} / ${col.total} variantes</b></div>
       <div class="bar"><div style="--a:${(col.before / col.total * 100).toFixed(1)}%;--b:${(col.after / col.total * 100).toFixed(1)}%"></div></div>
-      <div style="display:flex;gap:10px;margin-top:10px"><button class="btn gold again" style="min-height:50px;font-size:17px">Ouvrir un autre · ${this.price} 🪙</button><button class="btn coll" style="min-height:50px">Voir la collection</button><button class="btn ghost close">Changer de booster</button></div>`;
+      <div style="display:flex;gap:10px;margin-top:10px"><button class="btn gold again" style="min-height:50px;font-size:17px">Ouvrir un autre · ${this.priceLabel()}</button><button class="btn coll" style="min-height:50px">Voir la collection</button><button class="btn ghost close">Changer de booster</button></div>`;
     ui.querySelector('.again').onclick = () => { this.renderChoose(); this.focusPack(); };
     ui.querySelector('.coll').onclick = () => this.dispatchEvent(new CustomEvent('booster-collection', { detail: { cards: this.cards } }));
     ui.querySelector('.close').onclick = () => { this.renderChoose(); this.dispatchEvent(new CustomEvent('booster-close')); };

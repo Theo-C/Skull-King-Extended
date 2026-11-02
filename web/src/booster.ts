@@ -114,8 +114,10 @@ export async function boosterPage(root: HTMLElement, query = new URLSearchParams
       w.boosters ? `${w.boosters} booster${w.boosters > 1 ? 's' : ''} offert${w.boosters > 1 ? 's' : ''} à ouvrir` : !w.free_daily ? 'Pas de booster gratuit en ce moment' : w.free_today ? 'Reçu aujourd’hui : à demain !' : 'Après votre 1re partie du jour'}</b></div>
       <p class="bo-note">${essai ? 'Mode essai : ouvertures illimitées et gratuites, rien n’est ajouté à votre collection.' : '1 booster gratuit par jour où vous jouez. Une victoire en donne un aussi. Un booster offert est utilisé en premier.'}</p>`;
     comp.coins = w.coins;
-    comp.price = essai ? 0 : BOOSTER_PRICE;
-    comp.freeLabel = essai ? 'mode essai' : w.boosters ? `${w.boosters} offert${w.boosters > 1 ? 's' : ''}` : w.free_daily && !w.free_today ? 'après votre 1re partie du jour' : '';
+    // un booster offert est utilisé en premier (booster_apply) : le bouton le dit ; sinon 50 pièces, ni plus ni moins.
+    // Le bouton grisé « Gratuit · … » n'annonce que le prochain booster gratuit (après la 1re partie du jour)
+    comp.price = essai ? 'gratuit (essai)' : w.boosters ? 'offert' : BOOSTER_PRICE;
+    comp.freeLabel = essai || w.boosters ? '' : w.free_daily && !w.free_today ? 'après votre 1re partie du jour' : '';
   };
 
   /* ---------- branchement du composant ---------- */
@@ -174,7 +176,8 @@ export async function boosterPage(root: HTMLElement, query = new URLSearchParams
     try { w = await api<Wallet>('collection.list', {}); paint(); } catch { /* le porte-monnaie reste celui de l'ouverture */ }
   });
   comp.addEventListener('booster-collection', () => { location.hash = '#/collection'; });
-  comp.addEventListener('booster-close', () => paint());
+  // « Changer de booster » : le composant réaffiche le choix avant cet événement ; on rafraîchit le prix du bouton
+  comp.addEventListener('booster-close', () => { paint(); if (comp.phase === 'choose') comp.fillChooseUI?.(); });
   comp.addEventListener('booster-error', (ev: Event) => { toast((ev as CustomEvent).detail?.message || 'Ouverture impossible pour le moment.', 'err'); });
 
   /* ---------- toute la hauteur sous la barre du site (au téléphone, moins la barre d'onglets du bas) ---------- */

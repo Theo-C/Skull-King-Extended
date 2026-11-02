@@ -258,6 +258,8 @@ async function playUntil(id: string, users: string[], stop: (pub: E.PublicView) 
 }
 // ---------- GIF en partie, puis Joker de fin de partie ----------
 {
+  // booster du jour : Chloé a déjà reçu le sien avec la première partie ; pour Ève, c'est la première partie du jour
+  const chloeB0 = (await boostersOf(U.chloe)).boosters as number, eveB0 = ((await boostersOf(U.eve))?.boosters ?? 0) as number;
   const { id: J, code: jc } = await handle(store, U.eve, { action: 'create', seats: [{ bot: false }, { bot: false }, { bot: true }], options: { rounds: 3 } });
   await handle(store, U.chloe, { action: 'join', code: jc });
   await handle(store, U.eve, { action: 'start', id: J });
@@ -299,6 +301,10 @@ async function playUntil(id: string, users: string[], stop: (pub: E.PublicView) 
   ok('joker : manche marquée « bonus »', E.roundKind(after, 4) === 'bonus');
   const fin = await playUntil(J, [U.eve, U.chloe], p => p.phase === 'end');
   ok('joker : une seule question par partie, puis les résultats', fin.phase === 'end' && fin.players[0].hist!.length >= 4 && !fin.joker, { phase: fin.phase, n: fin.players[0].hist?.length });
+  const jr = (await db.query<any>('select user_id, place from game_results where game_id=$1', [J])).rows, won = (u: string) => jr.find((x: any) => x.user_id === u)?.place === 1 ? 1 : 0;
+  const chloeB1 = (await boostersOf(U.chloe)).boosters, eveB1 = (await boostersOf(U.eve)).boosters;
+  ok('booster du jour : un seul par jour (2e partie de Chloé : seulement celui de victoire)', chloeB1 === chloeB0 + won(U.chloe), { chloeB0, chloeB1, gagne: won(U.chloe) });
+  ok('booster du jour : 1re partie du jour d’Ève → 1 offert (+1 si victoire)', eveB1 === eveB0 + 1 + won(U.eve), { eveB0, eveB1, gagne: won(U.eve) });
 }
 // Joker : jamais à plus de 6 joueurs (11 cartes chacun)
 {
